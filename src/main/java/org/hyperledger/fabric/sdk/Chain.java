@@ -17,6 +17,7 @@ package org.hyperledger.fabric.sdk;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
+import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 
@@ -317,7 +318,7 @@ public class Chain {
      */
     void sendTransaction(Transaction tx) {
         if (this.peers.size() == 0) {
-            throw new RuntimeException(String.format("chain %s has no peers", getName()));
+            throw new NoValidPeerException(String.format("chain %s has no peers", getName()));
         }
 
         for(Peer peer : peers) {
