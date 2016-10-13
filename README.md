@@ -49,3 +49,21 @@ Enroll a member:<br>
 <code>
   Member member = testChain.enroll("user", "secret");
 </code><br>
+
+## Project dependencies
+If you want to use the jar file in your project, following dependencies must be met
+
+######  GRPC: 
+*        grpc-netty 0.15.0
+*        grpc-protobuf 0.15.0
+*        grpc-stub 0.15.0    
+
+######    Google protobuff:
+*        protobuf-java 3.1.0        
+
+######    Bouncy Castle:
+*        bcprov-jdk15on 1.55	    
+
+######    Apache Commons:
+*        commons-logging 1.1.1
+*        commons-cli 1.3.1
