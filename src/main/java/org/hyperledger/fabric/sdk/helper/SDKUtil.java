@@ -84,11 +84,18 @@ public class SDKUtil {
 	 */
 	public static String generateDirectoryHash(String rootDir, String chaincodeDir, String hash) throws IOException {
 		// Generate the project directory
-		String projectDir = rootDir + "/" + chaincodeDir;
+		String projectDir = rootDir + File.separator + chaincodeDir;
 
 		// Read in the contents of the current directory
 		File dir = new File(projectDir);
+		if (!dir.exists() || !dir.isDirectory()) {
+			throw new IOException(String.format("The chaincode path \"%s\" is invalid", rootDir+File.separator+chaincodeDir));
+		}
+
 		File[] dirContents = dir.listFiles();
+		if (dirContents == null || dirContents.length == 0) {
+			throw new IOException(String.format("The chaincode directory \"%s\" has no files", rootDir+File.separator+chaincodeDir));
+		}
 
 		// Go through all entries in the projet directory
 		for (File file : dirContents) {
@@ -96,7 +103,7 @@ public class SDKUtil {
 			if (file.isDirectory()) {
 				// If the entry is a directory, call the function recursively.
 
-				hash = generateDirectoryHash(rootDir, chaincodeDir + "/" + file.getName(), hash);
+				hash = generateDirectoryHash(rootDir, chaincodeDir + File.separator + file.getName(), hash);
 			} else {
 				// If the entry is a file, read it in and add the contents to
 				// the hash string
