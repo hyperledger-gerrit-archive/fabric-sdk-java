@@ -29,11 +29,9 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.hyperledger.protos.Chaincode.ChaincodeID;
-import org.hyperledger.protos.Chaincode.ChaincodeMessage;
-import org.hyperledger.protos.Chaincode.ChaincodeMessage.Type;
-import org.hyperledger.protos.ChaincodeSupportGrpc;
-import org.hyperledger.protos.ChaincodeSupportGrpc.ChaincodeSupportStub;
+import org.hyperledger.protos.peer.Chaincode;
+import org.hyperledger.protos.peer.ChaincodeSupportGrpc;
+
 
 import javax.net.ssl.SSLException;
 import java.io.File;
@@ -126,15 +124,15 @@ public abstract class ChaincodeBase {
 
 	public void chatWithPeer(ManagedChannel connection) {
 		// Establish stream with validating peer
-		ChaincodeSupportStub stub = ChaincodeSupportGrpc.newStub(connection);
+		ChaincodeSupportGrpc.ChaincodeSupportStub stub = ChaincodeSupportGrpc.newStub(connection);
 
-		StreamObserver<ChaincodeMessage> requestObserver = null;
+		StreamObserver<Chaincode.ChaincodeMessage> requestObserver = null;
 		try {
 			requestObserver = stub.register(
-					new StreamObserver<ChaincodeMessage>() {
+					new StreamObserver<Chaincode.ChaincodeMessage>() {
 
 						@Override
-						public void onNext(ChaincodeMessage message) {
+						public void onNext(Chaincode.ChaincodeMessage message) {
 							try {
 								logger.debug(String.format("[%s]Received message %s from org.hyperledger.fabric.java.shim",
 										Handler.shortID(message.getTxid()), message.getType()));
@@ -167,27 +165,27 @@ public abstract class ChaincodeBase {
 		handler = new Handler(requestObserver, this);
 
 		// Send the ChaincodeID during register.
-		ChaincodeID chaincodeID = ChaincodeID.newBuilder()
+		Chaincode.ChaincodeID chaincodeID = Chaincode.ChaincodeID.newBuilder()
 				.setName(id)
 				.build();
 
-		ChaincodeMessage payload = ChaincodeMessage.newBuilder()
+		Chaincode.ChaincodeMessage payload = Chaincode.ChaincodeMessage.newBuilder()
 				.setPayload(chaincodeID.toByteString())
-				.setType(Type.REGISTER)
+				.setType(Chaincode.ChaincodeMessage.Type.REGISTER)
 				.build();
 
 		// Register on the stream
-		logger.debug(String.format("Registering as '%s' ... sending %s", id, Type.REGISTER));
+		logger.debug(String.format("Registering as '%s' ... sending %s", id, Chaincode.ChaincodeMessage.Type.REGISTER));
 		handler.serialSend(payload);
 
 		while (true) {
 			try {
 				NextStateInfo nsInfo = handler.nextState.take();
-				ChaincodeMessage message = nsInfo.message;
+				Chaincode.ChaincodeMessage message = nsInfo.message;
 				handler.handleMessage(message);
 				//keepalive messages are PONGs to the fabric's PINGs
-				if (nsInfo.sendToCC || message.getType() == Type.KEEPALIVE) {
-					if (message.getType() == Type.KEEPALIVE){
+				if (nsInfo.sendToCC || message.getType() == Chaincode.ChaincodeMessage.Type.KEEPALIVE) {
+					if (message.getType() == Chaincode.ChaincodeMessage.Type.KEEPALIVE){
 						logger.debug("Sending KEEPALIVE response");
 					}else {
 						logger.debug("[" + Handler.shortID(message.getTxid()) + "]Send state message " + message.getType());

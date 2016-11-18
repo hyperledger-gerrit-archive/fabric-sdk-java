@@ -1,5 +1,9 @@
-# Java SDK for Hyperledger Fabric
-Welcome to Java SDK for Hyperledger project. This is a summary of steps required to get you started with building and using the Java SDK. Please note that this is not the API documentation or a tutorial for the SDK, this will only help you familiarize to get started with the SDK if you are new in this domain.
+# Java SDK for Hyperledger Fabric 1.0
+Welcome to Java SDK for Hyperledger project. This is a summary of steps required to get you started with building and using the Java SDK.
+ Please note that this is not the API documentation or a tutorial for the SDK, this will only help you familiarize to get started with the SDK if you are new in this domain.
+ 
+ The 1.0 sdk is currently under development and the api is still subject to change. It is likely any code depending on this 1.0 version `preview` many need updating 
+ with subsequent updates of this sdk.
 
 ## Compiling
 To build this project, following dependencies must be met
@@ -16,7 +20,59 @@ or
 </code> if you don't want to run the unit tests
 
 ## Running the unit tests
-To run the unit tests, please use <code>mvn test</code> or <code>mvn install</code> which will run the unit tests and build the jar file. You must be running a local instance of membersrvcs and a peer to be able to run the unit tests. Please follow the instructions <a href="https://github.com/hyperledger/fabric/blob/master/docs/dev-setup/devenv.md">here</a> to setup the development environment.
+To run the unit tests, please use <code>mvn test</code> or <code>mvn install</code> which will run the unit tests and build the jar file.
+You must be running a local a peer and orderer to be able to run the unit tests.
+
+## Running the End to End tests
+To run the End-to-End tests, please use <code>mvn failsafe:integration-test -DskipITs=false</code> which will run the End2end tests. You must be running a local instance of membersrvcs and a peer to be able to run the End-to-End tests. 
+
+ The hyperledger project 1.0 is currently under active development and the very latest fabric peer and orderer service may not work this sdk.
+ If your goal is to just use the sdk you may want to consider having a compatible fabric services with the sdk by doing the following when setting up the fabric development environment:
+ ```
+ git clone https://github.com/hyperledger/fabric.git
+ cd fabric
+ git reset --hard  af5285a4b466de0453790915c4cdce05d4050c1e
+ ```
+ To make the ports available to the sdk from vagrant edit in the `devenv/Vagrantfile` file inserting the following statement below the existing `config.vm.network` statements::
+ * Open the file `Vagrantfile` and insert the following statement below the existing `config.vm.network` statements:
+ ```
+config.vm.network :forwarded_port, guest: 5151, host: 5151 # orderer service
+config.vm.network :forwarded_port, guest: 7056, host: 7056 # Openchain gRPC services
+config.vm.network :forwarded_port, guest: 7058, host: 7058 # GRPCCient gRPC services
+```
+In the following during the make to insure all images are built run `make images`
+Follow the instructions <a href="https://github.com/hyperledger/fabric/blob/master/docs/dev-setup/devenv.md">here</a> to setup the development environment.
+
+On your native system where you have the sdk installed you need to copy the docker compose file that starts the services to the directory mapped 
+ to vagrant On your native system from the sdk directory:
+cp ./test/fixture/src/docker-compose.yml &lt;directory where fabric was installed &gt;
+
+The fabric service creation may have created some files for testing that need to be removed. In the vagrant system:
+```
+rm -rf /var/hyperledger/*
+```
+Now start the needed fabric services in vagrant.  In the vagrant system:
+```
+cd /hyperledger
+docker-compose up
+```
+
+Once done setting up the fabric The end2end unit test will deploy GO code to the fabric that init's, modifies and queries the fabric's ledger.
+The sdk finds this code by setting the `GOPATH` environment variable. For this test set this to: 
+GOPATH=&lt;fullpath to your sdk directory&gt;/src/test/fixture
+
+With the Fabric services up and running you can run the End2end integration test. To do this with maven run this command:
+
+`mvn failsafe:integration-test -DskipITs=false`
+
+This runs the src/test/java/org/hyperledger/fabric/sdk/End2endIT.java code.
+It constructs the Hyperledger Chain, deploys the `GO` chain code and initializes the ledger with to variables A= "100", B= "200"
+It then invokes the chain code function `move` that transfers 100 from A to B on the ledger.
+Then queries the ledger to see if B is now 300.
+
+ 
+
+
 
 ## Using the SDK
 To use the SDK in your code, simply add the generated JAR file in your classpath. 

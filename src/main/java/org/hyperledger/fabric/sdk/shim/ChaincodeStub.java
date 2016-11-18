@@ -20,10 +20,11 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.hyperledger.protos.Chaincode;
-import org.hyperledger.protos.Chaincode.ChaincodeSecurityContext;
+
 import org.hyperledger.protos.TableProto;
 import org.hyperledger.fabric.sdk.shim.crypto.signature.EcdsaSignatureVerifier;
+import org.hyperledger.protos.peer.Chaincode;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,9 +36,9 @@ public class ChaincodeStub {
     private static Log logger = LogFactory.getLog(ChaincodeStub.class);
     private final String uuid;
     private final Handler handler;
-    private final ChaincodeSecurityContext securityContext;
+    private final Chaincode.ChaincodeSecurityContext securityContext;
 
-    public ChaincodeStub(String uuid, Handler handler, ChaincodeSecurityContext securityContext) {
+    public ChaincodeStub(String uuid, Handler handler, Chaincode.ChaincodeSecurityContext securityContext) {
         this.uuid = uuid;
         this.handler = handler;
         this.securityContext = securityContext;

@@ -10,6 +10,7 @@
 <properties>
     <grpc.version>0.15.0</grpc.version><!-- CURRENT_GRPC_VERSION -->
     <bouncycastle.version>1.55</bouncycastle.version>
+    <skipITs>true</skipITs>
   </properties>
   <dependencies>
     <dependency>
@@ -65,8 +66,41 @@
       <artifactId>commons-io</artifactId>
       <version>2.4</version>
     </dependency>
+
+  <!-- https://mvnrepository.com/artifact/log4j/log4j -->
+<!---
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <version>2.6.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>2.6.2</version>
+    </dependency>
+    -->
+  <dependency>
+    <groupId>log4j</groupId>
+    <artifactId>log4j</artifactId>
+    <version>1.2.17</version>
+   </dependency>
+
+
   </dependencies>
+
+
   <build>
+    <resources>
+      <resource>
+        <filtering>false</filtering>
+        <directory>src</directory>
+        <includes>
+          <include>**/*.properties</include>
+          <include>**/*.Docker</include>
+        </includes>
+      </resource>
+    </resources>
     <extensions>
       <extension>
         <groupId>kr.motd.maven</groupId>
@@ -75,6 +109,36 @@
       </extension>
     </extensions>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.19.1</version>
+        <configuration>
+        <includes>
+            <include>**/*Test.java</include>
+        </includes> 
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>2.13</version>
+        <configuration>
+          <includes>
+            <include>**/*IT.java</include>
+          </includes>
+          <skipITs>${skipITs}</skipITs>
+        </configuration>
+        <executions>
+          <execution>
+            <id>failsafe-integration-tests</id>
+            <phase>integration-test</phase>
+            <goals>
+                <goal>integration-test</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
@@ -88,7 +152,7 @@
           <protocArtifact>com.google.protobuf:protoc:3.0.0:exe:${os.detected.classifier}</protocArtifact>
           <pluginId>grpc-java</pluginId>
           <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-        </configuration>
+       </configuration>
         <executions>
           <execution>
             <goals>
@@ -107,6 +171,15 @@
           <target>1.8</target>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>2.10.4</version>
+        <configuration>
+          ...
+        </configuration>
+      </plugin>
+
     </plugins>
   </build>
 </project>

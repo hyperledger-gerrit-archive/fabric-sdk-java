@@ -13,33 +13,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 syntax = "proto3";
-
 package protos;
-option java_package = "org.hyperledger.protos";
+option java_package = "org.hyperledger.protos.peer";
+option go_package = "github.com/hyperledger/fabric/protos/peer";
 
-import "google/protobuf/empty.proto";
 
-// Interface exported by the server.
-service Admin {
-    // Return the serve status.
-    rpc GetStatus(google.protobuf.Empty) returns (ServerStatus) {}
-    rpc StartServer(google.protobuf.Empty) returns (ServerStatus) {}
-    rpc StopServer(google.protobuf.Empty) returns (ServerStatus) {}
-}
-
-message ServerStatus {
-
-    enum StatusCode {
-        UNDEFINED = 0;
-        STARTED = 1;
-        STOPPED = 2;
-        PAUSED = 3;
-        ERROR = 4;
-        UNKNOWN = 5;
-    }
-
-    StatusCode status = 1;
-
+//ChaincodeEvent is used for events and registrations that are specific to chaincode
+//string type - "chaincode"
+message ChaincodeEvent {
+      string chaincodeID = 1;
+      string txID = 2;
+      string eventName = 3;
+      bytes payload = 4;
 }

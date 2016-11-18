@@ -106,11 +106,11 @@ public class MemberServicesImpl implements MemberServices {
     }
 
     /**
-     * Register the member and return an enrollment secret.
+     * Register the user and return an enrollment secret.
      * @param req Registration request with the following fields: name, role
      * @param registrar The identity of the registrar (i.e. who is performing the registration)
      */
-    public String register(RegistrationRequest req, Member registrar) throws RegistrationException {
+    public String register(RegistrationRequest req, User registrar) throws RegistrationException {
     	if (StringUtil.isNullOrEmpty(req.getEnrollmentID())) {
     		throw new IllegalArgumentException("EntrollmentID cannot be null or empty");
     	}
@@ -157,7 +157,7 @@ public class MemberServicesImpl implements MemberServices {
     }
 
 	/**
-     * Enroll the member with member service
+     * Enroll the user with member service
      * @param req Enrollment request with the following fields: name, enrollmentSecret
      * @return enrollment
      */
