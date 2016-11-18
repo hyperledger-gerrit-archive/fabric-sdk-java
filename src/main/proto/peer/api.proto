@@ -17,10 +17,12 @@ limitations under the License.
 syntax = "proto3";
 
 package protos;
-option java_package = "org.hyperledger.protos";
 
-import "fabric.proto";
+import "peer/fabric.proto";
 import "google/protobuf/empty.proto";
+
+option go_package = "github.com/hyperledger/fabric/protos/peer";
+option java_package = "org.hyperledger.protos.peer";
 
 // Interface exported by the server.
 service Openchain {

@@ -49,10 +49,8 @@ public class CallbackKey {
 				return false;
 		} else if (!target.equals(other.target))
 			return false;
-		if (type != other.type)
-			return false;
-		return true;
-	}
+        return type == other.type;
+    }
 
 
 }

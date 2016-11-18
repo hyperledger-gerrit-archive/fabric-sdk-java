@@ -18,6 +18,6 @@ package org.hyperledger.fabric.sdk.shim.fsm;
 
 public interface Callback {
 
-	public void run(Event event);
+	void run(Event event);
 
 }

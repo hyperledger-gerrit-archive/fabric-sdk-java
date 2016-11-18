@@ -14,8 +14,10 @@
 
 package org.hyperledger.fabric.sdk;
 
-/**
- * Deploy request.
- */
-public class DeployRequest extends TransactionRequest {
+public class TransactionResponse extends ChainCodeResponse{
+
+
+    public TransactionResponse(String transactionID, String chainCodeID, int istatus, String message) {
+        super(transactionID, chainCodeID, istatus, message);
+    }
 }

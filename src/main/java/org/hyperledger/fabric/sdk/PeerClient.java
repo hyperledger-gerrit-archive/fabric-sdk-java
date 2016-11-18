@@ -21,10 +21,8 @@ import io.grpc.StatusRuntimeException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.PeerException;
-import org.hyperledger.protos.Fabric;
-import org.hyperledger.protos.Fabric.Response;
-import org.hyperledger.protos.PeerGrpc;
-import org.hyperledger.protos.PeerGrpc.PeerBlockingStub;
+import org.hyperledger.protos.peer.Fabric;
+import org.hyperledger.protos.peer.PeerGrpc;
 
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +33,7 @@ public class PeerClient {
 	private static final Log logger = LogFactory.getLog(PeerClient.class);
 
 	private final ManagedChannel channel;
-	private final PeerBlockingStub blockingStub;
+	private final PeerGrpc.PeerBlockingStub blockingStub;
 
 	/**
 	 * Construct client for accessing Peer server using the existing channel.
@@ -49,7 +47,7 @@ public class PeerClient {
 		channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
 	}
 
-	public Response processTransaction(Fabric.Transaction transaction) throws PeerException {
+	public Fabric.Response processTransaction(Fabric.Transaction transaction) throws PeerException {
 		try {
 			return blockingStub.processTransaction(transaction);
 		} catch (StatusRuntimeException e) {

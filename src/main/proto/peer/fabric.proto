@@ -14,11 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 syntax = "proto3";
-package protos;
-option java_package = "org.hyperledger.protos";
 
-import "chaincode.proto";
-import "chaincodeevent.proto";
+option go_package = "github.com/hyperledger/fabric/protos/peer";
+option java_package = "org.hyperledger.protos.peer";
+
+package protos;
+import "peer/chaincode.proto";
+import "peer/chaincodeevent.proto";
 import "google/protobuf/timestamp.proto";
 
 
