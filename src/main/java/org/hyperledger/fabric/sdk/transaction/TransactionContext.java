@@ -14,24 +14,17 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import java.nio.Buffer;
-import java.util.List;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.sdk.Chain;
-import org.hyperledger.fabric.sdk.ChainCodeResponse;
+import org.hyperledger.fabric.sdk.*;
 import org.hyperledger.fabric.sdk.ChainCodeResponse.Status;
-import org.hyperledger.fabric.sdk.DeployRequest;
-import org.hyperledger.fabric.sdk.InvokeRequest;
-import org.hyperledger.fabric.sdk.Member;
-import org.hyperledger.fabric.sdk.MemberServices;
-import org.hyperledger.fabric.sdk.QueryRequest;
-import org.hyperledger.fabric.sdk.TCert;
 import org.hyperledger.fabric.sdk.exception.ChainCodeException;
 import org.hyperledger.fabric.sdk.exception.DeploymentException;
 import org.hyperledger.protos.Fabric;
 import org.hyperledger.protos.Fabric.Response.StatusCode;
+
+import java.nio.Buffer;
+import java.util.List;
 
 /**
  * A transaction context emits events 'submitted', 'complete', and 'error'.
@@ -62,7 +55,7 @@ public class TransactionContext  {
 
     /**
      * Get the member with which this transaction context is associated.
-     * @returns The member
+     * @return The member
      */
     public Member getMember() {
         return this.member;
@@ -70,7 +63,7 @@ public class TransactionContext  {
 
     /**
      * Get the chain with which this transaction context is associated.
-     * @returns The chain
+     * @return The chain
      */
     public Chain getChain() {
         return this.chain;
@@ -78,7 +71,7 @@ public class TransactionContext  {
 
     /**
      * Get the member services, or undefined if security is not enabled.
-     * @returns The member services
+     * @return The member services
      */
     public MemberServices getMemberServices() {
         return this.memberServices;
@@ -86,6 +79,8 @@ public class TransactionContext  {
 
     /**
      * Emit a specific event provided an event listener is already registered.
+     * @param name The even name
+     * @param event Event Object
      */
     public void emitMyEvent(String name, Object event) {
     	/*
@@ -108,7 +103,7 @@ public class TransactionContext  {
      */
     public ChainCodeResponse deploy(DeployRequest deployRequest) throws DeploymentException {
         logger.debug(String.format("Received deploy request: %s", deployRequest));
-        
+
        /* this.tcert = getMyTCert();
         if (null == tcert) {
 //           logger.debug("Failed getting a new TCert [%s]", err);
@@ -131,9 +126,9 @@ public class TransactionContext  {
     /**
      * Issue an invoke on chaincode
      * @param invokeRequest {@link InvokeRequest} An invoke request
-     * @throws ChainCodeException 
+     * @throws ChainCodeException
      */
-    public ChainCodeResponse invoke(InvokeRequest invokeRequest) throws ChainCodeException {        
+    public ChainCodeResponse invoke(InvokeRequest invokeRequest) throws ChainCodeException {
         logger.debug(String.format("Received invoke request: %s", invokeRequest));
 
         // Get a TCert to use in the invoke transaction
@@ -171,11 +166,11 @@ public class TransactionContext  {
         if (response.getStatus() == StatusCode.FAILURE) {
         	throw new ChainCodeException(response.getMsg().toStringUtf8(), null);
         }
-        
+
         return new ChainCodeResponse(
         		transaction.getTransaction().getTxid(),
         		transaction.getChaincodeID(),
-        		Status.SUCCESS, 
+        		Status.SUCCESS,
         		response.getMsg().toStringUtf8());
     }
 
@@ -184,7 +179,7 @@ public class TransactionContext  {
      * @param queryRequest {@link QueryRequest}
      * @throws ChainCodeException
      */
-    public ChainCodeResponse query(QueryRequest queryRequest) throws ChainCodeException {      
+    public ChainCodeResponse query(QueryRequest queryRequest) throws ChainCodeException {
       logger.debug(String.format("Received query request: %s", queryRequest));
 
 
@@ -220,15 +215,15 @@ public class TransactionContext  {
 
       Transaction transaction = QueryTransactionBuilder.newBuilder().chain(chain).request(queryRequest).build();
       Fabric.Response response = execute(transaction);
-      
+
       if (response.getStatus() == StatusCode.FAILURE) {
       	throw new ChainCodeException(response.getMsg().toStringUtf8(), null);
       }
-      
+
       return new ChainCodeResponse(
       		transaction.getTransaction().getTxid(),
       		transaction.getChaincodeID(),
-      		Status.SUCCESS, 
+      		Status.SUCCESS,
       		response.getMsg().toStringUtf8());
     }
 
@@ -440,7 +435,7 @@ public class TransactionContext  {
         */
     }
 
-    private TCert getMyTCert() {        
+    private TCert getMyTCert() {
         if (!getChain().isSecurityEnabled() || this.tcert != null) {
             logger.debug("TCert already cached.");
             return this.tcert;

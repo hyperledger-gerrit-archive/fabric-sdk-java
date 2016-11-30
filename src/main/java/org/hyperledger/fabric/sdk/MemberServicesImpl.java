@@ -71,7 +71,7 @@ public class MemberServicesImpl implements MemberServices {
 
     /**
      * Get the security level
-     * @returns The security level
+     * @return The security level
      */
     public int getSecurityLevel() {
         return cryptoPrimitives.getSecurityLevel();
@@ -79,7 +79,7 @@ public class MemberServicesImpl implements MemberServices {
 
     /**
      * Set the security level
-     * @params securityLevel The security level
+     * @param securityLevel The security level
      */
     public void setSecurityLevel(int securityLevel) {
         this.cryptoPrimitives.setSecurityLevel(securityLevel);
@@ -87,7 +87,7 @@ public class MemberServicesImpl implements MemberServices {
 
     /**
      * Get the hash algorithm
-     * @returns {string} The hash algorithm
+     * @return {string} The hash algorithm
      */
     public String getHashAlgorithm() {
         return this.cryptoPrimitives.getHashAlgorithm();
@@ -95,8 +95,9 @@ public class MemberServicesImpl implements MemberServices {
 
     /**
      * Set the hash algorithm
-     * @params hashAlgorithm The hash algorithm ('SHA2' or 'SHA3')
+     * @param hashAlgorithm  The hash algorithm ('SHA2' or 'SHA3')
      */
+
     public void setHashAlgorithm(String hashAlgorithm) {
         this.cryptoPrimitives.setHashAlgorithm(hashAlgorithm);
     }

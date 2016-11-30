@@ -1,4 +1,4 @@
-/*
+														                                                                                                                                                                                                                                                                                                                                                                                                                    /*
 Copyright DTCC 2016 All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,9 +53,12 @@ public class Event {
 	}
 
 	/**
-	 * Can be called in before_<EVENT> or leave_<STATE> to cancel the
+	 * Can be called in before_&lt;EVENT&gt; or leave_&lt;STATE&gt; to cancel the
 	 * current transition before it happens. It takes an optional error,
 	 * which will overwrite the event's error if it had already been set.
+	 *
+	 * @param error Exception that caused the error
+	 * @return Exception that caused the error
 	 */
 	public Exception cancel(Exception error) {
 		cancelled = true;
@@ -66,11 +69,12 @@ public class Event {
 	}
 
 	/**
-	 * Can be called in leave_<STATE> to do an asynchronous state transition.
+	 * Can be called in leave_&lt;EVENT&gt; to do an asynchronous state transition.
 	 * The current state transition will be on hold in the old state until a final
 	 * call to Transition is made. This will complete the transition and possibly
 	 * call the other callbacks.
 	 */
+
 	public void async() {
 		async = true;
 	}

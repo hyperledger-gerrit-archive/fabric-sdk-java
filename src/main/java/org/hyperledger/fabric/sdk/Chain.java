@@ -18,11 +18,10 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
-import org.hyperledger.fabric.sdk.exception.PeerException;
+import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.transaction.Transaction;
 import org.hyperledger.protos.Fabric.Response;
-import org.hyperledger.fabric.sdk.exception.RegistrationException;
 
 import java.security.cert.CertificateException;
 import java.util.HashMap;
@@ -80,8 +79,9 @@ public class Chain {
 
     /**
      * Get the chain name
-     * @returns The name of the chain
+     * @return The name of the chain
      */
+
     public String getName() {
         return this.name;
     }
@@ -90,7 +90,7 @@ public class Chain {
      * Add a peer given an endpoint specification.
      * @param url URL of the peer
      * @param pem
-     * @returns a new peer.
+     * @return a new peer.
      */
     public Peer addPeer(String url, String pem) {
         Peer peer = new Peer(url, pem, this);
@@ -100,6 +100,7 @@ public class Chain {
 
     /**
      * Get the peers for this chain.
+     * @return A vector of all the peers in this chain
      */
     public Vector<Peer> getPeers() {
         return this.peers;
@@ -124,8 +125,8 @@ public class Chain {
     /**
      * Set the member services URL
      * @param url Member services URL of the form: "grpc://host:port" or "grpcs://host:port"
-     * @param pem
-     * @throws CertificateException
+     * @param pem The pem certificate file to be used for the Membership services
+     * @throws CertificateException Throws CertificateException
      */
     public void setMemberServicesUrl(String url, String pem) throws CertificateException {
         this.setMemberServices(new MemberServicesImpl(url,pem));
@@ -133,7 +134,7 @@ public class Chain {
 
     /**
      * Get the member service associated this chain.
-     * @returns MemberServices associated with the chain, or undefined if not set.
+     * @return MemberServices associated with the chain, or undefined if not set.
      */
     public MemberServices getMemberServices() {
         return this.memberServices;
@@ -220,7 +221,7 @@ public class Chain {
 
     /**
      * Get the key val store implementation (if any) that is currently associated with this chain.
-     * @returnsThe current KeyValStore associated with this chain, or undefined if not set.
+     * @return The current KeyValStore associated with this chain, or undefined if not set.
      */
     public KeyValStore getKeyValStore() {
         return this.keyValStore;

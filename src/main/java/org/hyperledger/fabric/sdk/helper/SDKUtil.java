@@ -116,9 +116,9 @@ public class SDKUtil {
 	}
 
 	/**
-	 * Compress the given directory <src> to <target> tar.gz file
-	 * @param src The source directory
-	 * @param target The target tar.gz file
+	 * Compress the given directory &lt;src&gt; to &lt;target&gt; tar.gz file
+	 * @param src   The source directory
+	 * @param target  The target tar.gz file
 	 * @throws IOException
 	 */
 	public static void generateTarGz(String src, String target) throws IOException {
