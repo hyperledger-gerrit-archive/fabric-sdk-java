@@ -14,7 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
@@ -35,10 +34,11 @@ public class TCertGetter {
     private boolean gettingTCerts = false;
 
     /**
-    * Constructor for a member.
-    * @param cfg {string | RegistrationRequest} The member name or registration request.
-    * @returns {Member} A member who is neither registered nor enrolled.
-    */
+     * Constructor for a member.
+     * @param member The member for tcert
+     * @param attrs List of attributes
+     * @param key Key
+     */
     public TCertGetter(Member member, List<String> attrs, String key) {
         this.member = member;
         this.attrs = attrs;
@@ -50,7 +50,7 @@ public class TCertGetter {
 
     /**
     * Get the chain.
-    * @returns {Chain} The chain.
+    * @return {Chain} The chain.
     */
     public Chain getChain() {
         return this.chain;
@@ -62,7 +62,7 @@ public class TCertGetter {
 
     /**
     * Get the next available transaction certificate.
-    * @param cb
+    * @return Get the next available transaction certificate.
     */
     public TCert getNextTCert() {
 
