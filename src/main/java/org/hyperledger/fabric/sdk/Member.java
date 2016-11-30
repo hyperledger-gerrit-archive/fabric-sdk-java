@@ -14,30 +14,18 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.bouncycastle.util.encoders.Hex;
-import org.hyperledger.fabric.sdk.exception.DeploymentException;
-import org.hyperledger.fabric.sdk.exception.EnrollmentException;
-import org.hyperledger.fabric.sdk.exception.ChainCodeException;
-import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
-import org.hyperledger.fabric.sdk.exception.RegistrationException;
+import org.hyperledger.fabric.sdk.exception.*;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
-import org.hyperledger.protos.Fabric;
 
-import io.netty.util.internal.StringUtil;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Member implements Serializable {
 	private static final long serialVersionUID = 8077132186383604355L;
@@ -60,7 +48,7 @@ public class Member implements Serializable {
     /**
      * Constructor for a member.
      * @param name The member name
-     * @returns {Member} A member who is neither registered nor enrolled.
+     * @param chain The chain to use
      */
 
     public Member(String name, Chain chain) {
@@ -79,7 +67,7 @@ public class Member implements Serializable {
 
     /**
      * Get the member name.
-     * @returns {string} The member name.
+     * @return The member name.
      */
     public String getName() {
         return this.name;
@@ -87,7 +75,7 @@ public class Member implements Serializable {
 
     /**
      * Get the chain.
-     * @returns {Chain} The chain.
+     * @return {Chain} The chain.
      */
     public Chain getChain() {
         return this.chain;
@@ -95,7 +83,7 @@ public class Member implements Serializable {
 
     /**
      * Get the member services.
-     * @returns {MemberServices} The member services.
+     * @return {MemberServices} The member services.
      */
 
     public MemberServices getMemberServices() {
@@ -104,7 +92,7 @@ public class Member implements Serializable {
 
     /**
      * Get the roles.
-     * @returns {string[]} The roles.
+     * @return {string[]} The roles.
      */
     public ArrayList<String> getRoles() {
         return this.roles;
@@ -120,7 +108,7 @@ public class Member implements Serializable {
 
     /**
      * Get the account.
-     * @returns {string} The account.
+     * @return {string} The account.
      */
     public String getAccount() {
         return this.account;
@@ -136,7 +124,7 @@ public class Member implements Serializable {
 
     /**
      * Get the affiliation.
-     * @returns {string} The affiliation.
+     * @return {string} The affiliation.
      */
     public String getAffiliation() {
         return this.affiliation;
@@ -153,7 +141,7 @@ public class Member implements Serializable {
     /**
      * Get the transaction certificate (tcert) batch size, which is the number of tcerts retrieved
      * from member services each time (i.e. in a single batch).
-     * @returns The tcert batch size.
+     * @return The tcert batch size.
      */
     public int getTCertBatchSize() {
         if (this.tcertBatchSize <= 0) {
@@ -173,7 +161,7 @@ public class Member implements Serializable {
 
     /**
      * Get the enrollment logger.info.
-     * @returns {Enrollment} The enrollment.
+     * @return {Enrollment} The enrollment.
      */
     public Enrollment getEnrollment() {
         return this.enrollment;
@@ -181,7 +169,7 @@ public class Member implements Serializable {
 
     /**
      * Determine if this name has been registered.
-     * @returns {boolean} True if registered; otherwise, false.
+     * @return {boolean} True if registered; otherwise, false.
      */
     public boolean isRegistered() {
         return this.isEnrolled() || !StringUtil.isNullOrEmpty(enrollmentSecret);
@@ -189,7 +177,7 @@ public class Member implements Serializable {
 
     /**
      * Determine if this name has been enrolled.
-     * @returns {boolean} True if enrolled; otherwise, false.
+     * @return {boolean} True if enrolled; otherwise, false.
      */
     public boolean isEnrolled() {
         return this.enrollment != null;
@@ -289,7 +277,7 @@ public class Member implements Serializable {
      * Create a transaction context with which to issue build, deploy, invoke, or query transactions.
      * Only call this if you want to use the same tcert for multiple transactions.
      * @param tcert A transaction certificate from member services.  This is optional.
-     * @returns A transaction context.
+     * @return A transaction context.
      */
     public TransactionContext newTransactionContext(TCert tcert) {
         return new TransactionContext(this, tcert);
@@ -325,7 +313,7 @@ public class Member implements Serializable {
         return tcertGetter.getNextTCert();
 
    }
-   
+
    private String getAttrsKey(List<String> attrs ) {
 	    if (attrs == null || attrs.isEmpty()) return null;
 	    return String.join(",", attrs);
@@ -391,5 +379,5 @@ public class Member implements Serializable {
 
     private String toKeyValStoreName(String name) {
         return "member." + name;
-    }    
+    }
 }
