@@ -22,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.protos.Chaincode;
 import org.hyperledger.protos.Chaincode.ChaincodeSecurityContext;
+import org.hyperledger.protos.Chaincodeevent;
 import org.hyperledger.protos.TableProto;
 import org.hyperledger.fabric.sdk.shim.crypto.signature.EcdsaSignatureVerifier;
 import java.util.ArrayList;
@@ -37,10 +38,17 @@ public class ChaincodeStub {
     private final Handler handler;
     private final ChaincodeSecurityContext securityContext;
 
+    public Chaincodeevent.ChaincodeEvent getChaincodeEvent() {
+        return chaincodeEvent;
+    }
+
+    private Chaincodeevent.ChaincodeEvent chaincodeEvent;
+
     public ChaincodeStub(String uuid, Handler handler, ChaincodeSecurityContext securityContext) {
         this.uuid = uuid;
         this.handler = handler;
         this.securityContext = securityContext;
+        this.chaincodeEvent = Chaincodeevent.ChaincodeEvent.newBuilder().build();
     }
 
     /**
@@ -478,5 +486,13 @@ logger.info("Inside get tbale");
 
     public boolean verifySignature(byte[] cert, byte[] signature, byte[] payload){
         return new EcdsaSignatureVerifier().verify(cert, signature, payload);
+    }
+
+    public void setEvent(String eventName, byte[] payload){
+        this.chaincodeEvent = Chaincodeevent.ChaincodeEvent
+                .newBuilder()
+                .setEventName(eventName)
+                .setPayload(ByteString.copyFrom(payload))
+                .build();
     }
 }

@@ -222,6 +222,7 @@ public class Handler {
 							.setType(ERROR)
 							.setPayload(ByteString.copyFromUtf8(e.getMessage()))
 							.setTxid(message.getTxid())
+							.setChaincodeEvent(stub.getChaincodeEvent())
 							.build();
 					return;
 				} finally {
@@ -234,6 +235,7 @@ public class Handler {
 						.setType(COMPLETED)
 						.setPayload(result)
 						.setTxid(message.getTxid())
+						.setChaincodeEvent(stub.getChaincodeEvent())
 						.build();
 
 				logger.debug(String.format(String.format("[%s]Init succeeded. Sending %s",
@@ -327,6 +329,7 @@ public class Handler {
 							.setType(ERROR)
 							.setPayload(message.getPayload())
 							.setTxid(message.getTxid())
+							.setChaincodeEvent(stub.getChaincodeEvent())
 							.build();
 					return;
 				} finally {
@@ -389,6 +392,7 @@ public class Handler {
 							.setType(QUERY_ERROR)
 							.setPayload(ByteString.copyFromUtf8(e.getMessage()))
 							.setTxid(message.getTxid())
+							.setChaincodeEvent(stub.getChaincodeEvent())
 							.build();
 					return;
 				} finally {
@@ -401,6 +405,7 @@ public class Handler {
 						.setType(QUERY_COMPLETED)
 						.setPayload(response)
 						.setTxid(message.getTxid())
+						.setChaincodeEvent(stub.getChaincodeEvent())
 						.build();
 			} finally {
 				serialSend(serialSendMessage);
