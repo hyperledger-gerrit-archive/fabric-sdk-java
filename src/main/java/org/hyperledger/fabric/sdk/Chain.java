@@ -18,11 +18,10 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
-import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
-import org.hyperledger.fabric.sdk.transaction.Transaction;
-import org.hyperledger.protos.Fabric.Response;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
+import org.hyperledger.protos.Fabric;
+import org.hyperledger.protos.Fabric.Response;
 
 import java.security.cert.CertificateException;
 import java.util.HashMap;
@@ -247,6 +246,10 @@ public class Chain {
         this.tcertBatchSize = batchSize;
     }
 
+    public CryptoPrimitives getCryptoPrimitives() {
+        return this.cryptoPrimitives;
+    }
+
     /**
      * Get the member with a given name
      * @return member
@@ -319,17 +322,17 @@ public class Chain {
      * Send a transaction to a peer.
      * @param tx The transaction
      */
-    public Response sendTransaction(Transaction tx) {
+    public Response sendTransaction(Fabric.Transaction tx) {
         if (this.peers.isEmpty()) {
             throw new NoValidPeerException(String.format("chain %s has no peers", getName()));
         }
 
         for(Peer peer : peers) {
-        	try {
-        		return peer.sendTransaction(tx);
-        	} catch(Exception exp) {
-        		logger.info(String.format("Failed sending transaction to peer:%s", exp.getMessage()));
-        	}
+            try {
+                return peer.sendTransaction(tx);
+            } catch (Exception exp) {
+                logger.info(String.format("Failed sending transaction to peer:%s", exp.getMessage()));
+            }
         }
 
         throw new RuntimeException("No peer available to respond");

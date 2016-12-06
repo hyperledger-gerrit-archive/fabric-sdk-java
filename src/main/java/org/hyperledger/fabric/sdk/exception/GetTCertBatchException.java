@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 DTCC, Fujitsu Australia Software Technology - All Rights Reserved.
+ *  Copyright 2016 Wanda Group - All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,10 +14,11 @@
 
 package org.hyperledger.fabric.sdk.exception;
 
-public class DeploymentException extends CreateTransactionFailedException {
+public class GetTCertBatchException extends BaseException {
+    private static final long serialVersionUID = 1L;
 
-	private static final long serialVersionUID = 1L;
-	public DeploymentException(String message, Exception parent) {
-		super(message, parent);		
-	}
+    public GetTCertBatchException(String message, Exception parent) {
+        super(message, parent);
+    }
+
 }
