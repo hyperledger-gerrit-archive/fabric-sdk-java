@@ -3,7 +3,11 @@
  */
 package org.hyperledger.fabric.sdk.transaction;
 
+import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.hyperledger.fabric.sdk.exception.InvokeException;
 import org.hyperledger.protos.Fabric;
+
+import java.io.IOException;
 
 public class InvocationTransactionBuilder extends QueryTransactionBuilder {
 
@@ -14,8 +18,12 @@ public class InvocationTransactionBuilder extends QueryTransactionBuilder {
 		return new InvocationTransactionBuilder();
 	}
 
-	@Override
-	public Transaction build() {
-		return build(Fabric.Transaction.Type.CHAINCODE_INVOKE);
-	}	
+    @Override
+    public Transaction build() throws InvokeException {
+        try {
+            return build(Fabric.Transaction.Type.CHAINCODE_INVOKE);
+        } catch (CryptoException | IOException e) {
+            throw new InvokeException("Error while creating invoke transaction", e);
+        }
+    }
 }
