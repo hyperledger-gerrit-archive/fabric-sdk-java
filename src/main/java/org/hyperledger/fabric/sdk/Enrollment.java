@@ -22,6 +22,7 @@ public class Enrollment implements Serializable {
 	private String key;
     private String cert;
     private String chainKey;
+	private String queryStateKey;
 
 	public String getKey() {
 		return key;
@@ -40,5 +41,11 @@ public class Enrollment implements Serializable {
 	}
 	public void setChainKey(String chainKey) {
 		this.chainKey = chainKey;
+	}
+	public String getQueryStateKey() {
+		return queryStateKey;
+	}
+	public void setQueryStateKey(String queryStateKey) {
+		this.queryStateKey = queryStateKey;
 	}
 }

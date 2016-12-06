@@ -14,13 +14,20 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.util.ArrayList;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.sdk.exception.GetTCertBatchException;
+import org.hyperledger.fabric.sdk.stats.Rate;
+import org.hyperledger.fabric.sdk.stats.ResponseTime;
+
 import java.util.List;
 import java.util.Stack;
 
 // A class to get TCerts.
 // There is one class per set of attributes requested by each member.
 public class TCertGetter {
+
+    private static final Log logger = LogFactory.getLog(TCertGetter.class);
 
     private Chain chain;
     private Member member;
@@ -29,8 +36,8 @@ public class TCertGetter {
     private MemberServices memberServices;
     private Stack<TCert> tcerts;
 //TODO implement stats
-//    private stats.Rate arrivalRate = new stats.Rate();
-//    private stats.ResponseTime getTCertResponseTime = new stats.ResponseTime();
+    private Rate arrivalRate = new Rate();
+    private ResponseTime getTCertResponseTime = new ResponseTime();
 //    private getTCertWaiters:GetTCertCallback[] = [];
     private boolean gettingTCerts = false;
 
@@ -62,44 +69,37 @@ public class TCertGetter {
 
     /**
     * Get the next available transaction certificate.
-    * @param cb
     */
     public TCert getNextTCert() {
 
-//TODO    	self.arrivalRate.tick();
-        return tcerts.size() > 0 ? tcerts.pop() : null;
+    	arrivalRate.tick();
 
-        //TODO implement the commented logic
-            /*
+        if (tcerts.size() == 0 && shouldGetTCerts()) {
+            getTCerts();
+        }
+
+        if (tcerts.size() > 0) {
+            return tcerts.pop();
         } else {
-            self.getTCertWaiters.push(cb);
+            return null;
         }
-        if (self.shouldGetTCerts()) {
-            self.getTCerts();
-        }
-        */
     }
 
     // Determine if we should issue a request to get more tcerts now.
     private boolean shouldGetTCerts() {
-    	return false;        //TODO implement shouldGetTCerts
-
-
-    	/*
-    	let self = this;
         // Do nothing if we are already getting more tcerts
-        if (self.gettingTCerts) {
-            debug("shouldGetTCerts: no, already getting tcerts");
+        if (gettingTCerts) {
+            logger.debug("shouldGetTCerts: no, already getting tcerts");
             return false;
         }
         // If there are none, then definitely get more
-        if (self.tcerts.length == 0) {
-            debug("shouldGetTCerts: yes, we have no tcerts");
+        if (tcerts.size() == 0) {
+            logger.debug("shouldGetTCerts: yes, we have no tcerts");
             return true;
         }
         // If we aren't in prefetch mode, return false;
-        if (!self.chain.isPreFetchMode()) {
-            debug("shouldGetTCerts: no, prefetch disabled");
+        if (!this.chain.isPreFetchMode()) {
+            logger.debug("shouldGetTCerts: no, prefetch disabled");
             return false;
         }
         // Otherwise, see if we should prefetch based on the arrival rate
@@ -110,51 +110,30 @@ public class TCertGetter {
         // request the next batch of tcerts so we don't have to wait on the
         // transaction path.  Note that we add 1 sec to the average response
         // time to add a little buffer time so we don't have to wait.
-        let arrivalRate = self.arrivalRate.getValue();
-        let responseTime = self.getTCertResponseTime.getValue() + 1000;
-        let tcertThreshold = arrivalRate * responseTime;
-        let tcertCount = self.tcerts.length;
-        let result = tcertCount <= tcertThreshold;
-        debug(util.format("shouldGetTCerts: %s, threshold=%s, count=%s, rate=%s, responseTime=%s",
-        result, tcertThreshold, tcertCount, arrivalRate, responseTime));
+        double arrivalRate = this.arrivalRate.getValue();
+        double responseTime = this.getTCertResponseTime.getValue() + 1000;
+        int tcertThreshold = (int) (arrivalRate * responseTime);
+        int tcertCount = this.tcerts.size();
+        boolean result = tcertCount <= tcertThreshold;
+        logger.debug(String.format("shouldGetTCerts: %d, threshold=%d, count=%d, rate=%d, responseTime=%d",
+                result, tcertThreshold, tcertCount, arrivalRate, responseTime));
         return result;
-
-        */
     }
 
     // Call member services to get more tcerts
     private void getTCerts() {
-    	//TODO implement getTCerts
-    	/*
-    	let self = this;
-        let req = {
-            name: self.member.getName(),
-            enrollment: self.member.getEnrollment(),
-            num: self.member.getTCertBatchSize(),
-            attrs: self.attrs
-        };
-        self.getTCertResponseTime.start();
-        self.memberServices.getTCertBatch(req, function (err, tcerts) {
-            if (err) {
-                self.getTCertResponseTime.cancel();
-                // Error all waiters
-                while (self.getTCertWaiters.length > 0) {
-                    self.getTCertWaiters.shift()(err);
-                }
-                return;
-            }
-            self.getTCertResponseTime.stop();
+        GetTCertBatchRequest req = new GetTCertBatchRequest(this.member.getName(), this.member.getEnrollment(),
+                this.member.getTCertBatchSize(), attrs);
+        getTCertResponseTime.start();
+        try {
+            List<TCert> tcerts = this.memberServices.getTCertBatch(req);
+            getTCertResponseTime.stop();
             // Add to member's tcert list
-            while (tcerts.length > 0) {
-                self.tcerts.push(tcerts.shift());
+            for (TCert tcert : tcerts) {
+                this.tcerts.push(tcert);
             }
-            // Allow waiters to proceed
-            while (self.getTCertWaiters.length > 0 && self.tcerts.length > 0) {
-                let waiter = self.getTCertWaiters.shift();
-                waiter(null,self.tcerts.shift());
-            }
-        });
-        */
+        } catch (GetTCertBatchException e) {
+            getTCertResponseTime.cancel();
+        }
     }
-
 } // end TCertGetter

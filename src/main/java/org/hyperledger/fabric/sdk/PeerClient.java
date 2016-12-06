@@ -21,10 +21,10 @@ import io.grpc.StatusRuntimeException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.PeerException;
-import org.hyperledger.protos.Fabric;
-import org.hyperledger.protos.Fabric.Response;
-import org.hyperledger.protos.PeerGrpc;
-import org.hyperledger.protos.PeerGrpc.PeerBlockingStub;
+import protos.Fabric;
+import protos.Fabric.Response;
+import protos.PeerGrpc;
+import protos.PeerGrpc.PeerBlockingStub;
 
 import java.util.concurrent.TimeUnit;
 

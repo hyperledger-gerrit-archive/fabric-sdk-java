@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 DTCC, Fujitsu Australia Software Technology - All Rights Reserved.
+ *  Copyright 2016 Wanda Group - All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -12,12 +12,10 @@
  *  limitations under the License.
  */
 
-package org.hyperledger.fabric.sdk.exception;
+package org.hyperledger.fabric.sdk.events;
 
-public class QueryException extends RuntimeException {
+import protos.Fabric;
 
-	private static final long serialVersionUID = 1L;
-	public QueryException(String message, Exception parent) {
-		super(message, parent);		
-	}
+public interface BlockListener {
+    void process(Fabric.Block block);
 }

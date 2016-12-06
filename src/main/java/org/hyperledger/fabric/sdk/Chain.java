@@ -16,13 +16,12 @@ package org.hyperledger.fabric.sdk;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.sdk.events.EventHub;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
-import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
-import org.hyperledger.fabric.sdk.transaction.Transaction;
-import org.hyperledger.protos.Fabric.Response;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
+import protos.Fabric;
 
 import java.security.cert.CertificateException;
 import java.util.HashMap;
@@ -74,8 +73,11 @@ public class Chain {
     // The crypto primitives object
     CryptoPrimitives cryptoPrimitives;
 
+    private EventHub eventHub;
+
     public Chain(String name) {
         this.name = name;
+        eventHub = new EventHub();
     }
 
     /**
@@ -247,6 +249,29 @@ public class Chain {
         this.tcertBatchSize = batchSize;
     }
 
+    public CryptoPrimitives getCryptoPrimitives() {
+        return this.cryptoPrimitives;
+    }
+
+    public EventHub getEventHub() {
+        return this.eventHub;
+    }
+
+    /**
+     * Set and connect to the peer to be used as the event source.
+     */
+    public void eventHubConnect(String peerUrl, String pem) {
+        this.eventHub.setPeerAddr(peerUrl, pem);
+        this.eventHub.connect();
+    };
+
+    /**
+     * Disconnect from the event source.
+     */
+    public void eventHubDisconnect() {
+        this.eventHub.disconnect();
+    };
+
     /**
      * Get the member with a given name
      * @return member
@@ -319,7 +344,7 @@ public class Chain {
      * Send a transaction to a peer.
      * @param tx The transaction
      */
-    public Response sendTransaction(Transaction tx) {
+    public String sendTransaction(Fabric.Transaction tx) {
         if (this.peers.isEmpty()) {
             throw new NoValidPeerException(String.format("chain %s has no peers", getName()));
         }
@@ -327,7 +352,9 @@ public class Chain {
         for(Peer peer : peers) {
         	try {
         		return peer.sendTransaction(tx);
-        	} catch(Exception exp) {
+            } catch (RuntimeException re) {
+                throw re;
+            } catch (Exception exp) {
         		logger.info(String.format("Failed sending transaction to peer:%s", exp.getMessage()));
         	}
         }
