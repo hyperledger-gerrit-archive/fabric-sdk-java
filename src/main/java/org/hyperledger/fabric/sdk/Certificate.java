@@ -17,14 +17,23 @@ package org.hyperledger.fabric.sdk;
 // The base Certificate class
 public class Certificate {
 	private Object cert;
+    private Object privateKey;
+    private PrivacyLevel privLevel;
 
 	public Certificate(Object cert,
                 Object privateKey,
                 /** Denoting if the Certificate is anonymous or carrying its owner's identity. */
-                PrivacyLevel privLevel) {  // TODO: privLevel not currently used?
+                PrivacyLevel privLevel) {
+        this.cert = cert;
+        this.privateKey = privateKey;
+        this.privLevel = privLevel;
     }
 
     public Object encode() {
         return this.cert;
+    }
+
+    public Object getPrivateKey() {
+        return this.privateKey;
     }
 }

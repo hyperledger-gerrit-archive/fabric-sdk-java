@@ -14,32 +14,39 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
+import java.math.BigInteger;
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.hyperledger.fabric.sdk.Chain;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.TransactionRequest;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.hyperledger.protos.Chaincode;
 import org.hyperledger.protos.Chaincode.ChaincodeDeploymentSpec;
 import org.hyperledger.protos.Chaincode.ChaincodeSpec;
 import org.hyperledger.protos.Chaincode.ConfidentialityLevel;
-import org.hyperledger.protos.Fabric;
+import protos.Fabric;
 
 import com.google.protobuf.ByteString;
 
 public abstract class TransactionBuilder {
+	private static final Log logger = LogFactory.getLog(TransactionBuilder.class);
 	
 	protected TransactionRequest request = null;
-	protected Chain chain = null;
-	
+	protected TransactionContext context = null;
+
 	public TransactionBuilder request(TransactionRequest request) {
 		this.request = request;
 		return this;
 	}
 	
-	public TransactionBuilder chain(Chain chain) {
-		this.chain = chain;
+	public TransactionBuilder context(TransactionContext context) {
+		this.context = context;
 		return this;
 	}
 	
@@ -63,7 +70,7 @@ public abstract class TransactionBuilder {
 			List<String> args,
 			byte[] codePackage,
 			String txId,
-			String chaincodePath) {
+			String chaincodePath) throws CryptoException {
 		// build chaincodeId
 		Chaincode.ChaincodeID.Builder chaincodeIDBuilder = Chaincode.ChaincodeID.newBuilder().setName(name);
 		if (chaincodePath != null) {
@@ -123,25 +130,23 @@ public abstract class TransactionBuilder {
 			txBuilder.setMetadata(ByteString.copyFrom(request.getMetadata()));
 		}
 		
-		 /*if (request.userCert) {
-			 // cert based
-			 let certRaw = new Buffer(self.tcert.publicKey);
-			 // logger.debug('========== Invoker Cert [%s]',certRaw.toString("hex"));
-			 let nonceRaw = new Buffer(self.nonce);
-			 let bindingMsg = Buffer.concat([certRaw, nonceRaw]);
-			 // logger.debug('========== Binding Msg [%s]', bindingMsg.toString("hex"));
-			 self.binding = new Buffer(self.chain.cryptoPrimitives.hash(bindingMsg), "hex");
-			 // logger.debug('========== Binding [%s]', self.binding.toString("hex"));
-			 let ctor = chaincodeSpec.getCtorMsg().toBuffer();
-			 // logger.debug('========== Ctor [%s]', ctor.toString("hex"));
-			 let txmsg = Buffer.concat([ctor, self.binding]);
-			 // logger.debug('========== Payload||binding [%s]',
-			 txmsg.toString("hex"));
-			 let mdsig = self.chain.cryptoPrimitives.ecdsaSign(request.userCert.privateKey.getPrivate("hex"), txmsg);
-			 let sigma = new Buffer(mdsig.toDER());
-			 // logger.debug('========== Sigma [%s]', sigma.toString("hex"));
-			 return sigma
-		}*/
+		if (request.getUserCert() != null) {
+			byte[] certRaw = (byte[]) context.getTCert().encode();
+			logger.debug("========== Invoker Cert: " + Hex.toHexString(certRaw));
+			byte[] nonceRaw = context.getNonce();
+			byte[] bindingMsg = Arrays.concatenate(certRaw, nonceRaw);
+			logger.debug("========== Binding Msg [%s]" + Hex.toHexString(bindingMsg));
+			byte[] binding = context.getChain().getCryptoPrimitives().hash(bindingMsg);
+			logger.debug("========== Binding: " + Hex.toHexString(binding));
+			byte[] ctor = chaincodeSpec.getCtorMsg().toByteArray();
+			logger.debug("========== Ctor: " + Hex.toHexString(ctor));
+			byte[] txmsg = Arrays.concatenate(ctor, binding);
+			logger.debug("========== Payload||binding: " + Hex.toHexString(txmsg));
+			BigInteger[] mdsig = context.getChain().getCryptoPrimitives().ecdsaSign((PrivateKey) request.getUserCert().getPrivateKey(), txmsg);
+			byte[] sigma = context.getChain().getCryptoPrimitives().toDER(new byte[][]{mdsig[0].toByteArray(), mdsig[1].toByteArray()});
+			logger.debug("========== Sigma: " + Hex.toHexString(sigma));
+			txBuilder.setMetadata(ByteString.copyFrom(sigma));
+		}
 		
 		return txBuilder;
 	}

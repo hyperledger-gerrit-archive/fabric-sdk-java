@@ -6,7 +6,6 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.hyperledger.fabric.sdk.exception.ChainCodeException;
-import org.hyperledger.fabric.sdk.exception.DeploymentException;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.junit.BeforeClass;
@@ -31,26 +30,28 @@ public class PeerClientTest {
 				registrar = testChain.enroll("admin", "Xurw3yU9zI0l");
 			}
 			testChain.setRegistrar(registrar);
+			testChain.eventHubConnect("grpc://localhost:7053", null);
 			deployResponse = deploy();
 			javaDeployResponse = deployJava();
 			TimeUnit.SECONDS.sleep(10);// deployment takes time, so wait for it to complete before making a query or invoke call
-		} catch(CertificateException | RegistrationException | EnrollmentException | InterruptedException cex) {
+		} catch(CertificateException | RegistrationException | EnrollmentException | ChainCodeException | InterruptedException cex) {
 			cex.printStackTrace();// TODO: Handle the exception properly
 		}
 	}
 
 
-	public static ChainCodeResponse deploy() throws RegistrationException, EnrollmentException, DeploymentException {
+	public static ChainCodeResponse deploy() throws RegistrationException, EnrollmentException, ChainCodeException {
 		DeployRequest request = new DeployRequest();
 		request.setChaincodePath("github.com/hyperledger/fabric/examples/chaincode/go/chaincode_example02");
 		request.setArgs(new ArrayList<>(Arrays.asList("init", "a", "700", "b", "20000")));
 		Member member = getMember("User1", "bank_a");
 		request.setChaincodeName("mycc");
 		request.setChaincodeLanguage(ChaincodeLanguage.GO_LANG);
+		request.setConfidential(true);
 		return member.deploy(request);
 	}
 
-	public static ChainCodeResponse deployJava() throws RegistrationException, EnrollmentException {
+	public static ChainCodeResponse deployJava() throws RegistrationException, EnrollmentException, ChainCodeException {
 		DeployRequest request = new DeployRequest();
 		request.setChaincodePath(System.getenv("GOPATH")+"/src/github.com/hyperledger/fabric/examples/chaincode/java/Example");
 		request.setArgs(new ArrayList<>(Arrays.asList("init", "a", "700", "b", "20000")));
