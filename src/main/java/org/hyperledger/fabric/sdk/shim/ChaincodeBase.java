@@ -56,14 +56,19 @@ public abstract class ChaincodeBase {
 	private boolean tlsEnabled=false;
 
 	private Handler handler;
-	private String id = getChaincodeID();
+
+	public String getInternalChaincodeID() {
+		return internalChaincodeID;
+	}
+
+	private String internalChaincodeID;
 
 	// Start entry point for chaincodes bootstrap.
 	public void start(String[] args) {
 		Options options = new Options();
 		options.addOption("a", "peerAddress", true, "Address of peer to connect to");
 		options.addOption("s", "securityEnabled", false, "Present if security is enabled");
-		options.addOption("i", "id", true, "Identity of chaincode");
+		options.addOption("i", "internalChaincodeID", true, "Identity of chaincode");
 		options.addOption("o", "hostNameOverride", true, "Hostname override for server certificate");
 		try {
 			CommandLine cl = new DefaultParser().parse(options, args);
@@ -81,7 +86,10 @@ public abstract class ChaincodeBase {
 				}
 			}
 			if (cl.hasOption('i')) {
-				id = cl.getOptionValue('i');
+				internalChaincodeID = cl.getOptionValue('i');
+			} else{
+				//Get DEV mode chaincode ID
+				internalChaincodeID = getChaincodeID();
 			}
 		} catch (ParseException e) {
 			logger.warn("cli parsing failed with exception",e);
@@ -168,7 +176,7 @@ public abstract class ChaincodeBase {
 
 		// Send the ChaincodeID during register.
 		ChaincodeID chaincodeID = ChaincodeID.newBuilder()
-				.setName(id)
+				.setName(this.getInternalChaincodeID())
 				.build();
 
 		ChaincodeMessage payload = ChaincodeMessage.newBuilder()
@@ -177,7 +185,7 @@ public abstract class ChaincodeBase {
 				.build();
 
 		// Register on the stream
-		logger.debug(String.format("Registering as '%s' ... sending %s", id, Type.REGISTER));
+		logger.debug(String.format("Registering as '%s' ... sending %s", this.getInternalChaincodeID(), Type.REGISTER));
 		handler.serialSend(payload);
 
 		while (true) {
