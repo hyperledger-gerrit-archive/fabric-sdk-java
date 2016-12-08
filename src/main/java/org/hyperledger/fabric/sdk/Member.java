@@ -35,7 +35,7 @@ import org.hyperledger.fabric.sdk.exception.ChainCodeException;
 import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
-import org.hyperledger.protos.Fabric;
+import org.hyperledger.protos.peer.Fabric;
 
 import io.netty.util.internal.StringUtil;
 

@@ -21,10 +21,10 @@ import io.grpc.StatusRuntimeException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.PeerException;
-import org.hyperledger.protos.Fabric;
-import org.hyperledger.protos.Fabric.Response;
-import org.hyperledger.protos.PeerGrpc;
-import org.hyperledger.protos.PeerGrpc.PeerBlockingStub;
+import org.hyperledger.protos.peer.Fabric;
+import org.hyperledger.protos.peer.FabricProposalResponse.Response;
+import org.hyperledger.protos.peer.EndorserGrpc;
+import org.hyperledger.protos.peer.EndorserGrpc.EndorserBlockingStub;
 
 import java.util.concurrent.TimeUnit;
 
@@ -35,28 +35,28 @@ public class PeerClient {
 	private static final Log logger = LogFactory.getLog(PeerClient.class);
 
 	private final ManagedChannel channel;
-	private final PeerBlockingStub blockingStub;
+	private final EndorserBlockingStub blockingStub;
 
 	/**
 	 * Construct client for accessing Peer server using the existing channel.
 	 */
 	public PeerClient(ManagedChannelBuilder<?> channelBuilder) {
 		channel = channelBuilder.build();
-		blockingStub = PeerGrpc.newBlockingStub(channel);
+		blockingStub = EndorserGrpc.newBlockingStub(channel);
 	}
 
 	public void shutdown() throws InterruptedException {
 		channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
 	}
 
-	public Response processTransaction(Fabric.Transaction transaction) throws PeerException {
-		try {
-			return blockingStub.processTransaction(transaction);
-		} catch (StatusRuntimeException e) {
-			logger.warn(String.format("RPC failed: %s", e.getStatus()));
-			throw new PeerException("Sending transaction to peer failed", e);
-		}
-	}
+//	public Response processTransaction(Fabric.Transaction transaction) throws PeerException {
+//		try {
+//			return blockingStub.processTransaction(transaction);
+//		} catch (StatusRuntimeException e) {
+//			logger.warn(String.format("RPC failed: %s", e.getStatus()));
+//			throw new PeerException("Sending transaction to peer failed", e);
+//		}
+//	}
 
 	@Override
 	public void finalize() {

@@ -30,8 +30,8 @@ import org.hyperledger.fabric.sdk.QueryRequest;
 import org.hyperledger.fabric.sdk.TCert;
 import org.hyperledger.fabric.sdk.exception.ChainCodeException;
 import org.hyperledger.fabric.sdk.exception.DeploymentException;
-import org.hyperledger.protos.Fabric;
-import org.hyperledger.protos.Fabric.Response.StatusCode;
+import org.hyperledger.protos.peer.Fabric;
+import org.hyperledger.protos.peer.FabricProposalResponse.Response;;
 
 /**
  * A transaction context emits events 'submitted', 'complete', and 'error'.
@@ -121,11 +121,13 @@ public class TransactionContext  {
          */
 
 			Transaction transaction = DeployTransactionBuilder.newBuilder().chain(chain).request(deployRequest).build();
-	        execute(transaction);
-	        return new ChainCodeResponse(
-	        		transaction.getTransaction().getTxid(),
-	        		transaction.getChaincodeID(),
-	        		Status.UNDEFINED, null);
+
+			return null; //TODO
+//	        execute(transaction);
+//	        return new ChainCodeResponse(
+//	        		transaction.getTransaction().getTxid(),
+//	        		transaction.getChaincodeID(),
+//	        		Status.UNDEFINED, null);
     }
 
     /**
@@ -167,16 +169,19 @@ public class TransactionContext  {
         });
         return self;
         */
-        Fabric.Response response = execute(transaction);
-        if (response.getStatus() == StatusCode.FAILURE) {
-        	throw new ChainCodeException(response.getMsg().toStringUtf8(), null);
-        }
-        
-        return new ChainCodeResponse(
-        		transaction.getTransaction().getTxid(),
-        		transaction.getChaincodeID(),
-        		Status.SUCCESS, 
-        		response.getMsg().toStringUtf8());
+
+
+        return null; //TODO
+//        Fabric.Response response = execute(transaction);
+//        if (response.getStatus() == StatusCode.FAILURE) {
+//        	throw new ChainCodeException(response.getMsg().toStringUtf8(), null);
+//        }
+//        
+//        return new ChainCodeResponse(
+//        		transaction.getTransaction().getTxid(),
+//        		transaction.getChaincodeID(),
+//        		Status.SUCCESS, 
+//        		response.getMsg().toStringUtf8());
     }
 
     /**
@@ -218,18 +223,20 @@ public class TransactionContext  {
       return self;
       */
 
-      Transaction transaction = QueryTransactionBuilder.newBuilder().chain(chain).request(queryRequest).build();
-      Fabric.Response response = execute(transaction);
       
-      if (response.getStatus() == StatusCode.FAILURE) {
-      	throw new ChainCodeException(response.getMsg().toStringUtf8(), null);
-      }
-      
-      return new ChainCodeResponse(
-      		transaction.getTransaction().getTxid(),
-      		transaction.getChaincodeID(),
-      		Status.SUCCESS, 
-      		response.getMsg().toStringUtf8());
+      return null; //TODO
+//      Transaction transaction = QueryTransactionBuilder.newBuilder().chain(chain).request(queryRequest).build();
+//      Fabric.Response response = execute(transaction);
+//      
+//      if (response.getStatus() == StatusCode.FAILURE) {
+//      	throw new ChainCodeException(response.getMsg().toStringUtf8(), null);
+//      }
+//      
+//      return new ChainCodeResponse(
+//      		transaction.getTransaction().getTxid(),
+//      		transaction.getChaincodeID(),
+//      		Status.SUCCESS, 
+//      		response.getMsg().toStringUtf8());
     }
 
    /**
@@ -250,7 +257,9 @@ public class TransactionContext  {
      * Execute a transaction
      * @param tx {Transaction} The transaction.
      */
-    private Fabric.Response execute(Transaction tx) {
+
+   private Object execute(Transaction tx) { //TODO replace Object
+//TODO   private Fabric.Response execute(Transaction tx) {
         logger.debug(String.format("Executing transaction [%s]", tx));
 
         return getChain().sendTransaction(tx);

@@ -21,7 +21,7 @@ import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.transaction.Transaction;
-import org.hyperledger.protos.Fabric.Response;
+import org.hyperledger.protos.peer.FabricProposalResponse.Response;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 
 import java.security.cert.CertificateException;

@@ -19,6 +19,7 @@ syntax = "proto3";
 package protos;
 
 option go_package = "github.com/hyperledger/fabric/protos/peer";
+option java_package = "org.hyperledger.protos.peer";
 
 import "peer/fabric_proposal_response.proto";
 
