@@ -19,21 +19,21 @@ import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.sdk.ChaincodeLanguage;
 import org.hyperledger.fabric.sdk.exception.DeploymentException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
-import org.hyperledger.protos.Chaincode;
-import org.hyperledger.protos.Fabric;
+import org.hyperledger.fabric.protos.peer.Chaincode;
 
 import com.google.common.io.Files;
 
 import io.netty.util.internal.StringUtil;
 
 public class DeployTransactionBuilder extends TransactionBuilder {
-	
+
 	private Log logger = LogFactory.getLog(TransactionBuilder.class);
-	
+
 	private DeployTransactionBuilder() {}
-	
+
 	public static DeployTransactionBuilder newBuilder() {
 		return new DeployTransactionBuilder();
 	}
@@ -43,14 +43,14 @@ public class DeployTransactionBuilder extends TransactionBuilder {
 		if (chain == null || request == null) {
 			throw new IllegalArgumentException("Must provide request and chain before attempting to call build()");
 		}
-		
+
 		try {
 			return chain.isDevMode()? createDevModeTransaction(): createNetModeTransaction();
 		} catch(IOException exp) {
 			throw new DeploymentException("IO Error while creating deploy transaction", exp);
 		}
 	}
-	
+
 	private Transaction createDevModeTransaction() {
 		logger.debug("newDevModeTransaction");
 
@@ -59,70 +59,100 @@ public class DeployTransactionBuilder extends TransactionBuilder {
 			throw new RuntimeException("[DevMode] Missing chaincodeName in DeployRequest");
 		}
 
-		// create transaction
-		Fabric.Transaction tx = createTransactionBuilder(Chaincode.ChaincodeSpec.Type.GOLANG,
-				Fabric.Transaction.Type.CHAINCODE_DEPLOY,
-				request.getChaincodeName(), request.getArgs(), null, request.getChaincodeName(),
-				request.getChaincodePath()).build();
-
-        return new Transaction(tx, request.getChaincodeName());
+		//TODO  create transaction
+//		Fabric.Proposal tx = createTransactionBuilder(
+//				request.getChaincodeLanguage() == ChaincodeLanguage.GO_LANG ? Chaincode.ChaincodeSpec.Type.GOLANG
+//						: Chaincode.ChaincodeSpec.Type.JAVA,
+//				Fabric.Transaction.Type.CHAINCODE_DEPLOY, request.getChaincodeName(), request.getArgs(), null,
+//				request.getChaincodeName(), request.getChaincodePath()).build();
+//
+//		return new Transaction(tx, request.getChaincodeName());
+		return null; //TODO implement
 	}
-	
+
 	private Transaction createNetModeTransaction() throws IOException {
 		logger.debug("newNetModeTransaction");
 
 		// Verify that chaincodePath is being passed
 		if (StringUtil.isNullOrEmpty(request.getChaincodePath())) {
-			throw new RuntimeException("[NetMode]Missing chaincodePath in DeployRequest");
+			throw new IllegalArgumentException("[NetMode] Missing chaincodePath in DeployRequest");
 		}
 
-		// Determine the user's $GOPATH
-		String goPath = System.getenv("GOPATH");
-		
-		logger.debug("$GOPATH: " + goPath);
+		String rootDir = "";
+		String chaincodeDir = "";
 
-		// Compose the path to the chaincode project directory
-		String projDir = goPath + "/src/" + request.getChaincodePath();
+		Chaincode.ChaincodeSpec.Type ccType = Chaincode.ChaincodeSpec.Type.GOLANG;
+
+		if (request.getChaincodeLanguage() == ChaincodeLanguage.GO_LANG) {
+			// Determine the user's $GOPATH
+			String goPath = System.getenv("GOPATH");
+			logger.info(String.format("Using GOPATH :%s", goPath));
+			if (StringUtil.isNullOrEmpty(goPath)) {
+				throw new IllegalArgumentException("[NetMode] Missing GOPATH environment variable");
+			}
+
+			logger.debug("$GOPATH: " + goPath);
+
+			// Compose the path to the chaincode project directory
+			rootDir = SDKUtil.combinePaths(goPath,  "src");
+			chaincodeDir = request.getChaincodePath();
+
+		} else {
+			ccType = Chaincode.ChaincodeSpec.Type.JAVA;
+
+			// Compose the path to the chaincode project directory
+			File ccFile = new File(request.getChaincodePath());
+			rootDir = ccFile.getParent();
+			chaincodeDir = ccFile.getName();
+		}
+
+		String projDir = SDKUtil.combinePaths(rootDir, chaincodeDir);
 		logger.debug("projDir: " + projDir);
 
+		String dockerFileContents = getDockerFileContents(request.getChaincodeLanguage());
+
 		// Compute the hash of the chaincode deployment parameters
-		String hash = SDKUtil.generateParameterHash(request.getChaincodePath(), request.getFcn(), request.getArgs());
+		String hash = SDKUtil.generateParameterHash(chaincodeDir, request.getFcn(), request.getArgs());
 
 		// Compute the hash of the project directory contents
-		hash = SDKUtil.generateDirectoryHash(goPath + "/src/", request.getChaincodePath(), hash);
+		hash = SDKUtil.generateDirectoryHash(rootDir, chaincodeDir, hash);
 		logger.debug("hash: " + hash);
-
-		// Compose the Dockerfile commands
-		String dockerFileContents = 
-				"FROM hyperledger/fabric-ccenv"
-				+ "\n" + "COPY . $GOPATH/src/build-chaincode/"				
-				+ "\n" + "WORKDIR $GOPATH" + "\n\n"
-				+ "RUN go install build-chaincode  && mv $GOPATH/bin/build-chaincode $GOPATH/bin/%s";
 
 		// Substitute the hashStrHash for the image name
 		dockerFileContents = String.format(dockerFileContents, hash);
 
 		// Create a Docker file with dockerFileContents
-		String dockerFilePath = projDir + "/Dockerfile";
+		String dockerFilePath = SDKUtil.combinePaths(projDir, "Dockerfile");
 		Files.write(dockerFileContents.getBytes(), new java.io.File(dockerFilePath));
 
 		logger.debug(String.format("Created Dockerfile at [%s]", dockerFilePath));
 
 		// Create the .tar.gz file of the chaincode package
-		String targzFilePath = System.getProperty("java.io.tmpdir") + File.separator + "deployment-package.tar.gz";
+		String targzFilePath = SDKUtil.combinePaths(System.getProperty("java.io.tmpdir"), "deployment-package.tar.gz");
 		// Create the compressed archive
-		SDKUtil.generateTarGz(projDir, targzFilePath);		
+		SDKUtil.generateTarGz(projDir, targzFilePath);
 		byte[] data = SDKUtil.readFile(new File(targzFilePath));
-		
+
 		// Clean up temporary files
 		SDKUtil.deleteFileOrDirectory(new File(targzFilePath));
 		SDKUtil.deleteFileOrDirectory(new File(dockerFilePath));
 
-		// create transaction
-		Fabric.Transaction tx = createTransactionBuilder(Chaincode.ChaincodeSpec.Type.GOLANG,
-				Fabric.Transaction.Type.CHAINCODE_DEPLOY, hash, request.getArgs(), data, SDKUtil.generateUUID(), null)
-					.build();
+		//TODO create transaction
+//		Fabric.Transaction tx = createTransactionBuilder(ccType,
+//				Fabric.Transaction.Type.CHAINCODE_DEPLOY, hash, request.getArgs(), data, SDKUtil.generateUUID(), null)
+//				.build();
+//
+//		return new Transaction(tx, hash);
+		return null; //TODO implement
+	}
 
-		return new Transaction(tx, hash);
+	private String getDockerFileContents(ChaincodeLanguage lang) throws IOException {
+		if (request.getChaincodeLanguage() == ChaincodeLanguage.GO_LANG) {
+			return new String(SDKUtil.readFileFromClasspath("Go.Docker"));
+		} else if (request.getChaincodeLanguage() == ChaincodeLanguage.JAVA) {
+			return new String(SDKUtil.readFileFromClasspath("Java.Docker"));
+		}
+
+		throw new UnsupportedOperationException(String.format("Unknown chaincode language: %s", lang));
 	}
 }
