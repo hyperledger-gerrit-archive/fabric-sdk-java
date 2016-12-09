@@ -19,20 +19,20 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.transaction.Transaction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Response;
 
 /**
  * The class representing a chain with which the client SDK interacts.
  */
 public class Chain {
-	private static final Log logger = LogFactory.getLog(Chain.class);
+	private static final Logger logger = LoggerFactory.getLogger(Chain.class);
 
     // Name of the chain is only meaningful to the client
     private String name;

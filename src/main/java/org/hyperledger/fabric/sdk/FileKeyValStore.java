@@ -22,8 +22,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Properties;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * A local file-based key value store.
@@ -32,7 +33,7 @@ import org.apache.commons.logging.LogFactory;
 public class FileKeyValStore implements KeyValStore {
 
     private String file;
-    private Log logger = LogFactory.getLog(FileKeyValStore.class);
+    private Logger logger = LoggerFactory.getLogger(FileKeyValStore.class);
 
     public FileKeyValStore(String file) {
     	this.file = file;

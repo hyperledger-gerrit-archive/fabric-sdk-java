@@ -27,20 +27,20 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type;
 import org.hyperledger.fabric.protos.peer.ChaincodeSupportGrpc;
 import org.hyperledger.fabric.protos.peer.ChaincodeSupportGrpc.ChaincodeSupportStub;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
 import java.io.File;
 
 public abstract class ChaincodeBase {
 
-	private static Log logger = LogFactory.getLog(ChaincodeBase.class);
+	private static Logger logger = LoggerFactory.getLogger(ChaincodeBase.class);
 
 	public abstract String run(ChaincodeStub stub, String function, String[] args);
 	public abstract String query(ChaincodeStub stub, String function, String[] args);

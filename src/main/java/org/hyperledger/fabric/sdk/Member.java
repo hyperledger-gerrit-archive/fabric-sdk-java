@@ -25,8 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.exception.ChainCodeException;
 import org.hyperledger.fabric.sdk.exception.DeploymentException;
@@ -34,13 +32,15 @@ import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.netty.util.internal.StringUtil;
 
 public class Member implements Serializable {
 	private static final long serialVersionUID = 8077132186383604355L;
 
-	private static final Log logger = LogFactory.getLog(Member.class);
+	private static final Logger logger = LoggerFactory.getLogger(Member.class);
 
     private transient Chain chain;
     private String name;

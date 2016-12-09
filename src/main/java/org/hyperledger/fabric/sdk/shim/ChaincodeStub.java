@@ -20,11 +20,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 //import org.hyperledger.protos.peer.Chaincode.ChaincodeSecurityContext;
 //import org.hyperledger.protos.peer.TableProto;
 import org.hyperledger.fabric.sdk.shim.crypto.signature.EcdsaSignatureVerifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode;
 
 import com.google.protobuf.ByteString;
@@ -32,7 +32,7 @@ import com.google.protobuf.ByteString;
 //import static org.hyperledger.protos.TableProto.ColumnDefinition.Type.STRING;
 
 public class ChaincodeStub {
-    private static Log logger = LogFactory.getLog(ChaincodeStub.class);
+    private static Logger logger = LoggerFactory.getLogger(ChaincodeStub.class);
     private final String uuid;
     private final Handler handler;
 //    private final ChaincodeSecurityContext securityContext;

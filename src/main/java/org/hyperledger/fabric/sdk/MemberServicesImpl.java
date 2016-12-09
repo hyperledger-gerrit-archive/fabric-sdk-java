@@ -17,11 +17,11 @@ package org.hyperledger.fabric.sdk;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.netty.util.internal.StringUtil;
 
@@ -29,7 +29,7 @@ import io.netty.util.internal.StringUtil;
  * MemberServicesImpl is the default implementation of a member services client.
  */
 public class MemberServicesImpl implements MemberServices {
-	private static final Log logger = LogFactory.getLog(MemberServices.class);
+	private static final Logger logger = LoggerFactory.getLogger(MemberServices.class);
 
 //    private ECAABlockingStub ecaaClient;
 //    private ECAPBlockingStub ecapClient;

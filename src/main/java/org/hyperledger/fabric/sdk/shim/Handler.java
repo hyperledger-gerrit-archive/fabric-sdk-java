@@ -19,13 +19,13 @@ package org.hyperledger.fabric.sdk.shim;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
 import org.hyperledger.fabric.sdk.helper.Channel;
 import org.hyperledger.fabric.sdk.shim.fsm.*;
 import org.hyperledger.fabric.sdk.shim.fsm.exceptions.CancelledException;
 import org.hyperledger.fabric.sdk.shim.fsm.exceptions.NoTransitionException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode.*;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Builder;
 
@@ -37,7 +37,7 @@ import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type
 
 public class Handler {
 
-	private static Log logger = LogFactory.getLog(Handler.class);
+	private static Logger logger = LoggerFactory.getLogger(Handler.class);
 
 	private StreamObserver<ChaincodeMessage> chatStream;
 	private ChaincodeBase chaincode;

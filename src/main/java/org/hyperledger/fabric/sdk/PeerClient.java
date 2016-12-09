@@ -16,10 +16,10 @@ package org.hyperledger.fabric.sdk;
 
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.EndorserGrpc;
 import org.hyperledger.fabric.protos.peer.EndorserGrpc.EndorserBlockingStub;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -28,7 +28,7 @@ import io.grpc.ManagedChannelBuilder;
  * Sample client code that makes gRPC calls to the server.
  */
 public class PeerClient {
-	private static final Log logger = LogFactory.getLog(PeerClient.class);
+	private static final Logger logger = LoggerFactory.getLogger(PeerClient.class);
 
 	private final ManagedChannel channel;
 	private final EndorserBlockingStub blockingStub;

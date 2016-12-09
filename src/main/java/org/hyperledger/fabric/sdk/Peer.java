@@ -14,17 +14,17 @@
 
 package org.hyperledger.fabric.sdk;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.transaction.Transaction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Response;
 
 /**
  * The Peer class represents a peer to which SDK sends deploy, invoke, or query requests.
  */
 public class Peer {
-	private static final Log logger = LogFactory.getLog(Peer.class);
+	private static final Logger logger = LoggerFactory.getLogger(Peer.class);
 
     private String url;
     private Chain chain;

@@ -17,8 +17,6 @@ package org.hyperledger.fabric.sdk.transaction;
 import java.nio.Buffer;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeResponse;
 import org.hyperledger.fabric.sdk.DeployRequest;
@@ -28,14 +26,16 @@ import org.hyperledger.fabric.sdk.MemberServices;
 import org.hyperledger.fabric.sdk.QueryRequest;
 import org.hyperledger.fabric.sdk.TCert;
 import org.hyperledger.fabric.sdk.exception.ChainCodeException;
-import org.hyperledger.fabric.sdk.exception.DeploymentException;;
+import org.hyperledger.fabric.sdk.exception.DeploymentException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;;
 
 /**
  * A transaction context emits events 'submitted', 'complete', and 'error'.
  * Each transaction context uses exactly one tcert.
  */
 public class TransactionContext  {
-	private static final Log logger = LogFactory.getLog(TransactionContext.class);
+	private static final Logger logger = LoggerFactory.getLogger(TransactionContext.class);
     private Member member;
     private Chain chain;
     private MemberServices memberServices;

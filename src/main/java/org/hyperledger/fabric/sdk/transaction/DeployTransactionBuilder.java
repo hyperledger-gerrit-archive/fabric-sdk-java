@@ -17,11 +17,11 @@ package org.hyperledger.fabric.sdk.transaction;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.ChaincodeLanguage;
 import org.hyperledger.fabric.sdk.exception.DeploymentException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode;
 
 import com.google.common.io.Files;
@@ -30,7 +30,7 @@ import io.netty.util.internal.StringUtil;
 
 public class DeployTransactionBuilder extends TransactionBuilder {
 
-	private Log logger = LogFactory.getLog(TransactionBuilder.class);
+	private Logger logger = LoggerFactory.getLogger(TransactionBuilder.class);
 
 	private DeployTransactionBuilder() {}
 

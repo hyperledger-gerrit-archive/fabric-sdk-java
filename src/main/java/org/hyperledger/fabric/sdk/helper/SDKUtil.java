@@ -36,18 +36,18 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.SHA3Digest;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.io.ByteStreams;
 import com.google.protobuf.Timestamp;
 
 public class SDKUtil {
-	private static final Log logger = LogFactory.getLog(SDKUtil.class);
+	private static final Logger logger = LoggerFactory.getLogger(SDKUtil.class);
 
 	/**
 	 * Generate parameter hash for the given chain code path,func and args
