@@ -15,6 +15,9 @@
 package org.hyperledger.fabric.sdk.security;
 
 import io.netty.util.internal.StringUtil;
+import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.DERSequenceGenerator;
+import org.bouncycastle.asn1.nist.NISTNamedCurves;
 import org.bouncycastle.asn1.sec.SECNamedCurves;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.Digest;
@@ -50,6 +53,7 @@ import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.x500.X500Principal;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigInteger;
@@ -205,6 +209,39 @@ public class CryptoPrimitives {
 		}
 
 	}
+	public byte[] ecdsaSignToBytes(PrivateKey privateKey, byte[] data) throws CryptoException {
+		try {
+			byte[] encoded = data;
+			encoded = hash(data);
+
+			X9ECParameters params = NISTNamedCurves.getByName(this.curveName);
+
+			ECDomainParameters ecParams = new ECDomainParameters(params.getCurve(), params.getG(), params.getN(),
+					params.getH());
+
+
+			ECDSASigner signer = new ECDSASigner();
+
+			ECPrivateKeyParameters privKey = new ECPrivateKeyParameters(((ECPrivateKey) privateKey).getS(), ecParams);
+			signer.init(true, privKey);
+			BigInteger[] sigs = signer.generateSignature(encoded);
+
+
+			ByteArrayOutputStream s = new ByteArrayOutputStream();
+
+			DERSequenceGenerator seq = new DERSequenceGenerator(s);
+			seq.addObject(new ASN1Integer(sigs[0]));
+			seq.addObject(new ASN1Integer(sigs[1]));
+			seq.close();
+			byte[] ret = s.toByteArray();
+			return ret;
+
+
+		} catch (Exception e) {
+			throw new CryptoException("Could not sign the message using private key", e);
+		}
+
+	}
 
 	public PrivateKey ecdsaKeyFromPrivate(byte[] key) throws CryptoException {
 		try {
@@ -277,6 +314,14 @@ public class CryptoPrimitives {
 			this.curveName = "secp384r1";
 			//TODO: HashOutputSize=48 ?
 		}
+	}
+
+	public byte[] hash(byte[] input) {
+		Digest digest = getHashDigest();
+		byte[] retValue = new byte[digest.getDigestSize()];
+		digest.update(input, 0, input.length);
+		digest.doFinal(retValue, 0);
+		return retValue;
 	}
 
 	private Digest getHashDigest() {
