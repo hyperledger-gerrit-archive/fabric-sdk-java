@@ -355,7 +355,9 @@ public class Chain {
     }
 
 	private SignedProposal createSignedProposal(Member member, Proposal proposal) {
-		assert member != null && member.isEnrolled() : "Member is null or not enrolled";
+		if (member == null || !member.isEnrolled()) {
+			throw new IllegalArgumentException("Member is null or not enrolled");
+		}
 
 		byte[] signature = null;
 		try {
@@ -384,8 +386,13 @@ public class Chain {
      */
     public Proposal createDeploymentProposal(Member member, DeployRequest deploymentRequest) {
 
-        assert deploymentRequest != null: "sendDeploymentProposal deploymentProposalRequest is null";
-        assert member != null && member.isEnrolled() : "Member is null or not enrolled";
+		if (deploymentRequest == null) {
+			throw new IllegalArgumentException("sendDeploymentProposal deploymentProposalRequest is null");
+		}
+
+		if (member == null || !member.isEnrolled()) {
+			throw new IllegalArgumentException("Member is null or not enrolled");
+		}
 
         List<ByteString> args = new ArrayList<ByteString>();
         if (deploymentRequest.getArgs() != null) {
@@ -415,9 +422,15 @@ public class Chain {
      * @return proposal
      */
     public Proposal createTransactionProposal(Member member, TransactionRequest request) {
-    	assert request != null : "Cannot send null transactopn proposal";
-    	assert StringUtil.isNullOrEmpty(request.getChaincodeName()): "Chaincode name is missing in proposal";
-    	assert member != null && member.isEnrolled() : "Member is null or not enrolled";
+    	if (request == null) {
+    		throw new IllegalArgumentException("Cannot send null transactopn proposal");
+    	}
+		if (StringUtil.isNullOrEmpty(request.getChaincodeName())) {
+    		throw new IllegalArgumentException("Chaincode name is missing in proposal");
+    	}
+		if (member == null || !member.isEnrolled()) {
+			throw new IllegalArgumentException("Member is null or not enrolled");
+		}
 
         TransactionContext transactionContext = new TransactionContext(this, member);
 
@@ -490,7 +503,9 @@ public class Chain {
 	 */
 	public List<TransactionResponse> sendTransaction(Member member, Proposal proposal,
 	        List<ProposalResponse> proposalResponses) throws InvalidProtocolBufferException, CryptoException {
-    	assert proposalResponses != null && proposalResponses.size() > 0: "Please use sendProposal first to get endorsements";
+		if (proposalResponses == null || proposalResponses.isEmpty()) {
+			throw new IllegalArgumentException("Please use sendProposal first to get endorsements");
+		}
 
     	if (this.orderers.isEmpty()) {
             throw new NoValidOrdererException(String.format("chain %s has no orderers", getName()));
