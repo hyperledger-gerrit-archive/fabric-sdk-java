@@ -14,11 +14,11 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import java.util.ArrayList;
-
 import org.hyperledger.fabric.sdk.Certificate;
 import org.hyperledger.fabric.sdk.ChaincodeLanguage;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
+
+import java.util.ArrayList;
 
 /**
  * A base transaction request common for DeployRequest, InvokeRequest, and QueryRequest.
@@ -43,63 +43,78 @@ public class TransactionRequest {
 
     private String txID;
 
-	public String getChaincodePath() {
-		return null == chaincodePath ? "" : chaincodePath;
-	}
-	public void setChaincodePath(String chaincodePath) {
-		this.chaincodePath = chaincodePath;
-	}
-	public String getChaincodeName() {
-		return chaincodeName;
-	}
-	public void setChaincodeName(String chaincodeName) {
-		this.chaincodeName = chaincodeName;
-	}
+    public String getChaincodePath() {
+        return null == chaincodePath ? "" : chaincodePath;
+    }
 
-	public String getTxID() {
-		if (txID == null) {
-			txID = SDKUtil.generateUUID();
-		}
-		return txID;
-	}
-	public void setTxID(String txID) {
-		this.txID = txID;
-	}
+    public void setChaincodePath(String chaincodePath) {
+        this.chaincodePath = chaincodePath;
+    }
 
-	public String getFcn() {
-		return fcn;
-	}
-	public void setFcn(String fcn) {
-		this.fcn = fcn;
-	}
-	public ArrayList<String> getArgs() {
-		return args;
-	}
-	public void setArgs(ArrayList<String> args) {
-		this.args = args;
-	}
-	public boolean isConfidential() {
-		return confidential;
-	}
-	public void setConfidential(boolean confidential) {
-		this.confidential = confidential;
-	}
-	public Certificate getUserCert() {
-		return userCert;
-	}
-	public void setUserCert(Certificate userCert) {
-		this.userCert = userCert;
-	}
-	public byte[] getMetadata() {
-		return metadata;
-	}
-	public void setMetadata(byte[] metadata) {
-		this.metadata = metadata;
-	}
-	public ChaincodeLanguage getChaincodeLanguage() {
-		return chaincodeLanguage;
-	}
-	public void setChaincodeLanguage(ChaincodeLanguage chaincodeLanguage) {
-		this.chaincodeLanguage = chaincodeLanguage;
-	}
+    public String getChaincodeName() {
+        return chaincodeName;
+    }
+
+    public void setChaincodeName(String chaincodeName) {
+        this.chaincodeName = chaincodeName;
+    }
+
+    public String getTxID() {
+        if (txID == null) {
+            txID = SDKUtil.generateUUID();
+        }
+        return txID;
+    }
+
+    public void setTxID(String txID) {
+        this.txID = txID;
+    }
+
+    public String getFcn() {
+        return fcn;
+    }
+
+    public void setFcn(String fcn) {
+        this.fcn = fcn;
+    }
+
+    public ArrayList<String> getArgs() {
+        return args;
+    }
+
+    public void setArgs(ArrayList<String> args) {
+        this.args = args;
+    }
+
+    public boolean isConfidential() {
+        return confidential;
+    }
+
+    public void setConfidential(boolean confidential) {
+        this.confidential = confidential;
+    }
+
+    public Certificate getUserCert() {
+        return userCert;
+    }
+
+    public void setUserCert(Certificate userCert) {
+        this.userCert = userCert;
+    }
+
+    public byte[] getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(byte[] metadata) {
+        this.metadata = metadata;
+    }
+
+    public ChaincodeLanguage getChaincodeLanguage() {
+        return chaincodeLanguage;
+    }
+
+    public void setChaincodeLanguage(ChaincodeLanguage chaincodeLanguage) {
+        this.chaincodeLanguage = chaincodeLanguage;
+    }
 }

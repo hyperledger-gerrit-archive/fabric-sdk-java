@@ -39,8 +39,8 @@ public class Config {
     private static final String ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION = "org.hyperledger.fabric.sdk.configuration";
     private static final String ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL = "org.hyperledger.fabric.sdk.security_level";
     private static final String ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM = "org.hyperledger.fabric.sdk.hash_algorithm";
-    private static  Config config;
     private final static Properties sdkProperties = new Properties();
+    private static Config config;
 
     private Config() {
         File loadFile = null;
@@ -59,7 +59,7 @@ public class Config {
             //Fail or use defaults ?
             // throw new RuntimeException(String.format("Failed to load configuration file %s", loadFile.toString()), e);
             logger.warn(String.format("Failed to load any configuration from: %s. Using toolkit defaults", loadFile));
-        }finally {
+        } finally {
 
             //Default values
             defaultProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL, "256");
@@ -72,18 +72,30 @@ public class Config {
 
     /**
      * getConfig return back singlton for SDK configuration.
+     *
      * @return Global configuration
      */
     public static Config getConfig() {
-        if( null == config) {
+        if (null == config) {
             config = new Config();
         }
         return config;
 
     }
 
+    static private void defaultProperty(String key, String value) {
+
+        String ret = System.getProperty(key);
+        if (ret != null) {
+            sdkProperties.put(key, ret);
+        } else if (null == sdkProperties.getProperty(key)) {
+            sdkProperties.put(key, value);
+        }
+    }
+
     /**
      * getProperty return back property for the given value.
+     *
      * @param property
      * @return String value for the property
      */
@@ -97,34 +109,25 @@ public class Config {
         return ret;
     }
 
-
-    static private void defaultProperty(String key, String value) {
-
-        String ret = System.getProperty(key);
-        if(ret != null){
-            sdkProperties.put(key, ret);
-        }else if (null == sdkProperties.getProperty(key)){
-            sdkProperties.put(key, value);
-        }
-    }
-
     /**
      * Return default security level.
+     *
      * @return
      */
-    public int getDefaultSecurityLevel(){
+    public int getDefaultSecurityLevel() {
 
-       return Integer.parseInt(getProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL));
+        return Integer.parseInt(getProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL));
 
     }
 
     /**
      * Return default hash algorithm
+     *
      * @return
      */
 
-    public String getDefaultHashAlgorithm(){
-        return  getProperty(ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM);
+    public String getDefaultHashAlgorithm() {
+        return getProperty(ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM);
 
     }
 }

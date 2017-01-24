@@ -21,12 +21,14 @@ public interface KeyValStore {
 
     /**
      * Get the value associated with name.
+     *
      * @param name
      */
     String getValue(String name);
 
     /**
      * Set the value associated with name.
+     *
      * @param name
      * @param value
      */

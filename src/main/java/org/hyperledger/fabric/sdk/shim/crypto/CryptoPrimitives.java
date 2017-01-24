@@ -28,14 +28,13 @@ import java.io.IOException;
 import java.security.Security;
 
 public class CryptoPrimitives {
+    private static final String SEC_256_CURVE = "secp256r1";
+    private static final String SEC_384_CURVE = "secp384r1";
+    private static X9ECParameters CURVE_PARAMS;
+    private static ECDomainParameters CURVE;
     private int keyLength;
     private String hashingAlgorithm;
     private String secCurve;
-    private static final String SEC_256_CURVE = "secp256r1";
-    private static final String SEC_384_CURVE = "secp384r1";
-
-    private static X9ECParameters CURVE_PARAMS;
-    private static ECDomainParameters CURVE;
 
     public CryptoPrimitives(int keyLength, String hashingAlgorithm) {
 
@@ -57,28 +56,27 @@ public class CryptoPrimitives {
     }
 
     public boolean ecdsaVerify(byte[] publicKey, byte[] signature, byte[] payload) {
-            ECDSASigner signer = new ECDSASigner();
-            ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(publicKey), CURVE);
-            signer.init(false, params);
-            ASN1InputStream decoder;
-            decoder = new ASN1InputStream(signature);
+        ECDSASigner signer = new ECDSASigner();
+        ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(publicKey), CURVE);
+        signer.init(false, params);
+        ASN1InputStream decoder;
+        decoder = new ASN1InputStream(signature);
+        try {
+
+
+            DERSequence seq = (DERSequence) decoder.readObject();
+            ASN1Integer r = (ASN1Integer) seq.getObjectAt(0);
+            ASN1Integer s = (ASN1Integer) seq.getObjectAt(1);
+            decoder.close();
+            return signer.verifySignature(payload, r.getValue(), s.getValue());
+        } catch (Exception e) {
+            return false;
+        } finally {
             try {
-
-
-                DERSequence seq = (DERSequence) decoder.readObject();
-                ASN1Integer r = (ASN1Integer) seq.getObjectAt(0);
-                ASN1Integer s = (ASN1Integer) seq.getObjectAt(1);
                 decoder.close();
-                return signer.verifySignature(payload, r.getValue(), s.getValue());
-            } catch (Exception e) {
-                return false;
-            }
-            finally {
-                try {
-                    decoder.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
+    }
 }

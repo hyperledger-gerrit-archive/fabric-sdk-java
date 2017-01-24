@@ -14,8 +14,8 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import java.util.Collection;
-
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
@@ -31,91 +31,90 @@ import org.hyperledger.fabric.protos.peer.FabricTransaction.TransactionAction;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Collection;
 
 public class TransactionBuilder {
 
-	private Log logger = LogFactory.getLog(TransactionBuilder.class);
-	private FabricProposal.Proposal chaincodeProposal;
-	private Collection<FabricProposalResponse.Endorsement> endorsements;
-	private ByteString proposalResponcePayload;
-	private String chainId;
-	private TransactionContext context;
-	private CryptoPrimitives cryptoPrimitives;
+    private Log logger = LogFactory.getLog(TransactionBuilder.class);
+    private FabricProposal.Proposal chaincodeProposal;
+    private Collection<FabricProposalResponse.Endorsement> endorsements;
+    private ByteString proposalResponcePayload;
+    private String chainId;
+    private TransactionContext context;
+    private CryptoPrimitives cryptoPrimitives;
 
-	public static TransactionBuilder newBuilder() {
-		return new TransactionBuilder();
-	}
+    public static TransactionBuilder newBuilder() {
+        return new TransactionBuilder();
+    }
 
-	public TransactionBuilder context(TransactionContext context) {
-		this.context = context;
-		return this;
-	}
+    public TransactionBuilder context(TransactionContext context) {
+        this.context = context;
+        return this;
+    }
 
-	public TransactionBuilder cryptoPrimitives(CryptoPrimitives cryptoPrimitives) {
-		this.cryptoPrimitives = cryptoPrimitives;
-		return this;
-	}
+    public TransactionBuilder cryptoPrimitives(CryptoPrimitives cryptoPrimitives) {
+        this.cryptoPrimitives = cryptoPrimitives;
+        return this;
+    }
 
-	public TransactionBuilder chainID(String chainId) {
-		this.chainId = chainId;
-		return this;
-	}
+    public TransactionBuilder chainID(String chainId) {
+        this.chainId = chainId;
+        return this;
+    }
 
-	public TransactionBuilder chaincodeProposal(FabricProposal.Proposal chaincodeProposal) {
-		this.chaincodeProposal = chaincodeProposal;
-		return this;
-	}
+    public TransactionBuilder chaincodeProposal(FabricProposal.Proposal chaincodeProposal) {
+        this.chaincodeProposal = chaincodeProposal;
+        return this;
+    }
 
-	public TransactionBuilder endorsements(Collection<FabricProposalResponse.Endorsement> endorsements) {
-		this.endorsements = endorsements;
-		return this;
-	}
+    public TransactionBuilder endorsements(Collection<FabricProposalResponse.Endorsement> endorsements) {
+        this.endorsements = endorsements;
+        return this;
+    }
 
-	public TransactionBuilder proposalResponcePayload(ByteString proposalResponcePayload) {
-		this.proposalResponcePayload = proposalResponcePayload;
-		return this;
-	}
+    public TransactionBuilder proposalResponcePayload(ByteString proposalResponcePayload) {
+        this.proposalResponcePayload = proposalResponcePayload;
+        return this;
+    }
 
-	public Envelope build() throws CryptoException, InvalidProtocolBufferException {
-		return createTransactionEnvelope(chaincodeProposal, proposalResponcePayload, endorsements);
-	}
+    public Envelope build() throws CryptoException, InvalidProtocolBufferException {
+        return createTransactionEnvelope(chaincodeProposal, proposalResponcePayload, endorsements);
+    }
 
-	private Common.Envelope createTransactionEnvelope(FabricProposal.Proposal chaincodeProposal,
-	        ByteString proposalResponcePayload, Collection<FabricProposalResponse.Endorsement> endorsements)
-	        throws CryptoException, InvalidProtocolBufferException {
+    private Common.Envelope createTransactionEnvelope(FabricProposal.Proposal chaincodeProposal,
+                                                      ByteString proposalResponcePayload, Collection<FabricProposalResponse.Endorsement> endorsements)
+            throws CryptoException, InvalidProtocolBufferException {
 
-		ChaincodeEndorsedAction ccea = ChaincodeEndorsedAction.newBuilder()
-		        .setProposalResponsePayload(proposalResponcePayload).addAllEndorsements(endorsements).build();
+        ChaincodeEndorsedAction ccea = ChaincodeEndorsedAction.newBuilder()
+                .setProposalResponsePayload(proposalResponcePayload).addAllEndorsements(endorsements).build();
 
-		//We need to remove any transient fields - they are not part of what the peer uses to calculate hash.
-		ChaincodeProposal.ChaincodeProposalPayload chaincodeProposalPayloadNoTrans = ChaincodeProposal.ChaincodeProposalPayload.newBuilder()
-				.mergeFrom(chaincodeProposal.getPayload())
-				.clearTransient().build();
-		byte[] bhash = cryptoPrimitives.hash(chaincodeProposalPayloadNoTrans.toByteArray());
+        //We need to remove any transient fields - they are not part of what the peer uses to calculate hash.
+        ChaincodeProposal.ChaincodeProposalPayload chaincodeProposalPayloadNoTrans = ChaincodeProposal.ChaincodeProposalPayload.newBuilder()
+                .mergeFrom(chaincodeProposal.getPayload())
+                .clearTransient().build();
+        byte[] bhash = cryptoPrimitives.hash(chaincodeProposalPayloadNoTrans.toByteArray());
 
-		ChaincodeActionPayload ccap = ChaincodeActionPayload.newBuilder().setAction(ccea)
-		        .setChaincodeProposalPayload(ByteString.copyFrom(bhash)).build();
+        ChaincodeActionPayload ccap = ChaincodeActionPayload.newBuilder().setAction(ccea)
+                .setChaincodeProposalPayload(ByteString.copyFrom(bhash)).build();
 
-		Common.Header header = Common.Header.parseFrom(chaincodeProposal.getHeader());
+        Common.Header header = Common.Header.parseFrom(chaincodeProposal.getHeader());
 
-		TransactionAction ta = TransactionAction.newBuilder().setHeader(header.getSignatureHeader().toByteString())
-		        .setPayload(ccap.toByteString()).build();
+        TransactionAction ta = TransactionAction.newBuilder().setHeader(header.getSignatureHeader().toByteString())
+                .setPayload(ccap.toByteString()).build();
 
-		Transaction transaction = Transaction.newBuilder().addActions(ta).build();
+        Transaction transaction = Transaction.newBuilder().addActions(ta).build();
 
-		Payload payload = Payload.newBuilder().setHeader(header).setData(transaction.toByteString()).build();
+        Payload payload = Payload.newBuilder().setHeader(header).setData(transaction.toByteString()).build();
 
-		byte[] ecdsaSignature = cryptoPrimitives.ecdsaSign(context.getMember().getEnrollment().getPrivateKey(), payload.toByteArray());
+        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSign(context.getMember().getEnrollment().getPrivateKey(), payload.toByteArray());
 
-		Envelope ce = Envelope.newBuilder().setPayload(payload.toByteString())
-		        .setSignature(ByteString.copyFrom(ecdsaSignature))
-				.build();
+        Envelope ce = Envelope.newBuilder().setPayload(payload.toByteString())
+                .setSignature(ByteString.copyFrom(ecdsaSignature))
+                .build();
 
-		logger.debug("Done creating transaction ready for orderer");
+        logger.debug("Done creating transaction ready for orderer");
 
-		return ce;
+        return ce;
 
-	}
+    }
 }

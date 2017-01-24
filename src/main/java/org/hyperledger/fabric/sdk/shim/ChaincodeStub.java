@@ -16,18 +16,18 @@ limitations under the License.
 
 package org.hyperledger.fabric.sdk.shim;
 
+import com.google.protobuf.ByteString;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.peer.Chaincode;
+import org.hyperledger.fabric.sdk.shim.crypto.signature.EcdsaSignatureVerifier;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 //import org.hyperledger.protos.peer.Chaincode.ChaincodeSecurityContext;
 //import org.hyperledger.protos.peer.TableProto;
-import org.hyperledger.fabric.sdk.shim.crypto.signature.EcdsaSignatureVerifier;
-import org.hyperledger.fabric.protos.peer.Chaincode;
-
-import com.google.protobuf.ByteString;
 
 //import static org.hyperledger.protos.TableProto.ColumnDefinition.Type.STRING;
 
@@ -37,7 +37,7 @@ public class ChaincodeStub {
     private final Handler handler;
 //    private final ChaincodeSecurityContext securityContext;
 
-//    public ChaincodeStub(String uuid, Handler handler, ChaincodeSecurityContext securityContext) {
+    //    public ChaincodeStub(String uuid, Handler handler, ChaincodeSecurityContext securityContext) {
     public ChaincodeStub(String uuid, Handler handler) {
         this.uuid = uuid;
         this.handler = handler;
@@ -479,7 +479,7 @@ public class ChaincodeStub {
 //        return  this.securityContext.getTxTimestamp().toByteArray() ;
 //    }
 
-    public boolean verifySignature(byte[] cert, byte[] signature, byte[] payload){
+    public boolean verifySignature(byte[] cert, byte[] signature, byte[] payload) {
         return new EcdsaSignatureVerifier().verify(cert, signature, payload);
     }
 }

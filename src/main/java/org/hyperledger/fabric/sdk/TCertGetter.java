@@ -14,7 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
@@ -28,17 +27,18 @@ public class TCertGetter {
     private String key;
     private MemberServices memberServices;
     private Stack<TCert> tcerts;
-//TODO implement stats
+    //TODO implement stats
 //    private stats.Rate arrivalRate = new stats.Rate();
 //    private stats.ResponseTime getTCertResponseTime = new stats.ResponseTime();
 //    private getTCertWaiters:GetTCertCallback[] = [];
     private boolean gettingTCerts = false;
 
     /**
-    * Constructor for a member.
-    * @param cfg {string | RegistrationRequest} The member name or registration request.
-    * @returns {Member} A member who is neither registered nor enrolled.
-    */
+     * Constructor for a member.
+     *
+     * @param cfg {string | RegistrationRequest} The member name or registration request.
+     * @returns {Member} A member who is neither registered nor enrolled.
+     */
     public TCertGetter(Member member, List<String> attrs, String key) {
         this.member = member;
         this.attrs = attrs;
@@ -49,21 +49,25 @@ public class TCertGetter {
     }
 
     /**
-    * Get the chain.
-    * @returns {Chain} The chain.
-    */
+     * Get the chain.
+     *
+     * @returns {Chain} The chain.
+     */
     public Chain getChain() {
         return this.chain;
-    };
+    }
+
+    ;
 
     public void getUserCert() {
         this.getNextTCert();
     }
 
     /**
-    * Get the next available transaction certificate.
-    * @param cb
-    */
+     * Get the next available transaction certificate.
+     *
+     * @param cb
+     */
     public TCert getNextTCert() {
 
 //TODO    	self.arrivalRate.tick();
@@ -82,11 +86,11 @@ public class TCertGetter {
 
     // Determine if we should issue a request to get more tcerts now.
     private boolean shouldGetTCerts() {
-    	return false;        //TODO implement shouldGetTCerts
+        return false;        //TODO implement shouldGetTCerts
 
 
     	/*
-    	let self = this;
+        let self = this;
         // Do nothing if we are already getting more tcerts
         if (self.gettingTCerts) {
             debug("shouldGetTCerts: no, already getting tcerts");
@@ -124,7 +128,7 @@ public class TCertGetter {
 
     // Call member services to get more tcerts
     private void getTCerts() {
-    	//TODO implement getTCerts
+        //TODO implement getTCerts
     	/*
     	let self = this;
         let req = {

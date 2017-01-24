@@ -16,8 +16,9 @@ package org.hyperledger.fabric.sdk.exception;
 
 public class QueryException extends BaseException {
 
-	private static final long serialVersionUID = 1L;
-	public QueryException(String message, Exception parent) {
-		super(message, parent);		
-	}
+    private static final long serialVersionUID = 1L;
+
+    public QueryException(String message, Exception parent) {
+        super(message, parent);
+    }
 }

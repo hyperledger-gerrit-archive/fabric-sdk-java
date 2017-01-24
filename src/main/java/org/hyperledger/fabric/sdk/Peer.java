@@ -16,7 +16,6 @@ package org.hyperledger.fabric.sdk;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.protos.peer.FabricProposal.Proposal;
 import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse.ProposalResponse;
 import org.hyperledger.fabric.sdk.exception.PeerException;
@@ -25,7 +24,7 @@ import org.hyperledger.fabric.sdk.exception.PeerException;
  * The Peer class represents a peer to which SDK sends deploy, invoke, or query requests.
  */
 public class Peer {
-	private static final Log logger = LogFactory.getLog(Peer.class);
+    private static final Log logger = LogFactory.getLog(Peer.class);
 
     private String url;
     private Chain chain;
@@ -33,8 +32,9 @@ public class Peer {
 
     /**
      * Constructor for a peer given the endpoint config for the peer.
+     *
      * @param {string} url The URL of the peer
-     * @param {Chain} The chain of which this peer is a member.
+     * @param {Chain}  The chain of which this peer is a member.
      * @returns {Peer} The new peer.
      */
     public Peer(String url, String pem, Chain chain) {
@@ -46,6 +46,7 @@ public class Peer {
 
     /**
      * Get the chain of which this peer is a member.
+     *
      * @returns {Chain} The chain of which this peer is a member.
      */
     public Chain getChain() {
@@ -54,6 +55,7 @@ public class Peer {
 
     /**
      * Get the URL of the peer.
+     *
      * @returns {string} Get the URL associated with the peer.
      */
     public String getUrl() {
@@ -62,18 +64,19 @@ public class Peer {
 
     /**
      * Send a transaction proposal to this peer.
+     *
      * @param proposal A transaction proposal
      * @return ProposalResponse
-     * @throws PeerException 
+     * @throws PeerException
      */
     public ProposalResponse sendTransactionProposal(SignedProposal proposal) throws PeerException {
-    	   	
-    	
-    	ProposalResponse response = peerClient.processProposal(proposal);
-    	
-    	return response;
+
+
+        ProposalResponse response = peerClient.processProposal(proposal);
+
+        return response;
     }
-   
+
     /**
      * TODO: Temporary hack to wait until the deploy event has hopefully completed.
      * This does not detect if an error occurs in the peer or chaincode when deploying.

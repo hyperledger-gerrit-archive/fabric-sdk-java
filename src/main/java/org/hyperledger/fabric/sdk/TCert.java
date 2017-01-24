@@ -13,6 +13,7 @@
  */
 
 package org.hyperledger.fabric.sdk;
+
 /**
  * Transaction certificate.
  */

@@ -14,65 +14,65 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.bouncycastle.crypto.digests.SHA3Digest;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
 public class SDKUtilTest {
 
-	@Test
-	public void testGenerateParameterHash() {
-		List<String> args = new ArrayList<String>();
-		args.add("a");
-		args.add("b");
-		String hash = SDKUtil.generateParameterHash("mypath", "myfunc", args);
-		Assert.assertEquals(Hex.toHexString(SDKUtil.hash("mypathmyfuncab".getBytes(), new SHA3Digest())), hash);
-	}
+    @Test
+    public void testGenerateParameterHash() {
+        List<String> args = new ArrayList<String>();
+        args.add("a");
+        args.add("b");
+        String hash = SDKUtil.generateParameterHash("mypath", "myfunc", args);
+        Assert.assertEquals(Hex.toHexString(SDKUtil.hash("mypathmyfuncab".getBytes(), new SHA3Digest())), hash);
+    }
 
-	@Test
-	public void testGenerateDirectoryHash() throws IOException {
-		// valid hash
-		String hash = SDKUtil.generateDirectoryHash(System.getenv("GOPATH"), "/src/github.com/hyperledger/fabric/examples/chaincode/java/Example", "");
-		Assert.assertEquals("3c08029b52176eacf802dee93129a9f1fd115008950e1bb968465dcd51bbbb9d", hash);
+    @Test
+    public void testGenerateDirectoryHash() throws IOException {
+        // valid hash
+        String hash = SDKUtil.generateDirectoryHash(System.getenv("GOPATH"), "/src/github.com/hyperledger/fabric/examples/chaincode/java/Example", "");
+        Assert.assertEquals("3c08029b52176eacf802dee93129a9f1fd115008950e1bb968465dcd51bbbb9d", hash);
 
-		// non-existing directory
-		try {
-			SDKUtil.generateDirectoryHash(null, "/src/github.com/hyperledger/fabric/examples/chaincode/java/Example", "");
-			Assert.fail("Should have failed as the directory does not exist");
-		} catch(IOException iex) {
-			Assert.assertEquals(String.format("The chaincode path \"%s\" is invalid", Paths.get("/src/github.com/hyperledger/fabric/examples/chaincode/java/Example")), iex.getMessage());
-		}
+        // non-existing directory
+        try {
+            SDKUtil.generateDirectoryHash(null, "/src/github.com/hyperledger/fabric/examples/chaincode/java/Example", "");
+            Assert.fail("Should have failed as the directory does not exist");
+        } catch (IOException iex) {
+            Assert.assertEquals(String.format("The chaincode path \"%s\" is invalid", Paths.get("/src/github.com/hyperledger/fabric/examples/chaincode/java/Example")), iex.getMessage());
+        }
 
-		//create an empty directory and test on that
-		File file = new File(System.getProperty("java.io.tmpdir")+File.separator+"testdir");
-		file.mkdir();
+        //create an empty directory and test on that
+        File file = new File(System.getProperty("java.io.tmpdir") + File.separator + "testdir");
+        file.mkdir();
 
-		try {
-			SDKUtil.generateDirectoryHash(null, file.getAbsolutePath(), "");
-			Assert.fail("Should have failed as the directory is empty");
-		} catch(IOException iex) {
-			Assert.assertEquals(String.format("The chaincode directory \"%s\" has no files", file.getAbsolutePath()), iex.getMessage());
-		} finally {
-			file.delete();
-		}
-	}
+        try {
+            SDKUtil.generateDirectoryHash(null, file.getAbsolutePath(), "");
+            Assert.fail("Should have failed as the directory is empty");
+        } catch (IOException iex) {
+            Assert.assertEquals(String.format("The chaincode directory \"%s\" has no files", file.getAbsolutePath()), iex.getMessage());
+        } finally {
+            file.delete();
+        }
+    }
 
-	@Test
-	public void testReadFileFromClasspath() throws IOException {
-		byte[] data = SDKUtil.readFileFromClasspath("Go.Docker");
-		Assert.assertNotNull(data);
-		Assert.assertTrue(data.length > 0);
+    @Test
+    public void testReadFileFromClasspath() throws IOException {
+        byte[] data = SDKUtil.readFileFromClasspath("Go.Docker");
+        Assert.assertNotNull(data);
+        Assert.assertTrue(data.length > 0);
 
-		data = SDKUtil.readFileFromClasspath("Java.Docker");
-		Assert.assertNotNull(data);
-		Assert.assertTrue(data.length > 0);
-	}
+        data = SDKUtil.readFileFromClasspath("Java.Docker");
+        Assert.assertNotNull(data);
+        Assert.assertTrue(data.length > 0);
+    }
 }

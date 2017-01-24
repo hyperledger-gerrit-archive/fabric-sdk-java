@@ -72,7 +72,7 @@ public class OrdererClient {
             @Override
             public void onNext(Ab.BroadcastResponse resp) {
 
-               // logger.info("Got Broadcast response: " + resp);
+                // logger.info("Got Broadcast response: " + resp);
                 logger.debug("resp status value: " + resp.getStatusValue() + ", resp: " + resp.getStatus());
                 ret[0] = resp;
                 finishLatch.countDown();
@@ -102,7 +102,7 @@ public class OrdererClient {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        
+
         return ret[0];
     }
 }

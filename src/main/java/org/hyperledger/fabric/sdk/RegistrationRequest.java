@@ -29,26 +29,32 @@ public class RegistrationRequest {
     private ArrayList<String> roles;
     // Affiliation for a user
     private String affiliation;
+
     // 'registrar' enables this identity to register other members with types
     // and can delegate the 'delegationRoles' roles
-	public String getEnrollmentID() {
-		return enrollmentID;
-	}
-	public void setEnrollmentID(String enrollmentID) {
-		this.enrollmentID = enrollmentID;
-	}
-	public ArrayList<String> getRoles() {
-		return roles;
-	}
-	public void setRoles(ArrayList<String> roles) {
-		this.roles = roles;
-	}
-	public String getAffiliation() {
-		return affiliation;
-	}
-	public void setAffiliation(String affiliation) {
-		this.affiliation = affiliation;
-	}
+    public String getEnrollmentID() {
+        return enrollmentID;
+    }
+
+    public void setEnrollmentID(String enrollmentID) {
+        this.enrollmentID = enrollmentID;
+    }
+
+    public ArrayList<String> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(ArrayList<String> roles) {
+        this.roles = roles;
+    }
+
+    public String getAffiliation() {
+        return affiliation;
+    }
+
+    public void setAffiliation(String affiliation) {
+        this.affiliation = affiliation;
+    }
 
     //TODO uncomment registrar
     /*

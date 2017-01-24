@@ -17,11 +17,9 @@ limitations under the License.
 package org.hyperledger.fabric.sdk.shim.fsm;
 
 public enum CallbackType {
-
-	NONE,
-	BEFORE_EVENT,
-	LEAVE_STATE,
-	ENTER_STATE,
-	AFTER_EVENT;
-
+    NONE,
+    BEFORE_EVENT,
+    LEAVE_STATE,
+    ENTER_STATE,
+    AFTER_EVENT
 }

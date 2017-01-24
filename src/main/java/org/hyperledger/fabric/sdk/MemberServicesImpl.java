@@ -14,52 +14,52 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.security.cert.CertificateException;
-import java.util.ArrayList;
-
+import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 
-import io.netty.util.internal.StringUtil;
+import java.security.cert.CertificateException;
+import java.util.ArrayList;
 
 /**
  * MemberServicesImpl is the default implementation of a member services client.
  */
 public class MemberServicesImpl implements MemberServices {
-	private static final Log logger = LogFactory.getLog(MemberServices.class);
+    private static final Log logger = LogFactory.getLog(MemberServices.class);
 
-//    private ECAABlockingStub ecaaClient;
+    //    private ECAABlockingStub ecaaClient;
 //    private ECAPBlockingStub ecapClient;
 //    private TCAPBlockingStub tcapClient;
 //    private TLSCAPBlockingStub tlscapClient;
     private CryptoPrimitives cryptoPrimitives;
 
     private int DEFAULT_SECURITY_LEVEL = 256;
-	private String DEFAULT_HASH_ALGORITHM = "SHA3";
+    private String DEFAULT_HASH_ALGORITHM = "SHA3";
 
     /**
      * MemberServicesImpl constructor
+     *
      * @param url URL for the membership services endpoint
      * @param pem
      * @throws CertificateException
-
      */
     public MemberServicesImpl(String url, String pem) throws CertificateException {
-    	Endpoint ep = new Endpoint(url, pem);
+        Endpoint ep = new Endpoint(url, pem);
 
 //    	this.ecaaClient = ECAAGrpc.newBlockingStub(ep.getChannelBuilder().build());
 //    	this.ecapClient = ECAPGrpc.newBlockingStub(ep.getChannelBuilder().build());
 //    	this.tcapClient = TCAPGrpc.newBlockingStub(ep.getChannelBuilder().build());
 //    	this.tlscapClient = TLSCAPGrpc.newBlockingStub(ep.getChannelBuilder().build());
-    	this.cryptoPrimitives = new CryptoPrimitives(DEFAULT_HASH_ALGORITHM, DEFAULT_SECURITY_LEVEL);
+        this.cryptoPrimitives = new CryptoPrimitives(DEFAULT_HASH_ALGORITHM, DEFAULT_SECURITY_LEVEL);
 
     }
 
     /**
      * Get the security level
+     *
      * @returns The security level
      */
     public int getSecurityLevel() {
@@ -68,6 +68,7 @@ public class MemberServicesImpl implements MemberServices {
 
     /**
      * Set the security level
+     *
      * @params securityLevel The security level
      */
     public void setSecurityLevel(int securityLevel) {
@@ -76,6 +77,7 @@ public class MemberServicesImpl implements MemberServices {
 
     /**
      * Get the hash algorithm
+     *
      * @returns {string} The hash algorithm
      */
     public String getHashAlgorithm() {
@@ -84,6 +86,7 @@ public class MemberServicesImpl implements MemberServices {
 
     /**
      * Set the hash algorithm
+     *
      * @params hashAlgorithm The hash algorithm ('SHA2' or 'SHA3')
      */
     public void setHashAlgorithm(String hashAlgorithm) {
@@ -96,19 +99,20 @@ public class MemberServicesImpl implements MemberServices {
 
     /**
      * Register the member and return an enrollment secret.
-     * @param req Registration request with the following fields: name, role
+     *
+     * @param req       Registration request with the following fields: name, role
      * @param registrar The identity of the registrar (i.e. who is performing the registration)
      */
     public String register(RegistrationRequest req, Member registrar) throws RegistrationException {
-    	if (StringUtil.isNullOrEmpty(req.getEnrollmentID())) {
-    		throw new IllegalArgumentException("EntrollmentID cannot be null or empty");
-    	}
+        if (StringUtil.isNullOrEmpty(req.getEnrollmentID())) {
+            throw new IllegalArgumentException("EntrollmentID cannot be null or empty");
+        }
 
-    	if (registrar == null) {
-    		throw new IllegalArgumentException("Registrar should be a valid member");
-    	}
+        if (registrar == null) {
+            throw new IllegalArgumentException("Registrar should be a valid member");
+        }
 
-    	return ""; //TODO remove 
+        return ""; //TODO remove
 
 //    	Registrar reg = Registrar.newBuilder()
 //    			.setId(
@@ -146,7 +150,7 @@ public class MemberServicesImpl implements MemberServices {
 
     }
 
-	/**
+    /**
      * Enroll the member with member service
      * @param req Enrollment request with the following fields: name, enrollmentSecret
      * @return enrollment
@@ -329,7 +333,7 @@ public class MemberServicesImpl implements MemberServices {
         return tCertBatch;
         */
 
- //   } // end processTCertBatch
+    //   } // end processTCertBatch
 
     /*
      *  Convert a list of member type names to the role mask currently used by the peer
@@ -337,7 +341,7 @@ public class MemberServicesImpl implements MemberServices {
     private int rolesToMask(ArrayList<String> roles) {
         int mask = 0;
         if (roles != null) {
-            for (String role: roles) {
+            for (String role : roles) {
                 switch (role) {
                     case "client":
                         mask |= 1;
@@ -359,10 +363,10 @@ public class MemberServicesImpl implements MemberServices {
         return mask;
     }
 
-	@Override
-	public Enrollment enroll(EnrollmentRequest req) throws EnrollmentException {
-		// TODO Auto-generated method stub
-		return null;
-	}
+    @Override
+    public Enrollment enroll(EnrollmentRequest req) throws EnrollmentException {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }
 

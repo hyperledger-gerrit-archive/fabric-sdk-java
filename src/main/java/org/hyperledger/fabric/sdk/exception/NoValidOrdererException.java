@@ -16,10 +16,10 @@ package org.hyperledger.fabric.sdk.exception;
 
 public class NoValidOrdererException extends RuntimeException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public NoValidOrdererException(String message) {
-		super(message);
-	}
+    public NoValidOrdererException(String message) {
+        super(message);
+    }
 
 }

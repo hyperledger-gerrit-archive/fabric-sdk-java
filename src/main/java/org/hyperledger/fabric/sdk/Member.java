@@ -14,6 +14,13 @@
 
 package org.hyperledger.fabric.sdk;
 
+import io.netty.util.internal.StringUtil;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.bouncycastle.util.encoders.Hex;
+import org.hyperledger.fabric.sdk.exception.EnrollmentException;
+import org.hyperledger.fabric.sdk.exception.RegistrationException;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,18 +32,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.bouncycastle.util.encoders.Hex;
-import org.hyperledger.fabric.sdk.exception.EnrollmentException;
-import org.hyperledger.fabric.sdk.exception.RegistrationException;
-
-import io.netty.util.internal.StringUtil;
-
 public class Member implements Serializable {
-	private static final long serialVersionUID = 8077132186383604355L;
+    private static final long serialVersionUID = 8077132186383604355L;
 
-	private static final Log logger = LogFactory.getLog(Member.class);
+    private static final Log logger = LogFactory.getLog(Member.class);
 
     private transient Chain chain;
     private String name;
@@ -53,17 +52,18 @@ public class Member implements Serializable {
 
     /**
      * Constructor for a member.
+     *
      * @param name The member name
      * @returns {Member} A member who is neither registered nor enrolled.
      */
 
     public Member(String name, Chain chain) {
-    	if (chain == null) {
-    		throw new IllegalArgumentException("A valid chain must be provided");
-    	}
+        if (chain == null) {
+            throw new IllegalArgumentException("A valid chain must be provided");
+        }
 
-    	this.name = name;
-    	this.chain = chain;
+        this.name = name;
+        this.chain = chain;
         this.memberServices = chain.getMemberServices();
         this.keyValStore = chain.getKeyValStore();
         this.keyValStoreName = toKeyValStoreName(this.name);
@@ -73,6 +73,7 @@ public class Member implements Serializable {
 
     /**
      * Get the member name.
+     *
      * @returns {string} The member name.
      */
     public String getName() {
@@ -81,6 +82,7 @@ public class Member implements Serializable {
 
     /**
      * Get the chain.
+     *
      * @returns {Chain} The chain.
      */
     public Chain getChain() {
@@ -89,15 +91,17 @@ public class Member implements Serializable {
 
     /**
      * Get the member services.
+     *
      * @returns {MemberServices} The member services.
      */
 
     public MemberServices getMemberServices() {
-       return this.memberServices;
+        return this.memberServices;
     }
 
     /**
      * Get the roles.
+     *
      * @returns {string[]} The roles.
      */
     public ArrayList<String> getRoles() {
@@ -106,6 +110,7 @@ public class Member implements Serializable {
 
     /**
      * Set the roles.
+     *
      * @param roles {string[]} The roles.
      */
     public void setRoles(ArrayList<String> roles) {
@@ -114,6 +119,7 @@ public class Member implements Serializable {
 
     /**
      * Get the account.
+     *
      * @returns {string} The account.
      */
     public String getAccount() {
@@ -122,6 +128,7 @@ public class Member implements Serializable {
 
     /**
      * Set the account.
+     *
      * @param account The account.
      */
     public void setAccount(String account) {
@@ -130,6 +137,7 @@ public class Member implements Serializable {
 
     /**
      * Get the affiliation.
+     *
      * @returns {string} The affiliation.
      */
     public String getAffiliation() {
@@ -138,6 +146,7 @@ public class Member implements Serializable {
 
     /**
      * Set the affiliation.
+     *
      * @param affiliation The affiliation.
      */
     public void setAffiliation(String affiliation) {
@@ -147,6 +156,7 @@ public class Member implements Serializable {
     /**
      * Get the transaction certificate (tcert) batch size, which is the number of tcerts retrieved
      * from member services each time (i.e. in a single batch).
+     *
      * @returns The tcert batch size.
      */
     public int getTCertBatchSize() {
@@ -159,6 +169,7 @@ public class Member implements Serializable {
 
     /**
      * Set the transaction certificate (tcert) batch size.
+     *
      * @param batchSize
      */
     public void setTCertBatchSize(int batchSize) {
@@ -167,14 +178,22 @@ public class Member implements Serializable {
 
     /**
      * Get the enrollment logger.info.
+     *
      * @returns {Enrollment} The enrollment.
      */
     public Enrollment getEnrollment() {
         return this.enrollment;
-    };
+    }
+
+    ;
+
+    public void setEnrollment(Enrollment enrollment) {
+        this.enrollment = enrollment;
+    }
 
     /**
      * Determine if this name has been registered.
+     *
      * @returns {boolean} True if registered; otherwise, false.
      */
     public boolean isRegistered() {
@@ -183,6 +202,7 @@ public class Member implements Serializable {
 
     /**
      * Determine if this name has been enrolled.
+     *
      * @returns {boolean} True if enrolled; otherwise, false.
      */
     public boolean isEnrolled() {
@@ -191,6 +211,7 @@ public class Member implements Serializable {
 
     /**
      * Register the member.
+     *
      * @param registrationRequest the registration request
      * @throws RegistrationException
      */
@@ -205,6 +226,7 @@ public class Member implements Serializable {
 
     /**
      * Enroll the member and return the enrollment results.
+     *
      * @param enrollmentSecret The password or enrollment secret as returned by register.
      * @return enrollment details
      * @throws EnrollmentException
@@ -222,6 +244,7 @@ public class Member implements Serializable {
 
     /**
      * Perform both registration and enrollment.
+     *
      * @throws RegistrationException
      * @throws EnrollmentException
      */
@@ -230,9 +253,9 @@ public class Member implements Serializable {
         enroll(this.enrollmentSecret);
     }
 
-
     /**
      * Get a user certificate.
+     *
      * @param attrs The names of attributes to include in the user certificate.
      */
     public void getUserCert(List<String> attrs) {
@@ -240,90 +263,85 @@ public class Member implements Serializable {
     }
 
     /**
-   * Get the next available transaction certificate with the appropriate attributes.
-   */
-   public TCert getNextTCert(List<String> attrs) {
-	if (!isEnrolled()) {
-            throw new RuntimeException(String.format("user '%s' is not enrolled",this.getName()));
+     * Get the next available transaction certificate with the appropriate attributes.
+     */
+    public TCert getNextTCert(List<String> attrs) {
+        if (!isEnrolled()) {
+            throw new RuntimeException(String.format("user '%s' is not enrolled", this.getName()));
         }
         String key = getAttrsKey(attrs);
         if (key == null) {
-        	return null;
+            return null;
         }
 
-        logger.debug(String.format("Member.getNextTCert: key=%s",key));
+        logger.debug(String.format("Member.getNextTCert: key=%s", key));
         TCertGetter tcertGetter = this.tcertGetterMap.get(key);
         if (tcertGetter == null) {
-            logger.debug(String.format("Member.getNextTCert: key=%s, creating new getter",key));
+            logger.debug(String.format("Member.getNextTCert: key=%s, creating new getter", key));
             tcertGetter = new TCertGetter(this, attrs, key);
             this.tcertGetterMap.put(key, tcertGetter);
         }
         return tcertGetter.getNextTCert();
 
-   }
+    }
 
-   private String getAttrsKey(List<String> attrs ) {
-	    if (attrs == null || attrs.isEmpty()) return null;
-	    return String.join(",", attrs);
-	}
+    private String getAttrsKey(List<String> attrs) {
+        if (attrs == null || attrs.isEmpty()) return null;
+        return String.join(",", attrs);
+    }
 
+    /**
+     * Save the state of this member to the key value store.
+     */
+    public void saveState() {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try {
+            ObjectOutputStream oos = new ObjectOutputStream(bos);
+            oos.writeObject(this);
+            oos.flush();
+            keyValStore.setValue(keyValStoreName, Hex.toHexString(bos.toByteArray()));
+            bos.close();
+        } catch (IOException e) {
+            logger.debug(String.format("Could not save state of member %s", this.name), e);
+        }
+    }
 
-   /**
-    * Save the state of this member to the key value store.
-    */
-   public void saveState() {
-	  ByteArrayOutputStream bos = new ByteArrayOutputStream();
-	  try {
-		ObjectOutputStream oos = new ObjectOutputStream(bos);
-		oos.writeObject(this);
-		oos.flush();
-		keyValStore.setValue(keyValStoreName, Hex.toHexString(bos.toByteArray()));
-		bos.close();
-	} catch (IOException e) {
-		logger.debug(String.format("Could not save state of member %s", this.name), e);
-	}
-   }
-
-   /**
-    * Restore the state of this member from the key value store (if found).  If not found, do nothing.
-    */
-   public void restoreState() {
-		String memberStr = keyValStore.getValue(keyValStoreName);
-		if (null != memberStr) {
-			// The member was found in the key value store, so restore the
-			// state.
-			byte[] serialized = Hex.decode(memberStr);
-			ByteArrayInputStream bis = new ByteArrayInputStream(serialized);
-			try {
-				ObjectInputStream ois = new ObjectInputStream(bis);
-				Member state = (Member)ois.readObject();
-				if (state != null) {
-					this.name = state.name;
-			        this.roles = state.roles;
-			        this.account = state.account;
-			        this.affiliation = state.affiliation;
-			        this.enrollmentSecret = state.enrollmentSecret;
-			        this.enrollment = state.enrollment;
-				} else {
-					logger.debug(String.format("Could not find member %s from keyvalue store", this.name));
-				}
-			} catch (IOException | ClassNotFoundException e) {
-				logger.debug(String.format("Could not restore state of member %s", this.name), e);
-			}
-		}
-   }
+    /**
+     * Restore the state of this member from the key value store (if found).  If not found, do nothing.
+     */
+    public void restoreState() {
+        String memberStr = keyValStore.getValue(keyValStoreName);
+        if (null != memberStr) {
+            // The member was found in the key value store, so restore the
+            // state.
+            byte[] serialized = Hex.decode(memberStr);
+            ByteArrayInputStream bis = new ByteArrayInputStream(serialized);
+            try {
+                ObjectInputStream ois = new ObjectInputStream(bis);
+                Member state = (Member) ois.readObject();
+                if (state != null) {
+                    this.name = state.name;
+                    this.roles = state.roles;
+                    this.account = state.account;
+                    this.affiliation = state.affiliation;
+                    this.enrollmentSecret = state.enrollmentSecret;
+                    this.enrollment = state.enrollment;
+                } else {
+                    logger.debug(String.format("Could not find member %s from keyvalue store", this.name));
+                }
+            } catch (IOException | ClassNotFoundException e) {
+                logger.debug(String.format("Could not restore state of member %s", this.name), e);
+            }
+        }
+    }
 
     public String getEnrollmentSecret() {
-		return enrollmentSecret;
-	}
+        return enrollmentSecret;
+    }
 
-	public void setEnrollmentSecret(String enrollmentSecret) {
-		this.enrollmentSecret = enrollmentSecret;
-	}
-
-	public void setEnrollment(Enrollment enrollment) {
-		this.enrollment = enrollment;
-	}
+    public void setEnrollmentSecret(String enrollmentSecret) {
+        this.enrollmentSecret = enrollmentSecret;
+    }
 
     private String toKeyValStoreName(String name) {
         return "member." + name;

@@ -39,7 +39,6 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
-import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.helper.Config;
@@ -98,6 +97,57 @@ public class MemberServicesCOPImpl implements MemberServices {
 
 
         this.cryptoPrimitives = new CryptoPrimitives(config.getDefaultHashAlgorithm(), config.getDefaultSecurityLevel());
+    }
+
+    /**
+     * Http Post Request.
+     *
+     * @param url         Target URL to POST to.
+     * @param body        Body to be sent with the post.
+     * @param credentials Credentials to use for basic auth.
+     * @return Body of post returned.
+     * @throws Exception
+     */
+
+    private static String httpPost(String url, String body, UsernamePasswordCredentials credentials) throws Exception {
+        CredentialsProvider provider = new BasicCredentialsProvider();
+
+
+        provider.setCredentials(AuthScope.ANY, credentials);
+
+
+        HttpClient client = HttpClientBuilder.create().setDefaultCredentialsProvider(provider).build();
+
+        HttpPost httpPost = new HttpPost(url);
+
+        AuthCache authCache = new BasicAuthCache();
+
+        HttpHost targetHost = new HttpHost(httpPost.getURI().getHost(), httpPost.getURI().getPort());
+
+        authCache.put(targetHost, new BasicScheme());
+
+        final HttpClientContext context = HttpClientContext.create();
+        context.setCredentialsProvider(provider);
+        context.setAuthCache(authCache);
+
+        httpPost.setEntity(new StringEntity(body));
+
+        HttpResponse response = client.execute(httpPost, context);
+        int status = response.getStatusLine().getStatusCode();
+
+        HttpEntity entity = response.getEntity();
+        String responseBody = entity != null ? EntityUtils.toString(entity) : null;
+
+        if (status >= 400) {
+
+            Exception e = new Exception(format("POST request to %s failed with status code: %d. Response: %s", url, status, responseBody));
+            logger.error(e.getMessage());
+            throw e;
+        }
+        logger.debug(format("Successful POST to [%s] Status: ", url, status));
+
+
+        return responseBody;
     }
 
     private void validateInit() {
@@ -282,57 +332,6 @@ public class MemberServicesCOPImpl implements MemberServices {
             throw new EnrollmentException("req.enrollmentSecret is not set", new IllegalArgumentException("req.enrollmentSecret is not set"));
 
         }
-    }
-
-    /**
-     * Http Post Request.
-     *
-     * @param url         Target URL to POST to.
-     * @param body        Body to be sent with the post.
-     * @param credentials Credentials to use for basic auth.
-     * @return Body of post returned.
-     * @throws Exception
-     */
-
-    private static String httpPost(String url, String body, UsernamePasswordCredentials credentials) throws Exception {
-        CredentialsProvider provider = new BasicCredentialsProvider();
-
-
-        provider.setCredentials(AuthScope.ANY, credentials);
-
-
-        HttpClient client = HttpClientBuilder.create().setDefaultCredentialsProvider(provider).build();
-
-        HttpPost httpPost = new HttpPost(url);
-
-        AuthCache authCache = new BasicAuthCache();
-
-        HttpHost targetHost = new HttpHost(httpPost.getURI().getHost(), httpPost.getURI().getPort());
-
-        authCache.put(targetHost, new BasicScheme());
-
-        final HttpClientContext context = HttpClientContext.create();
-        context.setCredentialsProvider(provider);
-        context.setAuthCache(authCache);
-
-        httpPost.setEntity(new StringEntity(body));
-
-        HttpResponse response = client.execute(httpPost, context);
-        int status = response.getStatusLine().getStatusCode();
-
-        HttpEntity entity = response.getEntity();
-        String responseBody = entity != null ? EntityUtils.toString(entity) : null;
-
-        if (status >= 400) {
-
-            Exception e = new Exception(format("POST request to %s failed with status code: %d. Response: %s", url, status, responseBody));
-            logger.error(e.getMessage());
-            throw e;
-        }
-        logger.debug(format("Successful POST to [%s] Status: ", url, status));
-
-
-        return responseBody;
     }
 
     /**

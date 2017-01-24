@@ -20,16 +20,19 @@ public class EnrollmentRequest {
     // The enrollment secret (a one-time password)
     private String enrollmentSecret;
 
-	public String getEnrollmentID() {
-		return enrollmentID;
-	}
-	public void setEnrollmentID(String enrollmentID) {
-		this.enrollmentID = enrollmentID;
-	}
-	public String getEnrollmentSecret() {
-		return enrollmentSecret;
-	}
-	public void setEnrollmentSecret(String enrollmentSecret) {
-		this.enrollmentSecret = enrollmentSecret;
-	}
+    public String getEnrollmentID() {
+        return enrollmentID;
+    }
+
+    public void setEnrollmentID(String enrollmentID) {
+        this.enrollmentID = enrollmentID;
+    }
+
+    public String getEnrollmentSecret() {
+        return enrollmentSecret;
+    }
+
+    public void setEnrollmentSecret(String enrollmentSecret) {
+        this.enrollmentSecret = enrollmentSecret;
+    }
 }

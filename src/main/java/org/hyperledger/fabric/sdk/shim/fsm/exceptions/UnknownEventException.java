@@ -18,11 +18,11 @@ package org.hyperledger.fabric.sdk.shim.fsm.exceptions;
 
 public class UnknownEventException extends Exception {
 
-	public final String event;
+    public final String event;
 
-	public UnknownEventException(String event) {
-		super("Event '" + event + "' does not exist");
-		this.event = event;
-	}
+    public UnknownEventException(String event) {
+        super("Event '" + event + "' does not exist");
+        this.event = event;
+    }
 
 }

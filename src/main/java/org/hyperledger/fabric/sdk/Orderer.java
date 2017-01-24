@@ -18,39 +18,40 @@ import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.orderer.Ab;
 
 public class Orderer {
-	private Chain chain;
-	private OrdererClient ordererClient;
+    private Chain chain;
+    private OrdererClient ordererClient;
 
-	/**
+    /**
      * Constructor for the orderer given the endpoint config for the orderer.
+     *
      * @param {string} url The URL of the orderer
-     * @param {Chain} The chain of which this orderer is a member.
+     * @param {Chain}  The chain of which this orderer is a member.
      * @returns {Orderer} The new orderer.
      */
-	
-	public Orderer(String url, String pem, Chain chain) {
+
+    public Orderer(String url, String pem, Chain chain) {
         this.chain = chain;
         Endpoint ep = new Endpoint(url, pem);
         this.ordererClient = new OrdererClient(ep.getChannelBuilder());
-	}
+    }
 
-	/**
-	 * Get the chain of which this orderer is a member.
-	 *
-	 * @returns {Chain} The chain of which this orderer is a member.
-	 */
-	public Chain getChain() {
-		return this.chain;
-	}
+    /**
+     * Get the chain of which this orderer is a member.
+     *
+     * @returns {Chain} The chain of which this orderer is a member.
+     */
+    public Chain getChain() {
+        return this.chain;
+    }
 
-	/**
-	 * Send transaction to Order
-	 *
-	 * @param transaction transaction to be sent
-	 */
+    /**
+     * Send transaction to Order
+     *
+     * @param transaction transaction to be sent
+     */
 
-	public Ab.BroadcastResponse sendTransaction(Envelope transaction) {
-		return ordererClient.sendTransaction(transaction);
-	}
+    public Ab.BroadcastResponse sendTransaction(Envelope transaction) {
+        return ordererClient.sendTransaction(transaction);
+    }
 
 }

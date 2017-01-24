@@ -10,6 +10,12 @@ import java.security.cert.CertificateException;
 public class MemberServicesCOPImplTest {
 
 
+    private static MemberServices newCop(String url) throws CertificateException, MalformedURLException {
+
+        return new MemberServicesCOPImpl(url, null);
+
+    }
+
     @Test
     public void testCOPCreation() {
 
@@ -23,11 +29,12 @@ public class MemberServicesCOPImplTest {
             Assert.fail("Unexpected Exception " + e.getMessage());
         }
     }
+
     @Test
     public void testNullURL() {
 
         try {
-             new MemberServicesCOPImpl(null, null);
+            new MemberServicesCOPImpl(null, null);
             MemberServices cop = newCop(null);
             Assert.fail("Expected exception");
 
@@ -36,6 +43,7 @@ public class MemberServicesCOPImplTest {
 
         }
     }
+
     @Test
     public void emptyURL() {
 
@@ -93,7 +101,6 @@ public class MemberServicesCOPImplTest {
 
         }
     }
-
 
     @Test
     public void testBadEnrollUser() {
@@ -166,19 +173,12 @@ public class MemberServicesCOPImplTest {
 
             String certificate = enrollment.getCert();
             Assert.assertNotNull(certificate);
-            Assert.assertTrue("Certificate is string with length greater than 1", certificate.length() >1);
-
+            Assert.assertTrue("Certificate is string with length greater than 1", certificate.length() > 1);
 
 
         } catch (Exception e) {
             Assert.fail("Unexpected Exception " + e.getMessage());
 
         }
-    }
-
-    private static  MemberServices  newCop(String url) throws CertificateException, MalformedURLException {
-
-        return new MemberServicesCOPImpl(url, null);
-
     }
 }
