@@ -31,10 +31,12 @@ You should use the following commit levels of the Hyperledger projects:
 
  | project        | Commit level                               |
  |----------------|:------------------------------------------:|
- | fabric         | f91daceb9278ca89034d7eda5241d91816dcf17a   |
- | fabric-cop     | 9c6c12556b0fc0aa9eb1109c7be8f0a519bfe6d1   |
+ | fabric         | 230f3ccf6659fbe193fbb86ee09b83f0a54ef98b   |
+ | fabric-cop     | aa5fb82838298138e917c7cc24bae794561c4a18   |
  
- You can clone these projects by going to the [Hyperledger repository](https://gerrit.hyperledger.org/r/#/admin/projects/). As sdk developement continues, this file will be updated with compatible Hyperledger Fabric commit levels.
+ You can clone these projects by going to the [Hyperledger repository](https://gerrit.hyperledger.org/r/#/admin/projects/).
+ 
+ As sdk developement continues, this file will be updated with compatible Hyperledger Fabric commit levels.
  
  Once you have cloned `fabric` and `fabric-cop`, use the `git reset --hard commitlevel` to set your repositories to the correct commit.
  
@@ -56,7 +58,7 @@ ssh into vagrant,
 * go to 4GOPATH/src/github/hyperledger/fabric-cop
   * currently, you want to run COP with TLS disabled which is the default for commit 9c6c125 mentioned above.
   * if you do need to turn off TLS, edit the COP server configuration file at _/hyperledger/fabric-cop/images/cop/config/cop.json_
-  * run `make docker` to create the docker image for COP
+  * run `make docker` to create the docker image fqor COP
 
 On your native system where you have the sdk installed you need to copy the docker compose file that starts the services to the directory mapped 
  to vagrant On your native system from the sdk directory:
