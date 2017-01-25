@@ -2,8 +2,18 @@ package org.hyperledger.fabric.sdk.security;
 
 import static org.junit.Assert.*;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.security.*;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+
 import javax.xml.bind.DatatypeConverter;
 
+import org.apache.commons.compress.utils.IOUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -19,18 +29,82 @@ public class CryptoPrimitivesTest {
 	
 	public static byte[] plainText, sig, pemCert ;
 	
+	public static KeyStore trustStore ;
+	
+	public static CertificateFactory cf ;
+	
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
 		plainText = DatatypeConverter.parseHexBinary(plainTextHex) ;
 		sig = DatatypeConverter.parseHexBinary(sigHex) ;
 		pemCert= DatatypeConverter.parseHexBinary(pemCertHex) ;
 
+		cf = CertificateFactory.getInstance("X.509") ;
+		
+		trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+		trustStore.load(null, null);
+		CryptoPrimitives.setTrustStore(trustStore);
 	}
 
 	@Before
 	public void setUp() throws Exception {
+		// TODO should do this in @BeforeClass. Need to find out how to get to files from static junit method
+		BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/ca.crt"));
+		Certificate caCert = cf.generateCertificate(bis);
+		CryptoPrimitives.getTrustStore().setCertificateEntry("ca", caCert);
 	}
 
+	@Test
+	public void testValidateNullCertificateByteArray() {
+		assertFalse(CryptoPrimitives.validateCertificate((byte[]) null));
+	}
+	
+	@Test
+	public void testValidateNullCertificate() {
+		assertFalse(CryptoPrimitives.validateCertificate((Certificate) null));
+	}
+	
+	@Test
+	public void testValidateBadCertificateByteArray() {
+		assertFalse(CryptoPrimitives.validateCertificate(pemCert));
+	}
+	
+	@Test
+	public void testValidateCertificateByteArray() {
+		try {
+			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/keypair-signed.crt"));
+    		byte[] certBytes = IOUtils.toByteArray(bis) ;
+
+			assertTrue(CryptoPrimitives.validateCertificate(certBytes));
+		} catch (IOException e) {
+			Assert.fail("cannot read cert file");
+		}
+	}
+	
+	@Test
+	public void testValidateCertificate() {
+		try {
+			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/keypair-signed.crt"));
+			Certificate cert = cf.generateCertificate(bis);
+
+			assertTrue(CryptoPrimitives.validateCertificate(cert));
+		} catch (CertificateException e) {
+			Assert.fail("cannot read cert file");
+		}
+	}
+	
+	@Test
+	public void testValidateBadCertificate() {
+		try {
+    		BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(pemCert));
+    		X509Certificate cert = (X509Certificate) cf.generateCertificate(pem);
+
+			assertFalse(CryptoPrimitives.validateCertificate(cert));
+		} catch (CertificateException e) {
+			Assert.fail("cannot read cert file");
+		}
+	}
+	
 	@Test
 	public void testVerifyNullInput() {
 			assertFalse(CryptoPrimitives.verify(null, null, null));
@@ -61,3 +135,6 @@ public class CryptoPrimitivesTest {
 	} // testVerify
 
 }
+
+
+
