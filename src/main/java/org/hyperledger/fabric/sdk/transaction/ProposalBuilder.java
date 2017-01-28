@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,14 +14,13 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import java.util.List;
-
+import com.google.protobuf.ByteString;
+import io.netty.util.internal.StringUtil;
 import org.hyperledger.fabric.protos.common.Common.ChainHeader;
 import org.hyperledger.fabric.protos.common.Common.Header;
 import org.hyperledger.fabric.protos.common.Common.HeaderType;
 import org.hyperledger.fabric.protos.common.Common.SignatureHeader;
 import org.hyperledger.fabric.protos.msp.Identities.SerializedIdentity;
-import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInvocationSpec;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
@@ -32,31 +31,32 @@ import org.hyperledger.fabric.protos.peer.FabricProposal.Proposal;
 import org.hyperledger.fabric.sdk.ChaincodeLanguage;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 
-import com.google.protobuf.ByteString;
+import java.util.List;
 
-import io.netty.util.internal.StringUtil;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
 
 
 public class ProposalBuilder {
 
-    private Chaincode.ChaincodeID chaincodeID;
+    private TransactionContext context;
+    private ChaincodeID chaincodeID;
     private List<ByteString> argList;
-    protected TransactionContext context;
-    private Chaincode.ChaincodeSpec.Type ccType = Chaincode.ChaincodeSpec.Type.GOLANG ;
+    private ChaincodeSpec.Type ccType = ChaincodeSpec.Type.GOLANG;
     private String txID;
 
-    protected ProposalBuilder() {}
+    protected ProposalBuilder() {
+    }
 
     public static ProposalBuilder newBuilder() {
         return new ProposalBuilder();
     }
 
-    public ProposalBuilder chaincodeID(Chaincode.ChaincodeID chaincodeID ) {
+    public ProposalBuilder chaincodeID(ChaincodeID chaincodeID) {
         this.chaincodeID = chaincodeID;
         return this;
     }
 
-    public ProposalBuilder args(List<ByteString> argList ) {
+    public ProposalBuilder args(List<ByteString> argList) {
         this.argList = argList;
         return this;
     }
@@ -66,122 +66,120 @@ public class ProposalBuilder {
         return this;
     }
 
-	public ProposalBuilder txID(String txID) {
-		this.txID = txID;
-		return this;
-	}
+    public ProposalBuilder txID(String txID) {
+        this.txID = txID;
+        return this;
+    }
 
 
     public FabricProposal.Proposal build() {
-       return createFabricProposal();
+        return createFabricProposal();
     }
 
-    public Chaincode.ChaincodeID getChaincodeID() {
-		return chaincodeID;
-	}
+    public ChaincodeID getChaincodeID() {
+        return chaincodeID;
+    }
 
-	public List<ByteString> getArgList() {
-		return argList;
-	}
+    public List<ByteString> getArgList() {
+        return argList;
+    }
 
-	public TransactionContext getContext() {
-		return context;
-	}
+    public TransactionContext getContext() {
+        return context;
+    }
 
-	public Chaincode.ChaincodeSpec.Type getChaincodeType() {
-		return ccType;
-	}
+    public ChaincodeSpec.Type getChaincodeType() {
+        return ccType;
+    }
 
-	private  FabricProposal.Proposal createFabricProposal() {
+    private FabricProposal.Proposal createFabricProposal() {
 
-		Chaincode.ChaincodeInvocationSpec chaincodeInvocationSpec = createChaincodeInvocationSpec(
-				chaincodeID,
-				ccType, argList);
+        ChaincodeInvocationSpec chaincodeInvocationSpec = createChaincodeInvocationSpec(
+                chaincodeID,
+                ccType, argList);
 
-		ChaincodeHeaderExtension chaincodeHeaderExtension =
-				ChaincodeHeaderExtension.newBuilder()
-				.setChaincodeID(chaincodeID).build();
+        ChaincodeHeaderExtension chaincodeHeaderExtension =
+                ChaincodeHeaderExtension.newBuilder()
+                        .setChaincodeID(chaincodeID).build();
 
-		ChainHeader chainHeader = ChainHeader.newBuilder()
-				.setType(HeaderType.ENDORSER_TRANSACTION.getNumber())
-				.setVersion(0)
-				.setChainID(context.getChain().getName())
-				.setTxID(txID)
-				.setExtension(chaincodeHeaderExtension.toByteString()).build();
+        ChainHeader chainHeader = ChainHeader.newBuilder()
+                .setType(HeaderType.ENDORSER_TRANSACTION.getNumber())
+                .setVersion(0)
+                .setChainID(context.getChain().getName())
+                .setTxID(txID)
+                .setExtension(chaincodeHeaderExtension.toByteString()).build();
 
-		SerializedIdentity identity = SerializedIdentity.newBuilder()
-				.setMspid("DEFAULT")
-				.setIdBytes(com.google.protobuf.ByteString.copyFrom(context.getEcert().getBytes()))
-				.build();
+        SerializedIdentity identity = SerializedIdentity.newBuilder()
+                .setMspid("DEFAULT")
+                .setIdBytes(com.google.protobuf.ByteString.copyFrom(context.getEcert().getBytes()))
+                .build();
 
-		SignatureHeader signHeader = SignatureHeader.newBuilder()
-				.setCreator(identity.toByteString())
-				.setNonce(com.google.protobuf.ByteString.copyFromUtf8(SDKUtil.generateUUID()))
-				.build();
+        SignatureHeader signHeader = SignatureHeader.newBuilder()
+                .setCreator(identity.toByteString())
+                .setNonce(com.google.protobuf.ByteString.copyFromUtf8(SDKUtil.generateUUID()))
+                .build();
 
-		Header header =  Header.newBuilder()
-				.setSignatureHeader(signHeader)
-				.setChainHeader(chainHeader)
-				.build();
+        Header header = Header.newBuilder()
+                .setSignatureHeader(signHeader)
+                .setChainHeader(chainHeader)
+                .build();
 
-		ChaincodeProposalPayload payload = ChaincodeProposalPayload.newBuilder()
-				.setInput(chaincodeInvocationSpec.toByteString())
-				.build();
+        ChaincodeProposalPayload payload = ChaincodeProposalPayload.newBuilder()
+                .setInput(chaincodeInvocationSpec.toByteString())
+                .build();
 
-		Proposal proposal = Proposal.newBuilder()
-				.setHeader(header.toByteString())
-				.setPayload(payload.toByteString())
-				.build();
+        Proposal proposal = Proposal.newBuilder()
+                .setHeader(header.toByteString())
+                .setPayload(payload.toByteString())
+                .build();
 
         return proposal;
 
     }
 
 
-    private Chaincode.ChaincodeInvocationSpec createChaincodeInvocationSpec(Chaincode.ChaincodeID chainCodeId, Chaincode.ChaincodeSpec.Type langType, List<ByteString> args) {
+    private ChaincodeInvocationSpec createChaincodeInvocationSpec(ChaincodeID chainCodeId, ChaincodeSpec.Type langType, List<ByteString> args) {
         ChaincodeInput chaincodeInput = ChaincodeInput.newBuilder()
-        		.addAllArgs(args)
-        		.build();
+                .addAllArgs(args)
+                .build();
 
         ChaincodeSpec chaincodeSpec = ChaincodeSpec.newBuilder()
-        		.setType(langType)
-        		.setChaincodeID(chainCodeId)
-        		.setCtorMsg(chaincodeInput)
-        		.build();
+                .setType(langType)
+                .setChaincodeID(chainCodeId)
+                .setCtorMsg(chaincodeInput)
+                .build();
 
         ChaincodeInvocationSpec invocationSpec = ChaincodeInvocationSpec.newBuilder()
-        		.setChaincodeSpec(chaincodeSpec)
-        		.setIdGenerationAlg("").build();
+                .setChaincodeSpec(chaincodeSpec)
+                .setIdGenerationAlg("").build();
 
         return invocationSpec;
     }
 
     public ProposalBuilder chaincodeType(String lang) {
-    	if (!StringUtil.isNullOrEmpty(lang)) {
-    		if ("java".equalsIgnoreCase(lang)) {
-    			this.ccType = Chaincode.ChaincodeSpec.Type.JAVA;
-    		} else {
-    			this.ccType = Chaincode.ChaincodeSpec.Type.GOLANG;
-    		}
+        if (!StringUtil.isNullOrEmpty(lang)) {
+            if ("java".equalsIgnoreCase(lang)) {
+                this.ccType = ChaincodeSpec.Type.JAVA;
+            } else {
+                this.ccType = ChaincodeSpec.Type.GOLANG;
+            }
 
-    	}
+        }
 
         return this;
     }
 
     public ProposalBuilder chaincodeType(ChaincodeLanguage lang) {
-    	if (lang == null) {
-    		lang = ChaincodeLanguage.GO_LANG;
-    	}
-
-    	switch(lang) {
-    	case GO_LANG:
-    		this.ccType = Chaincode.ChaincodeSpec.Type.GOLANG;
-    		break;
-    	case JAVA:
-    		this.ccType = Chaincode.ChaincodeSpec.Type.JAVA;
-    		break;
-    	}
+        switch (lang) {
+            case GO_LANG:
+                this.ccType = ChaincodeSpec.Type.GOLANG;
+                break;
+            case JAVA:
+                this.ccType = ChaincodeSpec.Type.JAVA;
+                break;
+            default:
+                this.ccType = ChaincodeSpec.Type.GOLANG;
+        }
 
         return this;
     }

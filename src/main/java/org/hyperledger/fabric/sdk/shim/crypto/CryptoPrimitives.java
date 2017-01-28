@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,57 +28,56 @@ import java.io.IOException;
 import java.security.Security;
 
 public class CryptoPrimitives {
-    private int keyLength;
-    private String hashingAlgorithm;
-    private String secCurve;
     private static final String SEC_256_CURVE = "secp256r1";
     private static final String SEC_384_CURVE = "secp384r1";
+    private static ECDomainParameters curve;
 
-    private static X9ECParameters CURVE_PARAMS;
-    private static ECDomainParameters CURVE;
-
+    /**
+     *
+     * @param keyLength
+     * @param hashingAlgorithm TODO we need to have this parameter?
+     */
     public CryptoPrimitives(int keyLength, String hashingAlgorithm) {
 
         Security.addProvider(new BouncyCastleProvider());
-        this.keyLength = keyLength;
-        this.hashingAlgorithm = hashingAlgorithm;
 
-        if (this.keyLength == 256) {
-            this.secCurve = SEC_256_CURVE;
-        } else if (this.keyLength == 384) {
-            this.secCurve = SEC_384_CURVE;
+        String secCurve;
+        if (keyLength == 256) {
+            secCurve = SEC_256_CURVE;
+        } else if (keyLength == 384) {
+            secCurve = SEC_384_CURVE;
         } else {
             throw new RuntimeException("Unsupported Key length");
         }
-        CURVE_PARAMS = CustomNamedCurves.getByName(secCurve);
-        CURVE = new ECDomainParameters(CURVE_PARAMS.getCurve(), CURVE_PARAMS.getG(), CURVE_PARAMS.getN(),
-                CURVE_PARAMS.getH());
+
+        X9ECParameters curveParams = CustomNamedCurves.getByName(secCurve);
+        curve = new ECDomainParameters(curveParams.getCurve(), curveParams.getG(), curveParams.getN(),
+                curveParams.getH());
 
     }
 
     public boolean ecdsaVerify(byte[] publicKey, byte[] signature, byte[] payload) {
-            ECDSASigner signer = new ECDSASigner();
-            ECPublicKeyParameters params = new ECPublicKeyParameters(CURVE.getCurve().decodePoint(publicKey), CURVE);
-            signer.init(false, params);
-            ASN1InputStream decoder;
-            decoder = new ASN1InputStream(signature);
+        ECDSASigner signer = new ECDSASigner();
+        ECPublicKeyParameters params = new ECPublicKeyParameters(curve.getCurve().decodePoint(publicKey), curve);
+        signer.init(false, params);
+        ASN1InputStream decoder;
+        decoder = new ASN1InputStream(signature);
+        try {
+
+
+            DERSequence seq = (DERSequence) decoder.readObject();
+            ASN1Integer r = (ASN1Integer) seq.getObjectAt(0);
+            ASN1Integer s = (ASN1Integer) seq.getObjectAt(1);
+            decoder.close();
+            return signer.verifySignature(payload, r.getValue(), s.getValue());
+        } catch (Exception e) {
+            return false;
+        } finally {
             try {
-
-
-                DERSequence seq = (DERSequence) decoder.readObject();
-                ASN1Integer r = (ASN1Integer) seq.getObjectAt(0);
-                ASN1Integer s = (ASN1Integer) seq.getObjectAt(1);
                 decoder.close();
-                return signer.verifySignature(payload, r.getValue(), s.getValue());
-            } catch (Exception e) {
-                return false;
-            }
-            finally {
-                try {
-                    decoder.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
+    }
 }

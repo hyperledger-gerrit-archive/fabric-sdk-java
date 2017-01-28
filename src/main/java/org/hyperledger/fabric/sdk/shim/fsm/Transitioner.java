@@ -20,12 +20,12 @@ import org.hyperledger.fabric.sdk.shim.fsm.exceptions.NotInTransitionException;
 
 public class Transitioner {
 
-	public void transition(FSM fsm) throws NotInTransitionException {
-		if (fsm.transition == null) {
-			throw new NotInTransitionException();
-		}
-		fsm.transition.run();
-		fsm.transition = null;
-	}
+    public void transition(FSM fsm) throws NotInTransitionException {
+        if (fsm.transition == null) {
+            throw new NotInTransitionException();
+        }
+        fsm.transition.run();
+        fsm.transition = null;
+    }
 
 }

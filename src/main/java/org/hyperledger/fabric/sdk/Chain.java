@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,12 +14,9 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.security.cert.CertificateException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
@@ -31,7 +28,6 @@ import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Endorsement;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse.ProposalResponse;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
-import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.NoValidOrdererException;
 import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
@@ -43,67 +39,54 @@ import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 import org.hyperledger.fabric.sdk.transaction.TransactionRequest;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-
-import io.netty.util.internal.StringUtil;
+import java.security.cert.CertificateException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The class representing a chain with which the client SDK interacts.
  */
 public class Chain {
-	private static final Log logger = LogFactory.getLog(Chain.class);
-
+    private static final Log logger = LogFactory.getLog(Chain.class);
+    // The crypto primitives object
+    private CryptoPrimitives cryptoPrimitives;
     // Name of the chain is only meaningful to the client
     private String name;
-
     // The peers on this chain to which the client can connect
     private List<Peer> peers = new ArrayList<Peer>();
-
- // The orderers on this chain to which the client can connect
+    // The orderers on this chain to which the client can connect
     private List<Orderer> orderers = new ArrayList<Orderer>();
-
     // Security enabled flag
     private boolean securityEnabled = true;
-
     // A member cache associated with this chain
     // TODO: Make an LRU to limit size of member cache
     private Map<String, Member> members = new HashMap<>();
-
     // The number of tcerts to get in each batch
     private int tcertBatchSize = 200;
-
     // The registrar (if any) that registers & enrolls new members/users
     private Member registrar;
-
     // The member services used for this chain
     private MemberServices memberServices;
-
     // The key-val store used for this chain
     private KeyValStore keyValStore;
-
     // Is in dev mode or network mode
     private boolean devMode = false;
-
     // If in prefetch mode, we prefetch tcerts from member services to help performance
     private boolean preFetchMode = true;
-
     // Temporary variables to control how long to wait for deploy and invoke to complete before
     // emitting events.  This will be removed when the SDK is able to receive events from the
     private int deployWaitTime = 20;
     private int invokeWaitTime = 5;
-
-    // The crypto primitives object
-    CryptoPrimitives cryptoPrimitives;
-
     private TransactionContext transactionContext;
 
     public Chain(String name) {
-	if (StringUtil.isNullOrEmpty(name)) {
-	    throw new IllegalArgumentException("Chain name cannot be null");
-	}
+        if (StringUtil.isNullOrEmpty(name)) {
+            throw new IllegalArgumentException("Chain name cannot be null");
+        }
 
-	this.name = name;
+        this.name = name;
     }
 
     /**
@@ -113,12 +96,13 @@ public class Chain {
      * @return newly created transaction context
      */
     public TransactionContext newTransactionContext(Member member) {
-	this.transactionContext = new TransactionContext(this, member);
-	return this.transactionContext;
+        this.transactionContext = new TransactionContext(this, member);
+        return this.transactionContext;
     }
 
     /**
      * Get the chain name
+     *
      * @returns The name of the chain
      */
     public String getName() {
@@ -127,6 +111,7 @@ public class Chain {
 
     /**
      * Add a peer given an endpoint specification.
+     *
      * @param url URL of the peer
      * @param pem
      * @returns a new peer.
@@ -146,6 +131,7 @@ public class Chain {
 
     /**
      * Add an orderer given an endpoint specification.
+     *
      * @param url URL of the orderer
      * @param pem
      * @returns a new Orderer.
@@ -165,6 +151,7 @@ public class Chain {
 
     /**
      * Get the registrar associated with this chain
+     *
      * @return The member whose credentials are used to perform registration, or undefined if not set.
      */
     public Member getRegistrar() {
@@ -173,6 +160,7 @@ public class Chain {
 
     /**
      * Set the registrar
+     *
      * @param registrar The member whose credentials are used to perform registration.
      */
     public void setRegistrar(Member registrar) {
@@ -181,33 +169,37 @@ public class Chain {
 
     /**
      * Set the member services URL
+     *
      * @param url Member services URL of the form: "grpc://host:port" or "grpcs://host:port"
      * @param pem
      * @throws CertificateException
      */
     public void setMemberServicesUrl(String url, String pem) throws CertificateException {
-        this.setMemberServices(new MemberServicesImpl(url,pem));
+        this.setMemberServices(new MemberServicesImpl(url, pem));
     }
 
     /**
      * Get the member service associated this chain.
+     *
      * @returns MemberServices associated with the chain, or undefined if not set.
      */
     public MemberServices getMemberServices() {
         return this.memberServices;
-    };
+    }
 
     /**
      * Set the member service
+     *
      * @param memberServices The MemberServices instance
      */
     public void setMemberServices(MemberServices memberServices) {
-		this.memberServices = memberServices;
-		this.cryptoPrimitives = memberServices.getCrypto();
-    };
+        this.memberServices = memberServices;
+        this.cryptoPrimitives = memberServices.getCrypto();
+    }
 
     /**
      * Determine if security is enabled.
+     *
      * @return true if security is enabled, false otherwise
      */
     public boolean isSecurityEnabled() {
@@ -216,6 +208,7 @@ public class Chain {
 
     /**
      * Determine if pre-fetch mode is enabled to prefetch tcerts.
+     *
      * @return true if  pre-fetch mode is enabled, false otherwise
      */
     public boolean isPreFetchMode() {
@@ -252,6 +245,7 @@ public class Chain {
 
     /**
      * Set the deploy wait time in seconds.
+     *
      * @param waitTime Deploy wait time
      */
     public void setDeployWaitTime(int waitTime) {
@@ -260,6 +254,7 @@ public class Chain {
 
     /**
      * Get the invoke wait time in seconds
+     *
      * @return invoke wait time
      */
     public int getInvokeWaitTime() {
@@ -268,6 +263,7 @@ public class Chain {
 
     /**
      * Set the invoke wait time in seconds.
+     *
      * @param waitTime Invoke wait time
      */
     public void setInvokeWaitTime(int waitTime) {
@@ -276,6 +272,7 @@ public class Chain {
 
     /**
      * Get the key val store implementation (if any) that is currently associated with this chain.
+     *
      * @returnsThe current KeyValStore associated with this chain, or undefined if not set.
      */
     public KeyValStore getKeyValStore() {
@@ -305,15 +302,22 @@ public class Chain {
 
     /**
      * Get the member with a given name
+     *
      * @return member
      */
     public Member getMember(String name) {
-        if (null == keyValStore) throw new RuntimeException("No key value store was found.  You must first call Chain.setKeyValStore");
-        if (null == memberServices) throw new RuntimeException("No member services was found.  You must first call Chain.setMemberServices or Chain.setMemberServicesUrl");
-
+        if (keyValStore == null) {
+            throw new RuntimeException("No key value store was found.  "
+                    + "You must first call Chain.setKeyValStore");
+        } else if (memberServices == null) {
+            throw new RuntimeException("No member services was found.  "
+                    + "You must first call Chain.setMemberServices or Chain.setMemberServicesUrl");
+        }
         // Try to get the member state from the cache
         Member member = members.get(name);
-        if (null != member) return member;
+        if (null != member) {
+            return member;
+        }
 
         // Create the member and try to restore it's state from the key value store (if found).
         member = new Member(name, this);
@@ -334,18 +338,20 @@ public class Chain {
 
     /**
      * Register a user or other member type with the chain.
+     *
      * @param registrationRequest Registration information.
      * @throws RegistrationException if the registration fails
      */
     public Member register(RegistrationRequest registrationRequest) throws RegistrationException {
         Member member = getMember(registrationRequest.getEnrollmentID());
-	    member.register(registrationRequest);
-	    return member;
+        member.register(registrationRequest);
+        return member;
     }
 
     /**
      * Enroll a user or other identity which has already been registered.
-     * @param name The name of the user or other member to enroll.
+     *
+     * @param name   The name of the user or other member to enroll.
      * @param secret The enrollment secret of the user or other member to enroll.
      * @throws EnrollmentException
      */
@@ -361,6 +367,7 @@ public class Chain {
     /**
      * Register and enroll a user or other member type.
      * This assumes that a registrar with sufficient privileges has been set.
+     *
      * @param registrationRequest Registration information.
      * @throws RegistrationException
      * @throws EnrollmentException
@@ -372,186 +379,185 @@ public class Chain {
     }
 
     private SignedProposal createSignedProposal(Proposal proposal) {
-	if (transactionContext == null) {
-	    throw new IllegalArgumentException("TransactionContext is not initialized");
-	}
+        if (transactionContext == null) {
+            throw new IllegalArgumentException("TransactionContext is not initialized");
+        }
 
-	byte[] signature = null;
-	try {
-	    signature = this.cryptoPrimitives.ecdsaSign(transactionContext.getMember().getEnrollment().getPrivateKey(),
-		    proposal.toByteArray());
-	} catch (CryptoException e) {
-	    String msg = String.format("Failed to sign the proposal: [%s]", e.getCause().getMessage());
-	    logger.error(msg);
-	    // TODO make CryptoException RuntimeException and eliminate this
-	    // code.
-	    Exception ex = new RuntimeException();
-	    ex.setStackTrace(e.getStackTrace());
-	}
+        byte[] signature = null;
+        try {
+            signature = this.cryptoPrimitives.ecdsaSign(transactionContext.getMember().getEnrollment().getPrivateKey(),
+                    proposal.toByteArray());
+        } catch (CryptoException e) {
+            String msg = String.format("Failed to sign the proposal: [%s]", e.getCause().getMessage());
+            logger.error(msg);
+            // TODO make CryptoException RuntimeException and eliminate this
+            // code.
+            Exception ex = new RuntimeException();
+            ex.setStackTrace(e.getStackTrace());
+        }
 
-	SignedProposal signedProposal = SignedProposal.newBuilder().setProposalBytes(proposal.toByteString())
-		.setSignature(com.google.protobuf.ByteString.copyFrom(signature)).build();
+        SignedProposal signedProposal = SignedProposal.newBuilder().setProposalBytes(proposal.toByteString())
+                .setSignature(com.google.protobuf.ByteString.copyFrom(signature)).build();
 
-	return signedProposal;
+        return signedProposal;
 
     }
 
     /**
      * Send a deployment proposal
-     * @param deploymentProposalRequest
+     *
+     * @param deploymentRequest
      * @return
      * @throws Exception
      */
 
     public Proposal createDeploymentProposal(DeployRequest deploymentRequest) {
-	if (deploymentRequest == null) {
-	    throw new IllegalArgumentException("sendDeploymentProposal deploymentProposalRequest is null");
-	}
+        if (deploymentRequest == null) {
+            throw new IllegalArgumentException("sendDeploymentProposal deploymentProposalRequest is null");
+        }
 
-	if (transactionContext == null) {
-	    throw new IllegalArgumentException("TransactionContext is not initialized");
-	}
-	if (StringUtil.isNullOrEmpty(deploymentRequest.getChaincodeName())) {
-	    throw new IllegalArgumentException("Chaincode name cannot be null or empty");
-	}
-	if (!isDevMode() && StringUtil.isNullOrEmpty(deploymentRequest.getChaincodePath())) {
-	    throw new IllegalArgumentException("Chaincode path cannot be null or empty when DevMode is false");
-	}
+        if (transactionContext == null) {
+            throw new IllegalArgumentException("TransactionContext is not initialized");
+        }
+        if (StringUtil.isNullOrEmpty(deploymentRequest.getChaincodeName())) {
+            throw new IllegalArgumentException("Chaincode name cannot be null or empty");
+        }
+        if (!isDevMode() && StringUtil.isNullOrEmpty(deploymentRequest.getChaincodePath())) {
+            throw new IllegalArgumentException("Chaincode path cannot be null or empty when DevMode is false");
+        }
 
         List<ByteString> args = new ArrayList<ByteString>();
         if (deploymentRequest.getArgs() != null) {
-        	deploymentRequest.getArgs().forEach(arg->{
-        		args.add(ByteString.copyFrom(arg.getBytes()));
-        	});
+            deploymentRequest.getArgs().forEach(arg -> {
+                args.add(ByteString.copyFrom(arg.getBytes()));
+            });
         }
 
-	Proposal deploymentProposal = DeploymentProposalBuilder.newBuilder()
-        		.context(transactionContext)
-        		.chaincodeType(deploymentRequest.getChaincodeLanguage())
-        		.args(args)
-        		.txID(deploymentRequest.getTxID())
-        		.chaincodeID(ChaincodeID.newBuilder()
-        				.setName(deploymentRequest.getChaincodeName())
-        				.setPath(deploymentRequest.getChaincodePath())
-        				.build())
-        		.build();
+        Proposal deploymentProposal = DeploymentProposalBuilder.newBuilder()
+                .context(transactionContext)
+                .chaincodeType(deploymentRequest.getChaincodeLanguage())
+                .args(args)
+                .txID(deploymentRequest.getTxID())
+                .chaincodeID(ChaincodeID.newBuilder()
+                        .setName(deploymentRequest.getChaincodeName())
+                        .setPath(deploymentRequest.getChaincodePath())
+                        .build())
+                .build();
 
         return deploymentProposal;
     }
 
     /**
      * Create transaction proposal
+     *
      * @param request The details of transaction
      * @return proposal
      */
     public Proposal createTransactionProposal(TransactionRequest request) {
-	if (request == null) {
-	    throw new IllegalArgumentException("Cannot send null transactopn proposal");
-	}
+        if (request == null) {
+            throw new IllegalArgumentException("Cannot send null transactopn proposal");
+        }
 
-	if (StringUtil.isNullOrEmpty(request.getChaincodeName())) {
-	    throw new IllegalArgumentException("Chaincode name is missing in proposal");
-	}
+        if (StringUtil.isNullOrEmpty(request.getChaincodeName())) {
+            throw new IllegalArgumentException("Chaincode name is missing in proposal");
+        }
 
-	if (transactionContext == null) {
-	    throw new IllegalArgumentException("TransactionContext is not initialized");
-	}
+        if (transactionContext == null) {
+            throw new IllegalArgumentException("TransactionContext is not initialized");
+        }
 
-    	List<ByteString> args = new ArrayList<ByteString>();
-    	if (request.getArgs() != null) {
-    		for (String arg: request.getArgs()) {
-    			args.add(ByteString.copyFrom(arg == null?new byte[]{}:arg.getBytes()));
-    		}
-    	}
+        List<ByteString> args = new ArrayList<ByteString>();
+        if (request.getArgs() != null) {
+            for (String arg : request.getArgs()) {
+                args.add(ByteString.copyFrom(arg == null ? new byte[]{} : arg.getBytes()));
+            }
+        }
 
-    	ChaincodeID ccid = ChaincodeID.newBuilder()
-    			.setName(request.getChaincodeName())
-    			.setPath(request.getChaincodePath())
-    			.build();
+        ChaincodeID ccid = ChaincodeID.newBuilder()
+                .setName(request.getChaincodeName())
+                .setPath(request.getChaincodePath())
+                .build();
 
-    	Proposal fabricProposal = ProposalBuilder.newBuilder()
-    			.args(args)
-    			.chaincodeType(request.getChaincodeLanguage())
-    			.txID(request.getTxID())
-    			.context(transactionContext)
-    			.chaincodeID(ccid).build();
+        Proposal fabricProposal = ProposalBuilder.newBuilder()
+                .args(args)
+                .chaincodeType(request.getChaincodeLanguage())
+                .txID(request.getTxID())
+                .context(transactionContext)
+                .chaincodeID(ccid).build();
 
-    	return fabricProposal;
+        return fabricProposal;
     }
 
 
     /**
-	 * Send a transaction proposal to the chain of peers.
-	 *
-	 * @param proposal
-	 *            The transaction proposal
-	 *
-	 * @return List<ProposalResponse>
-	 */
-	public List<ProposalResponse> sendProposal(Proposal proposal) {
+     * Send a transaction proposal to the chain of peers.
+     *
+     * @param proposal The transaction proposal
+     * @return List<ProposalResponse>
+     */
+    public List<ProposalResponse> sendProposal(Proposal proposal) {
         if (this.peers.isEmpty()) {
             throw new NoValidPeerException(String.format("chain %s has no peers", getName()));
         }
 
-	if (transactionContext == null) {
-	    throw new IllegalArgumentException("TransactionContext is not initialized");
-	}
+        if (transactionContext == null) {
+            throw new IllegalArgumentException("TransactionContext is not initialized");
+        }
 
-	if (proposal == null) {
-	    throw new IllegalArgumentException("Proposal should not be null");
-	}
+        if (proposal == null) {
+            throw new IllegalArgumentException("Proposal should not be null");
+        }
 
-	SignedProposal signedProposal = createSignedProposal(proposal);
+        SignedProposal signedProposal = createSignedProposal(proposal);
         List<ProposalResponse> responses = new ArrayList<ProposalResponse>();
 
-        for(Peer peer : peers) {
-        	try {
-        		responses.add(peer.sendTransactionProposal(signedProposal));
-        	} catch(Exception exp) {
-				logger.error(String.format("Failed sending transaction to peer"), exp);
-        	}
+        for (Peer peer : peers) {
+            try {
+                responses.add(peer.sendTransactionProposal(signedProposal));
+            } catch (Exception exp) {
+                logger.error(String.format("Failed sending transaction to peer"), exp);
+            }
         }
 
         if (responses.size() == 0) {
-        	throw new RuntimeException("No peer available to respond");
+            throw new RuntimeException("No peer available to respond");
         }
 
         return responses;
     }
 
     /**
-	 * Send a transaction to orderers
-	 *
-	 * @param proposalResponses
-	 *            list of responses from endorsers for the proposal
-	 *
-	 * @return List<TransactionResponse>
-	 * @throws InvalidArgumentException
-	 */
-	public List<TransactionResponse> sendTransaction(Proposal proposal,
-	        List<ProposalResponse> proposalResponses) throws InvalidProtocolBufferException, CryptoException {
+     * Send a transaction to orderers
+     * @param proposal
+     * @param proposalResponses list of responses from endorsers for the proposal
+     * @return List<TransactionResponse>
+     * @throws InvalidProtocolBufferException
+     * @throws CryptoException
+     */
+    public List<TransactionResponse> sendTransaction(Proposal proposal, List<ProposalResponse> proposalResponses)
+            throws InvalidProtocolBufferException, CryptoException {
 
-	if (proposal == null) {
-	    throw new IllegalArgumentException("proposal should not be null");
-	}
+        if (proposal == null) {
+            throw new IllegalArgumentException("proposal should not be null");
+        }
 
-	if (proposalResponses == null || proposalResponses.isEmpty()) {
-	    throw new IllegalArgumentException(
-		    "proposalResponses is empty, please use sendProposal first to get endorsements");
-	}
+        if (proposalResponses == null || proposalResponses.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "proposalResponses is empty, please use sendProposal first to get endorsements");
+        }
 
-	if (transactionContext == null) {
-	    throw new IllegalArgumentException("TransactionContext is not initialized");
-	}
+        if (transactionContext == null) {
+            throw new IllegalArgumentException("TransactionContext is not initialized");
+        }
 
-	if (this.orderers.isEmpty()) {
-	    throw new NoValidOrdererException(String.format("chain %s has no orderers", getName()));
-	}
+        if (this.orderers.isEmpty()) {
+            throw new NoValidOrdererException(String.format("chain %s has no orderers", getName()));
+        }
 
         List<Endorsement> endorsements = new ArrayList<Endorsement>();
         ByteString proposalResponsePayload = proposalResponses.get(0).getPayload();
-        proposalResponses.forEach(response->{
-        	endorsements.add(response.getEndorsement());
+        proposalResponses.forEach(response -> {
+            endorsements.add(response.getEndorsement());
         });
 
         TransactionBuilder transactionBuilder = TransactionBuilder.newBuilder();
@@ -559,15 +565,16 @@ public class Chain {
                 .chaincodeProposal(proposal)
                 .endorsements(endorsements)
                 .chainID(getName())
-		        .context(transactionContext).cryptoPrimitives(cryptoPrimitives)
+                .context(transactionContext).cryptoPrimitives(cryptoPrimitives)
                 .proposalResponcePayload(proposalResponsePayload).build();
 
         List<TransactionResponse> ordererResponses = new ArrayList<TransactionResponse>();
-        for (Orderer orderer : orderers) {//TODO need to make async.
+        //TODO need to make async
+        for (Orderer orderer : orderers) {
             Ab.BroadcastResponse resp = orderer.sendTransaction(transactionEnv);
             if (resp != null) {
-	            TransactionResponse tresp = new TransactionResponse(null, null, resp.getStatusValue(), resp.getStatus().name());
-	            ordererResponses.add(tresp);
+                TransactionResponse tresp = new TransactionResponse(null, null, resp.getStatusValue(), resp.getStatus().name());
+                ordererResponses.add(tresp);
             }
         }
         return ordererResponses;

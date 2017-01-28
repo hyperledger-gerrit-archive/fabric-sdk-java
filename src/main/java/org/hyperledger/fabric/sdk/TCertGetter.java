@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,7 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
@@ -28,17 +27,18 @@ public class TCertGetter {
     private String key;
     private MemberServices memberServices;
     private Stack<TCert> tcerts;
-//TODO implement stats
+    //TODO implement stats
 //    private stats.Rate arrivalRate = new stats.Rate();
 //    private stats.ResponseTime getTCertResponseTime = new stats.ResponseTime();
 //    private getTCertWaiters:GetTCertCallback[] = [];
     private boolean gettingTCerts = false;
 
     /**
-    * Constructor for a member.
-    * @param cfg {string | RegistrationRequest} The member name or registration request.
-    * @returns {Member} A member who is neither registered nor enrolled.
-    */
+     * Constructor for a member.
+     *
+     * @param cfg {string | RegistrationRequest} The member name or registration request.
+     * @returns {Member} A member who is neither registered nor enrolled.
+     */
     public TCertGetter(Member member, List<String> attrs, String key) {
         this.member = member;
         this.attrs = attrs;
@@ -49,28 +49,34 @@ public class TCertGetter {
     }
 
     /**
-    * Get the chain.
-    * @returns {Chain} The chain.
-    */
+     * Get the chain.
+     *
+     * @returns {Chain} The chain.
+     */
     public Chain getChain() {
         return this.chain;
-    };
+    }
 
     public void getUserCert() {
         this.getNextTCert();
     }
 
     /**
-    * Get the next available transaction certificate.
-    * @param cb
-    */
+     * Get the next available transaction certificate.
+     *
+     * @param cb
+     */
     public TCert getNextTCert() {
 
-//TODO    	self.arrivalRate.tick();
-        return tcerts.size() > 0 ? tcerts.pop() : null;
+        // TODO self.arrivalRate.tick();
+        if (tcerts.size() > 0) {
+            return tcerts.pop();
+        } else {
+            return null;
+        }
 
-        //TODO implement the commented logic
-            /*
+        // TODO implement the commented logic
+        /*
         } else {
             self.getTCertWaiters.push(cb);
         }
@@ -82,11 +88,11 @@ public class TCertGetter {
 
     // Determine if we should issue a request to get more tcerts now.
     private boolean shouldGetTCerts() {
-    	return false;        //TODO implement shouldGetTCerts
+        // TODO implement shouldGetTCerts
+        return false;
 
-
-    	/*
-    	let self = this;
+        /*
+        let self = this;
         // Do nothing if we are already getting more tcerts
         if (self.gettingTCerts) {
             debug("shouldGetTCerts: no, already getting tcerts");
@@ -124,9 +130,9 @@ public class TCertGetter {
 
     // Call member services to get more tcerts
     private void getTCerts() {
-    	//TODO implement getTCerts
-    	/*
-    	let self = this;
+        //TODO implement getTCerts
+        /*
+        let self = this;
         let req = {
             name: self.member.getName(),
             enrollment: self.member.getEnrollment(),

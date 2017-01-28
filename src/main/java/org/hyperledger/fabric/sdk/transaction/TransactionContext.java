@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,23 +14,23 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import java.nio.Buffer;
-import java.util.List;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.Member;
 import org.hyperledger.fabric.sdk.MemberServices;
 import org.hyperledger.fabric.sdk.TCert;
-import org.hyperledger.fabric.sdk.helper.SDKUtil;;
+import org.hyperledger.fabric.sdk.helper.SDKUtil;
+
+import java.nio.Buffer;
+import java.util.List;
 
 /**
  * A transaction context emits events 'submitted', 'complete', and 'error'.
  * Each transaction context uses exactly one tcert.
  */
-public class TransactionContext  {
-	private static final Log logger = LogFactory.getLog(TransactionContext.class);
+public class TransactionContext {
+    private static final Log logger = LogFactory.getLog(TransactionContext.class);
     private Member member;
     private Chain chain;
     private MemberServices memberServices;
@@ -40,10 +40,10 @@ public class TransactionContext  {
     private String ecert;
 
 
-    public TransactionContext (Chain chain, Member member) {
+    public TransactionContext(Chain chain, Member member) {
         super();
         if (member == null || !member.isEnrolled()) {
-			throw new IllegalArgumentException("Member must be enrolled before creating a transaction context");
+            throw new IllegalArgumentException("Member must be enrolled before creating a transaction context");
         }
         this.member = member;
         this.chain = chain;
@@ -53,15 +53,16 @@ public class TransactionContext  {
     }
 
     public String getEcert() {
-		return this.ecert;
+        return this.ecert;
     }
 
     public void setEcert(String ecert) {
-		this.ecert = ecert;
+        this.ecert = ecert;
     }
 
     /**
      * Get the member with which this transaction context is associated.
+     *
      * @returns The member
      */
     public Member getMember() {
@@ -70,6 +71,7 @@ public class TransactionContext  {
 
     /**
      * Get the chain with which this transaction context is associated.
+     *
      * @returns The chain
      */
     public Chain getChain() {
@@ -78,6 +80,7 @@ public class TransactionContext  {
 
     /**
      * Get the member services, or undefined if security is not enabled.
+     *
      * @returns The member services
      */
     public MemberServices getMemberServices() {
@@ -88,7 +91,7 @@ public class TransactionContext  {
      * Emit a specific event provided an event listener is already registered.
      */
     public void emitMyEvent(String name, Object event) {
-    	/*
+        /*
        setTimeout(function() {
          // Check if an event listener has been registered for the event
          let listeners = self.listeners(name);
@@ -102,24 +105,24 @@ public class TransactionContext  {
     }
 
 
-   /**
-    * Get the attribute names associated
-    */
-   public List<String> getAttrs() {
-       return this.attrs;
-   }
+    /**
+     * Get the attribute names associated
+     */
+    public List<String> getAttrs() {
+        return this.attrs;
+    }
 
-   /**
-    * Set the attributes for this transaction context.
-    */
-   public void setAttrs(List<String> attrs) {
-       this.attrs = attrs;
-   }
+    /**
+     * Set the attributes for this transaction context.
+     */
+    public void setAttrs(List<String> attrs) {
+        this.attrs = attrs;
+    }
 
 
     //private void processConfidentiality(Transaction transaction) {
         /* TODO implement processConfidentiality function
-    	// is confidentiality required?
+        // is confidentiality required?
         if (transaction.pb.getConfidentialityLevel() != _fabricProto.ConfidentialityLevel.CONFIDENTIAL) {
             // No confidentiality is required
             return

@@ -21,179 +21,201 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Builder;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
+import org.hyperledger.fabric.protos.peer.Chaincode.PutStateInfo;
+import org.hyperledger.fabric.protos.peer.Chaincode.RangeQueryState;
+import org.hyperledger.fabric.protos.peer.Chaincode.RangeQueryStateResponse;
 import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
 import org.hyperledger.fabric.sdk.helper.Channel;
-import org.hyperledger.fabric.sdk.shim.fsm.*;
+import org.hyperledger.fabric.sdk.shim.fsm.CBDesc;
+import org.hyperledger.fabric.sdk.shim.fsm.CallbackType;
+import org.hyperledger.fabric.sdk.shim.fsm.Event;
+import org.hyperledger.fabric.sdk.shim.fsm.EventDesc;
+import org.hyperledger.fabric.sdk.shim.fsm.FSM;
 import org.hyperledger.fabric.sdk.shim.fsm.exceptions.CancelledException;
 import org.hyperledger.fabric.sdk.shim.fsm.exceptions.NoTransitionException;
-import org.hyperledger.fabric.protos.peer.Chaincode.*;
-import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Builder;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.*;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.COMPLETED;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.DEL_STATE;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.ERROR;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.GET_STATE;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.INIT;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.INVOKE_CHAINCODE;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.PUT_STATE;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.RANGE_QUERY_STATE;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.READY;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.REGISTERED;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.RESPONSE;
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeMessage.Type.TRANSACTION;
 
 public class Handler {
 
-	private static Log logger = LogFactory.getLog(Handler.class);
+    private static Log logger = LogFactory.getLog(Handler.class);
+    public Channel<NextStateInfo> nextState;
+    private StreamObserver<ChaincodeMessage> chatStream;
+    private ChaincodeBase chaincode;
+    private Map<String, Boolean> isTransaction;
+    private Map<String, Channel<ChaincodeMessage>> responseChannel;
+    private FSM fsm;
 
-	private StreamObserver<ChaincodeMessage> chatStream;
-	private ChaincodeBase chaincode;
+    public Handler(StreamObserver<ChaincodeMessage> chatStream, ChaincodeBase chaincode) {
+        this.chatStream = chatStream;
+        this.chaincode = chaincode;
 
-	private Map<String, Boolean> isTransaction;
-	private Map<String, Channel<ChaincodeMessage>> responseChannel;
-	public Channel<NextStateInfo> nextState;
+        responseChannel = new HashMap<String, Channel<ChaincodeMessage>>();
+        isTransaction = new HashMap<String, Boolean>();
+        nextState = new Channel<NextStateInfo>();
 
-	private FSM fsm;
+        fsm = new FSM("created");
 
-	public Handler(StreamObserver<ChaincodeMessage> chatStream, ChaincodeBase chaincode) {
-		this.chatStream = chatStream;
-		this.chaincode = chaincode;
+        fsm.addEvents(
+                // Event Name Destination Sources States
+                new EventDesc(REGISTERED.toString(), "established", "created"),
+                new EventDesc(INIT.toString(), "init", "established"),
+                new EventDesc(READY.toString(), "ready", "established"),
+                new EventDesc(ERROR.toString(), "established", "init"),
+                new EventDesc(RESPONSE.toString(), "init", "init"),
+                new EventDesc(COMPLETED.toString(), "ready", "init"),
+                new EventDesc(TRANSACTION.toString(), "transaction", "ready"),
+                new EventDesc(COMPLETED.toString(), "ready", "transaction"),
+                new EventDesc(ERROR.toString(), "ready", "transaction"),
+                new EventDesc(RESPONSE.toString(), "transaction", "transaction"),
+                new EventDesc(RESPONSE.toString(), "ready", "ready")
+        );
 
-		responseChannel = new HashMap<String, Channel<ChaincodeMessage>>();
-		isTransaction = new HashMap<String, Boolean>();
-		nextState = new Channel<NextStateInfo>();
+        fsm.addCallbacks(
+                // Type Trigger Callback
+                new CBDesc(CallbackType.BEFORE_EVENT, REGISTERED.toString(), (event) -> beforeRegistered(event)),
+                new CBDesc(CallbackType.AFTER_EVENT, RESPONSE.toString(), (event) -> afterResponse(event)),
+                new CBDesc(CallbackType.AFTER_EVENT, ERROR.toString(), (event) -> afterError(event)),
+                new CBDesc(CallbackType.ENTER_STATE, "init", (event) -> enterInitState(event)),
+                new CBDesc(CallbackType.ENTER_STATE, "transaction", (event) -> enterTransactionState(event))
+        );
+    }
 
-		fsm = new FSM("created");
-
-		fsm.addEvents(
-				//				Event Name				Destination		Sources States
-				new EventDesc(REGISTERED.toString(), 	"established",	"created"),
-				new EventDesc(INIT.toString(), 			"init", 		"established"),
-				new EventDesc(READY.toString(), 		"ready", 		"established"),
-				new EventDesc(ERROR.toString(), 		"established", 	"init"),
-				new EventDesc(RESPONSE.toString(),		"init", 		"init"),
-				new EventDesc(COMPLETED.toString(), 	"ready", 		"init"),
-				new EventDesc(TRANSACTION.toString(),	"transaction", 	"ready"),
-				new EventDesc(COMPLETED.toString(), 	"ready", 		"transaction"),
-				new EventDesc(ERROR.toString(), 		"ready", 		"transaction"),
-				new EventDesc(RESPONSE.toString(), 		"transaction", 	"transaction"),
-				new EventDesc(RESPONSE.toString(), 		"ready", 		"ready")
-				);
-
-		fsm.addCallbacks(
-				//			Type			Trigger					Callback
-				new CBDesc(CallbackType.BEFORE_EVENT,	REGISTERED.toString(), 	(event) -> beforeRegistered(event)),
-				new CBDesc(CallbackType.AFTER_EVENT, 	RESPONSE.toString(), 	(event) -> afterResponse(event)),
-				new CBDesc(CallbackType.AFTER_EVENT, 	ERROR.toString(), 		(event) -> afterError(event)),
-				new CBDesc(CallbackType.ENTER_STATE, 	"init", 				(event) -> enterInitState(event)),
-				new CBDesc(CallbackType.ENTER_STATE, 	"transaction", 			(event) -> enterTransactionState(event))
-				);
-	}
-
-	public static String shortID(String uuid) {
-		if (uuid.length() < 8) {
-			return uuid;
-		} else {
-			return uuid.substring(0, 8);
-		}
-	}
-
-	public void triggerNextState(ChaincodeMessage message, boolean send) {
-		if(logger.isTraceEnabled())logger.trace("triggerNextState for message "+message);
-		nextState.add(new NextStateInfo(message, send));
-	}
-
-	public synchronized void serialSend(ChaincodeMessage message) {
-		try {
-			chatStream.onNext(message);
-		} catch (Exception e) {
-			logger.error(String.format("[%s]Error sending %s: %s",
-					shortID(message), message.getType(), e));
-			throw new RuntimeException(String.format("Error sending %s: %s", message.getType(), e));
-		}
-		if(logger.isTraceEnabled()) {
-            logger.trace("serialSend complete for message "+message);
+    public static String shortID(String uuid) {
+        if (uuid.length() < 8) {
+            return uuid;
+        } else {
+            return uuid.substring(0, 8);
         }
-	}
+    }
 
-	public synchronized Channel<ChaincodeMessage> createChannel(String uuid) {
-		if (responseChannel.containsKey(uuid)) {
-			throw new IllegalStateException("[" + shortID(uuid) + "] Channel exists");
-		}
+    public void triggerNextState(ChaincodeMessage message, boolean send) {
+        if (logger.isTraceEnabled()) {
+            logger.trace("triggerNextState for message " + message);
+        }
+        nextState.add(new NextStateInfo(message, send));
+    }
 
-		Channel<ChaincodeMessage> channel = new Channel<ChaincodeMessage>();
-		responseChannel.put(uuid, channel);
-		if(logger.isTraceEnabled()){
-            logger.trace("channel created with uuid "+uuid);
+    public synchronized void serialSend(ChaincodeMessage message) {
+        try {
+            chatStream.onNext(message);
+        } catch (Exception e) {
+            logger.error(String.format("[%s]Error sending %s: %s",
+                    shortID(message), message.getType(), e));
+            throw new RuntimeException(String.format("Error sending %s: %s", message.getType(), e));
+        }
+        if (logger.isTraceEnabled()) {
+            logger.trace("serialSend complete for message " + message);
+        }
+    }
+
+    public synchronized Channel<ChaincodeMessage> createChannel(String uuid) {
+        if (responseChannel.containsKey(uuid)) {
+            throw new IllegalStateException("[" + shortID(uuid) + "] Channel exists");
         }
 
-		return channel;
-	}
-
-	public synchronized void sendChannel(ChaincodeMessage message) {
-		if (!responseChannel.containsKey(message.getTxid())) {
-			throw new IllegalStateException("[" + shortID(message) + "]sendChannel does not exist");
-		}
-
-		logger.debug(String.format("[%s]Before send", shortID(message)));
-		responseChannel.get(message.getTxid()).add(message);
-		logger.debug(String.format("[%s]After send", shortID(message)));
-	}
-
-	public ChaincodeMessage receiveChannel(Channel<ChaincodeMessage> channel) {
-		try {
-			return channel.take();
-		} catch (InterruptedException e) {
-			logger.debug("channel.take() failed with InterruptedException");
-
-			//Channel has been closed?
-			//TODO
-			return null;
-		}
-	}
-
-	public synchronized void deleteChannel(String uuid) {
-		Channel<ChaincodeMessage> channel = responseChannel.remove(uuid);
-		if (channel != null) {
-			channel.close();
-		}
-
-		if(logger.isTraceEnabled()){
-            logger.trace("deleteChannel done with uuid "+uuid);
+        Channel<ChaincodeMessage> channel = new Channel<ChaincodeMessage>();
+        responseChannel.put(uuid, channel);
+        if (logger.isTraceEnabled()) {
+            logger.trace("channel created with uuid " + uuid);
         }
-	}
 
-	/**
-	 * Marks a UUID as either a transaction or a query
-	 * @param uuid ID to be marked
-	 * @param isTransaction true for transaction, false for query
-	 * @return whether or not the UUID was successfully marked
-	 */
-	public synchronized boolean markIsTransaction(String uuid, boolean isTransaction) {
-		if (this.isTransaction == null) {
-			return false;
-		}
+        return channel;
+    }
 
-		this.isTransaction.put(uuid, isTransaction);
-		return true;
-	}
+    public synchronized void sendChannel(ChaincodeMessage message) {
+        if (!responseChannel.containsKey(message.getTxid())) {
+            throw new IllegalStateException("[" + shortID(message) + "]sendChannel does not exist");
+        }
 
-	public synchronized void deleteIsTransaction(String uuid) {
-		isTransaction.remove(uuid);
-	}
+        logger.debug(String.format("[%s]Before send", shortID(message)));
+        responseChannel.get(message.getTxid()).add(message);
+        logger.debug(String.format("[%s]After send", shortID(message)));
+    }
 
-	public void beforeRegistered(Event event) {
-		messageHelper(event);
-		logger.debug(String.format("Received %s, ready for invocations", REGISTERED));
-	}
+    public ChaincodeMessage receiveChannel(Channel<ChaincodeMessage> channel) {
+        try {
+            return channel.take();
+        } catch (InterruptedException e) {
+            logger.debug("channel.take() failed with InterruptedException");
 
-	/**
-	 * Handles requests to initialize chaincode
-	 * @param message chaincode to be initialized
-	 */
-	public void handleInit(ChaincodeMessage message) throws InvalidTransactionException  {
-		Runnable task = () -> {
-			ChaincodeMessage nextStatemessage = null;
-			boolean send = true;
-			try {
-				// Get the function and args from Payload
-				ChaincodeInput input;
-				try {
-					input = ChaincodeInput.parseFrom(message.getPayload());
-				} catch (InvalidProtocolBufferException e) {
+            //Channel has been closed?
+            //TODO
+            return null;
+        }
+    }
+
+    public synchronized void deleteChannel(String uuid) {
+        Channel<ChaincodeMessage> channel = responseChannel.remove(uuid);
+        if (channel != null) {
+            channel.close();
+        }
+
+        if (logger.isTraceEnabled()) {
+            logger.trace("deleteChannel done with uuid " + uuid);
+        }
+    }
+
+    /**
+     * Marks a UUID as either a transaction or a query
+     *
+     * @param uuid          ID to be marked
+     * @param isTransaction true for transaction, false for query
+     * @return whether or not the UUID was successfully marked
+     */
+    public synchronized boolean markIsTransaction(String uuid, boolean isTransaction) {
+        if (this.isTransaction == null) {
+            return false;
+        }
+
+        this.isTransaction.put(uuid, isTransaction);
+        return true;
+    }
+
+    public synchronized void deleteIsTransaction(String uuid) {
+        isTransaction.remove(uuid);
+    }
+
+    public void beforeRegistered(Event event) {
+        messageHelper(event);
+        logger.debug(String.format("Received %s, ready for invocations", REGISTERED));
+    }
+
+    /**
+     * Handles requests to initialize chaincode
+     *
+     * @param message chaincode to be initialized
+     */
+    public void handleInit(ChaincodeMessage message) throws InvalidTransactionException {
+        Runnable task = () -> {
+            ChaincodeMessage nextStatemessage = null;
+            boolean send = true;
+            try {
+                // Get the function and args from Payload
+                ChaincodeInput input;
+                try {
+                    input = ChaincodeInput.parseFrom(message.getPayload());
+                } catch (InvalidProtocolBufferException e) {
                     nextStatemessage = ChaincodeMessage.newBuilder()
                             .setType(ERROR)
                             .setPayload(ByteString.copyFromUtf8("Unmarshall error -"
@@ -201,744 +223,764 @@ public class Handler {
                             .setTxid(message.getTxid())
                             .build();
                     return;
-				}
+                }
 
-				//			// Mark as a transaction (allow put/del state)
-				markIsTransaction(message.getTxid(), true);
+                // Mark as a transaction (allow put/del state)
+                markIsTransaction(message.getTxid(), true);
 
-				// Create the ChaincodeStub which the chaincode can use to callback
-//				ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this, message.getSecurityContext());
-				ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this);
-				// Call chaincode's Run
-				ByteString result;
-				try {
-					result = chaincode.runHelper(stub, getFunction(input.getArgsList()), getParameters(input.getArgsList()));
-				} catch (Exception e) {
-					// Send ERROR message to chaincode support and change state
-					logger.debug(String.format("[%s]Init failed. Sending %s", shortID(message), ERROR));
-					nextStatemessage = ChaincodeMessage.newBuilder()
-							.setType(ERROR)
-							.setPayload(ByteString.copyFromUtf8(e.getMessage()))
-							.setTxid(message.getTxid())
-							.build();
-					return;
-				} finally {
-					// delete isTransaction entry
-					deleteIsTransaction(message.getTxid());
-				}
+                // Create the ChaincodeStub which the chaincode can use to callback
+                // ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this, message.getSecurityContext());
+                ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this);
+                // Call chaincode's Run
+                ByteString result;
+                try {
+                    result = chaincode.runHelper(stub, getFunction(input.getArgsList()), getParameters(input.getArgsList()));
+                } catch (Exception e) {
+                    // Send ERROR message to chaincode support and change state
+                    logger.debug(String.format("[%s]Init failed. Sending %s", shortID(message), ERROR));
+                    nextStatemessage = ChaincodeMessage.newBuilder()
+                            .setType(ERROR)
+                            .setPayload(ByteString.copyFromUtf8(e.getMessage()))
+                            .setTxid(message.getTxid())
+                            .build();
+                    return;
+                } finally {
+                    // delete isTransaction entry
+                    deleteIsTransaction(message.getTxid());
+                }
 
-				// Send COMPLETED message to chaincode support and change state
-				nextStatemessage = ChaincodeMessage.newBuilder()
-						.setType(COMPLETED)
-						.setPayload(result)
-						.setTxid(message.getTxid())
-						.build();
+                // Send COMPLETED message to chaincode support and change state
+                nextStatemessage = ChaincodeMessage.newBuilder()
+                        .setType(COMPLETED)
+                        .setPayload(result)
+                        .setTxid(message.getTxid())
+                        .build();
 
-				logger.debug(String.format(String.format("[%s]Init succeeded. Sending %s",
-						shortID(message), COMPLETED)));
+                logger.debug(String.format(String.format("[%s]Init succeeded. Sending %s",
+                        shortID(message), COMPLETED)));
 
-				//TODO put in all exception states
-			}
-		 finally {
-				triggerNextState(nextStatemessage, send);
-			}
-		};
+                //TODO put in all exception states
+            } finally {
+                triggerNextState(nextStatemessage, send);
+            }
+        };
 
-		//Run above task
-		new Thread(task).start();
-	}
+        //Run above task
+        new Thread(task).start();
+    }
 
-	private String getFunction(List<ByteString> args) {
-		return (args.size() > 0) ? args.get(0).toStringUtf8() : "";
-	}
+    private String getFunction(List<ByteString> args) {
+        return (args.size() > 0) ? args.get(0).toStringUtf8() : "";
+    }
 
-	private String[] getParameters(List<ByteString> args) {
-		int size = (args.size() == 0) ? 0 : args.size() - 1;
-		String[] strArgs = new String[size];
-		for(int i = 1; i < args.size(); ++i) {
-			strArgs[i-1] = args.get(i).toStringUtf8();
-		}
-		return strArgs;
-	}
+    private String[] getParameters(List<ByteString> args) {
+        int size = (args.size() == 0) ? 0 : args.size() - 1;
+        String[] strArgs = new String[size];
+        for (int i = 1; i < args.size(); ++i) {
+            strArgs[i - 1] = args.get(i).toStringUtf8();
+        }
+        return strArgs;
+    }
 
-	// enterInitState will initialize the chaincode if entering init from established.
-	public void enterInitState(Event event) {
-		logger.debug(String.format("Entered state %s", fsm.current()));
-		ChaincodeMessage message = messageHelper(event);
-		logger.debug(String.format("[%s]Received %s, initializing chaincode",
-				shortID(message), message.getType().toString()));
-		if (message.getType() == INIT) {
-			// Call the chaincode's Run function to initialize
+    // enterInitState will initialize the chaincode if entering init from established.
+    public void enterInitState(Event event) {
+        logger.debug(String.format("Entered state %s", fsm.current()));
+        ChaincodeMessage message = messageHelper(event);
+        logger.debug(String.format("[%s]Received %s, initializing chaincode",
+                shortID(message), message.getType().toString()));
+        if (message.getType() == INIT) {
+            // Call the chaincode's Run function to initialize
             try {
                 handleInit(message);
             } catch (InvalidTransactionException e) {
                 e.printStackTrace();
             }
         }
-	}
+    }
 
-	//
-	// handleTransaction Handles request to execute a transaction.
-	public void handleTransaction(ChaincodeMessage message) {
-		// The defer followed by triggering a go routine dance is needed to ensure that the previous state transition
-		// is completed before the next one is triggered. The previous state transition is deemed complete only when
-		// the beforeInit function is exited. Interesting bug fix!!
-		Runnable task = () -> {
-			//better not be nil
-			ChaincodeMessage nextStatemessage = null;
-			boolean send = true;
+    //
+    // handleTransaction Handles request to execute a transaction.
+    public void handleTransaction(ChaincodeMessage message) {
+        // The defer followed by triggering a go routine dance is needed to ensure that the previous state transition
+        // is completed before the next one is triggered. The previous state transition is deemed complete only when
+        // the beforeInit function is exited. Interesting bug fix!!
+        Runnable task = () -> {
+            //better not be nil
+            ChaincodeMessage nextStatemessage = null;
+            boolean send = true;
 
-			//Defer
-			try {
-				// Get the function and args from Payload
-				ChaincodeInput input;
-				try {
-					input = ChaincodeInput.parseFrom(message.getPayload());
-				} catch (Exception e) {
-					logger.debug(String.format("[%s]Incorrect payload format. Sending %s", shortID(message), ERROR));
-					// Send ERROR message to chaincode support and change state
-					nextStatemessage = ChaincodeMessage.newBuilder()
-							.setType(ERROR)
-							.setPayload(message.getPayload())
-							.setTxid(message.getTxid())
-							.build();
-					return;
-				}
+            //Defer
+            try {
+                // Get the function and args from Payload
+                ChaincodeInput input;
+                try {
+                    input = ChaincodeInput.parseFrom(message.getPayload());
+                } catch (Exception e) {
+                    logger.debug(String.format("[%s]Incorrect payload format. Sending %s", shortID(message), ERROR));
+                    // Send ERROR message to chaincode support and change state
+                    nextStatemessage = ChaincodeMessage.newBuilder()
+                            .setType(ERROR)
+                            .setPayload(message.getPayload())
+                            .setTxid(message.getTxid())
+                            .build();
+                    return;
+                }
 
-				// Mark as a transaction (allow put/del state)
-				markIsTransaction(message.getTxid(), true);
+                // Mark as a transaction (allow put/del state)
+                markIsTransaction(message.getTxid(), true);
 
-				// Create the ChaincodeStub which the chaincode can use to callback
-//				ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this, message.getSecurityContext());
-				ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this);
+                // Create the ChaincodeStub which the chaincode can use to callback
+                // ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this, message.getSecurityContext());
+                ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this);
 
-				// Call chaincode's Run
-				ByteString response;
-				try {
-					response = chaincode.runHelper(stub, getFunction(input.getArgsList()), getParameters(input.getArgsList()));
-				} catch (Exception e) {
-					e.printStackTrace();
-					System.err.flush();
-					// Send ERROR message to chaincode support and change state
-					logger.error(String.format("[%s]Error running chaincode. Transaction execution failed. Sending %s",
-							shortID(message), ERROR));
-					nextStatemessage = ChaincodeMessage.newBuilder()
-							.setType(ERROR)
-							.setPayload(message.getPayload())
-							.setTxid(message.getTxid())
-							.build();
-					return;
-				} finally {
-					deleteIsTransaction(message.getTxid());
-				}
+                // Call chaincode's Run
+                ByteString response;
+                try {
+                    response = chaincode.runHelper(stub, getFunction(input.getArgsList()), getParameters(input.getArgsList()));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    System.err.flush();
+                    // Send ERROR message to chaincode support and change state
+                    logger.error(String.format("[%s]Error running chaincode. Transaction execution failed. Sending %s",
+                            shortID(message), ERROR));
+                    nextStatemessage = ChaincodeMessage.newBuilder()
+                            .setType(ERROR)
+                            .setPayload(message.getPayload())
+                            .setTxid(message.getTxid())
+                            .build();
+                    return;
+                } finally {
+                    deleteIsTransaction(message.getTxid());
+                }
 
-				logger.debug(String.format("[%s]Transaction completed. Sending %s",
-						shortID(message), COMPLETED));
+                logger.debug(String.format("[%s]Transaction completed. Sending %s",
+                        shortID(message), COMPLETED));
 
-				// Send COMPLETED message to chaincode support and change state
-				Builder builder = ChaincodeMessage.newBuilder()
-						.setType(COMPLETED)
-						.setTxid(message.getTxid());
-				if (response != null) builder.setPayload(response);
-				nextStatemessage = builder.build();
-			} finally {
-				triggerNextState(nextStatemessage, send);
-			}
-		};
+                // Send COMPLETED message to chaincode support and change state
+                Builder builder = ChaincodeMessage.newBuilder()
+                        .setType(COMPLETED)
+                        .setTxid(message.getTxid());
+                if (response != null) {
+                    builder.setPayload(response);
+                }
+                nextStatemessage = builder.build();
+            } finally {
+                triggerNextState(nextStatemessage, send);
+            }
+        };
 
-		new Thread(task).start();
-	}
+        new Thread(task).start();
+    }
 
-//	// handleQuery handles request to execute a query.
-//	public void handleQuery(ChaincodeMessage message) {
-//		// Query does not transition state. It can happen anytime after Ready
-//		Runnable task = () -> {
-//			ChaincodeMessage serialSendMessage = null;
-//			try {
-//				// Get the function and args from Payload
-//				ChaincodeInput input;
-//				try {
-//					input = ChaincodeInput.parseFrom(message.getPayload());
-//				} catch (Exception e) {
-//					// Send ERROR message to chaincode support and change state
-//					logger.debug(String.format("[%s]Incorrect payload format. Sending %s",
-//							shortID(message), QUERY_ERROR));
-//					serialSendMessage = ChaincodeMessage.newBuilder()
-//							.setType(QUERY_ERROR)
-//							.setPayload(ByteString.copyFromUtf8(e.getMessage()))
-//							.setTxid(message.getTxid())
-//							.build();
-//					return;
-//				}
-//
-//				// Mark as a query (do not allow put/del state)
-//				markIsTransaction(message.getTxid(), false);
-//
-//				// Call chaincode's Query
-//				// Create the ChaincodeStub which the chaincode can use to callback
-//				ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this, message.getSecurityContext());
-//				ByteString response;
-//				try {
-//					response = chaincode.queryHelper(stub, getFunction(input.getArgsList()), getParameters(input.getArgsList()));
-//				} catch (Exception e) {
-//					// Send ERROR message to chaincode support and change state
-//					logger.debug(String.format("[%s]Query execution failed. Sending %s",
-//							shortID(message), QUERY_ERROR));
-//					serialSendMessage = ChaincodeMessage.newBuilder()
-//							.setType(QUERY_ERROR)
-//							.setPayload(ByteString.copyFromUtf8(e.getMessage()))
-//							.setTxid(message.getTxid())
-//							.build();
-//					return;
-//				} finally {
-//					deleteIsTransaction(message.getTxid());
-//				}
-//
-//				// Send COMPLETED message to chaincode support
-//				logger.debug("["+ shortID(message)+"]Query completed. Sending "+ QUERY_COMPLETED);
-//				serialSendMessage = ChaincodeMessage.newBuilder()
-//						.setType(QUERY_COMPLETED)
-//						.setPayload(response)
-//						.setTxid(message.getTxid())
-//						.build();
-//			} finally {
-//				serialSend(serialSendMessage);
-//			}
-//		};
-//
-//		new Thread(task).start();
-//	}
+    /*
+    handleQuery handles
+    request to
+    execute a
+    query.
 
-	// enterTransactionState will execute chaincode's Run if coming from a TRANSACTION event.
-	public void enterTransactionState(Event event) {
-		ChaincodeMessage message = messageHelper(event);
-		logger.debug(String.format("[%s]Received %s, invoking transaction on chaincode(src:%s, dst:%s)",
-				shortID(message), message.getType().toString(), event.src, event.dst));
-		if (message.getType() == TRANSACTION) {
-			// Call the chaincode's Run function to invoke transaction
-			handleTransaction(message);
-		}
-	}
+    public void handleQuery(ChaincodeMessage message) {
+        // Query does not transition state. It can happen anytime after Ready
+        Runnable task = () -> {
+            ChaincodeMessage serialSendMessage = null;
+            try {
+                // Get the function and args from Payload
+                ChaincodeInput input;
+                try {
+                    input = ChaincodeInput.parseFrom(message.getPayload());
+                } catch (Exception e) {
+                    // Send ERROR message to chaincode support and change state
+                    logger.debug(String.format("[%s]Incorrect payload format. Sending %s",
+                            shortID(message), QUERY_ERROR));
+                    serialSendMessage = ChaincodeMessage.newBuilder()
+                            .setType(QUERY_ERROR)
+                            .setPayload(ByteString.copyFromUtf8(e.getMessage()))
+                            .setTxid(message.getTxid())
+                            .build();
+                    return;
+                }
 
-	// afterCompleted will need to handle COMPLETED event by sending message to the peer
-	public void afterCompleted(Event event) {
-		ChaincodeMessage message = messageHelper(event);
-		logger.debug(String.format("[%s]sending COMPLETED to validator for tid", shortID(message)));
-		try {
-			serialSend(message);
-		} catch (Exception e) {
-			event.cancel(new Exception("send COMPLETED failed %s", e));
-		}
-	}
+                // Mark as a query (do not allow put/del state)
+                markIsTransaction(message.getTxid(), false);
 
-//	// beforeQuery is invoked when a query message is received from the validator
-//	public void beforeQuery(Event event) {
-//		ChaincodeMessage message = messageHelper(event);
-//		handleQuery(message);
-//	}
+                // Call chaincode's Query
+                // Create the ChaincodeStub which the chaincode can use to callback
+                ChaincodeStub stub = new ChaincodeStub(message.getTxid(), this, message.getSecurityContext());
+                ByteString response;
+                try {
+                    response = chaincode.queryHelper(stub, getFunction(input.getArgsList()), getParameters(input.getArgsList()));
+                } catch (Exception e) {
+                    // Send ERROR message to chaincode support and change state
+                    logger.debug(String.format("[%s]Query execution failed. Sending %s",
+                            shortID(message), QUERY_ERROR));
+                    serialSendMessage = ChaincodeMessage.newBuilder()
+                            .setType(QUERY_ERROR)
+                            .setPayload(ByteString.copyFromUtf8(e.getMessage()))
+                            .setTxid(message.getTxid())
+                            .build();
+                    return;
+                } finally {
+                    deleteIsTransaction(message.getTxid());
+                }
 
-	// afterResponse is called to deliver a response or error to the chaincode stub.
-	public void afterResponse(Event event) {
-		ChaincodeMessage message = messageHelper(event);
-		try {
-			sendChannel(message);
-			logger.debug(String.format("[%s]Received %s, communicated (state:%s)",
-					shortID(message), message.getType(), fsm.current()));
-		} catch (Exception e) {
-			logger.error(String.format("[%s]error sending %s (state:%s): %s", shortID(message),
-					message.getType(), fsm.current(), e));
-		}
-	}
+                // Send COMPLETED message to chaincode support
+                logger.debug("[" + shortID(message) + "]Query completed. Sending " + QUERY_COMPLETED);
+                serialSendMessage = ChaincodeMessage.newBuilder()
+                        .setType(QUERY_COMPLETED)
+                        .setPayload(response)
+                        .setTxid(message.getTxid())
+                        .build();
+            } finally {
+                serialSend(serialSendMessage);
+            }
+        };
 
-	private ChaincodeMessage messageHelper(Event event) {
-		try {
-			return (ChaincodeMessage) event.args[0];
-		} catch (Exception e) {
-			InvalidTransactionException error = new InvalidTransactionException("Received unexpected message type", e);
-			event.cancel(error);
+        new Thread(task).start();
+    }
+    */
+
+    // enterTransactionState will execute chaincode's Run if coming from a TRANSACTION event.
+    public void enterTransactionState(Event event) {
+        ChaincodeMessage message = messageHelper(event);
+        logger.debug(String.format("[%s]Received %s, invoking transaction on chaincode(src:%s, dst:%s)",
+                shortID(message), message.getType().toString(), event.src, event.dst));
+        if (message.getType() == TRANSACTION) {
+            // Call the chaincode's Run function to invoke transaction
+            handleTransaction(message);
+        }
+    }
+
+    // afterCompleted will need to handle COMPLETED event by sending message to the peer
+    public void afterCompleted(Event event) {
+        ChaincodeMessage message = messageHelper(event);
+        logger.debug(String.format("[%s]sending COMPLETED to validator for tid", shortID(message)));
+        try {
+            serialSend(message);
+        } catch (Exception e) {
+            event.cancel(new Exception("send COMPLETED failed %s", e));
+        }
+    }
+
+    /*
+    beforeQuery is invoked when a query
+    message is received from the validator
+
+    public void beforeQuery(Event event) {
+        ChaincodeMessage message = messageHelper(event);
+        handleQuery(message);
+    }*/
+
+    // afterResponse is called to deliver a response or error to the chaincode stub.
+    public void afterResponse(Event event) {
+        ChaincodeMessage message = messageHelper(event);
+        try {
+            sendChannel(message);
+            logger.debug(String.format("[%s]Received %s, communicated (state:%s)",
+                    shortID(message), message.getType(), fsm.current()));
+        } catch (Exception e) {
+            logger.error(String.format("[%s]error sending %s (state:%s): %s", shortID(message),
+                    message.getType(), fsm.current(), e));
+        }
+    }
+
+    private ChaincodeMessage messageHelper(Event event) {
+        try {
+            return (ChaincodeMessage) event.args[0];
+        } catch (Exception e) {
+            InvalidTransactionException error = new InvalidTransactionException("Received unexpected message type", e);
+            event.cancel(error);
             throw e;
         }
-	}
+    }
 
-	public void afterError(Event event) {
-		ChaincodeMessage message = messageHelper(event);
-		/* TODO- revisit. This may no longer be needed with the serialized/streamlined messaging model
-		 * There are two situations in which the ERROR event can be triggered:
-		 * 1. When an error is encountered within handleInit or handleTransaction -
-		 * some issue at the chaincode side; In this case there will be no responseChannel
-		 * and the message has been sent to the validator.
-		 * 2. The chaincode has initiated a request (get/put/del state) to the validator
-		 * and is expecting a response on the responseChannel; If ERROR is received
-		 * from validator, this needs to be notified on the responseChannel.
-		 */
-		try {
-			sendChannel(message);
-		} catch (Exception e) {
-			logger.debug(String.format("[%s]Error received from validator %s, communicated(state:%s)",
-					shortID(message), message.getType(), fsm.current()));
-		}
-	}
+    public void afterError(Event event) {
+        ChaincodeMessage message = messageHelper(event);
+         /*
+            TODO- revisit. This may no longer be needed with the serialized/streamlined messaging model
+            There are two situations in which the ERROR event can be triggered:
 
-	// handleGetState communicates with the validator to fetch the requested state information from the ledger.
-	public ByteString handleGetState(String key, String uuid) {
-		try {
-			//TODO Implement method to get and put entire state map and not one key at a time?
-			// Create the channel on which to communicate the response from validating peer
-			Channel<ChaincodeMessage> responseChannel;
-			try {
-				responseChannel = createChannel(uuid);
-			} catch (Exception e) {
-				logger.debug("Another state request pending for this Uuid. Cannot process.");
-				throw e;
-			}
+            1. When an error is encountered within handleInit or handleTransaction -
+            some issue at the chaincode side; In this case there will be no responseChannel
+            and the message has been sent to the validator.
 
-			// Send GET_STATE message to validator chaincode support
-			ChaincodeMessage message = ChaincodeMessage.newBuilder()
-					.setType(GET_STATE)
-					.setPayload(ByteString.copyFromUtf8(key))
-					.setTxid(uuid)
-					.build();
+            2. The chaincode has initiated a request (get/put/del state) to the validator
+            and is expecting a response on the responseChannel; If ERROR is received
+            from validator, this needs to be notified on the responseChannel.
+        */
+        try {
+            sendChannel(message);
+        } catch (Exception e) {
+            logger.debug(String.format("[%s]Error received from validator %s, communicated(state:%s)",
+                    shortID(message), message.getType(), fsm.current()));
+        }
+    }
 
-			logger.debug(String.format("[%s]Sending %s", shortID(message), GET_STATE));
-			try {
-				serialSend(message);
-			} catch (Exception e) {
-				logger.error(String.format("[%s]error sending GET_STATE %s", shortID(uuid), e));
-				throw new RuntimeException("could not send message");
-			}
+    // handleGetState communicates with the validator to fetch the requested state information from the ledger.
+    public ByteString handleGetState(String key, String uuid) {
+        try {
+            //TODO Implement method to get and put entire state map and not one key at a time?
+            // Create the channel on which to communicate the response from validating peer
+            Channel<ChaincodeMessage> responseChannel;
+            try {
+                responseChannel = createChannel(uuid);
+            } catch (Exception e) {
+                logger.debug("Another state request pending for this Uuid. Cannot process.");
+                throw e;
+            }
 
-			// Wait on responseChannel for response
-			ChaincodeMessage response;
-			try {
-				response = receiveChannel(responseChannel);
-			} catch (Exception e) {
-				logger.error(String.format("[%s]Received unexpected message type", shortID(uuid)));
-				throw new RuntimeException("Received unexpected message type");
-			}
+            // Send GET_STATE message to validator chaincode support
+            ChaincodeMessage message = ChaincodeMessage.newBuilder()
+                    .setType(GET_STATE)
+                    .setPayload(ByteString.copyFromUtf8(key))
+                    .setTxid(uuid)
+                    .build();
 
-			// Success response
-			if (response.getType() == RESPONSE) {
-				logger.debug(String.format("[%s]GetState received payload %s", shortID(response.getTxid()), RESPONSE));
-				return response.getPayload();
-			}
+            logger.debug(String.format("[%s]Sending %s", shortID(message), GET_STATE));
+            try {
+                serialSend(message);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]error sending GET_STATE %s", shortID(uuid), e));
+                throw new RuntimeException("could not send message");
+            }
 
-			// Error response
-			if (response.getType() == ERROR) {
-				logger.error(String.format("[%s]GetState received error %s", shortID(response.getTxid()), ERROR));
-				throw new RuntimeException(response.getPayload().toString());
-			}
+            // Wait on responseChannel for response
+            ChaincodeMessage response;
+            try {
+                response = receiveChannel(responseChannel);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]Received unexpected message type", shortID(uuid)));
+                throw new RuntimeException("Received unexpected message type");
+            }
 
-			// Incorrect chaincode message received
-			logger.error(String.format("[%s]Incorrect chaincode message %s received. Expecting %s or %s",
-					shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
-			throw new RuntimeException("Incorrect chaincode message received");
-		} finally {
-			deleteChannel(uuid);
-		}
-	}
+            // Success response
+            if (response.getType() == RESPONSE) {
+                logger.debug(String.format("[%s]GetState received payload %s", shortID(response.getTxid()), RESPONSE));
+                return response.getPayload();
+            }
 
-	private boolean isTransaction(String uuid) {
-		return isTransaction.containsKey(uuid) && isTransaction.get(uuid);
-	}
+            // Error response
+            if (response.getType() == ERROR) {
+                logger.error(String.format("[%s]GetState received error %s", shortID(response.getTxid()), ERROR));
+                throw new RuntimeException(response.getPayload().toString());
+            }
 
-	public void handlePutState(String key, ByteString value, String uuid) {
-		// Check if this is a transaction
-		logger.debug("["+ shortID(uuid)+"]Inside putstate (\""+key+"\":\""+value+"\"), isTransaction = "+isTransaction(uuid));
+            // Incorrect chaincode message received
+            logger.error(String.format("[%s]Incorrect chaincode message %s received. Expecting %s or %s",
+                    shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
+            throw new RuntimeException("Incorrect chaincode message received");
+        } finally {
+            deleteChannel(uuid);
+        }
+    }
 
-		if (!isTransaction(uuid)) {
-			throw new IllegalStateException("Cannot put state in query context");
-		}
+    private boolean isTransaction(String uuid) {
+        return isTransaction.containsKey(uuid) && isTransaction.get(uuid);
+    }
 
-		PutStateInfo payload = PutStateInfo.newBuilder()
-				.setKey(key)
-				.setValue(value)
-				.build();
+    public void handlePutState(String key, ByteString value, String uuid) {
+        // Check if this is a transaction
+        logger.debug("[" + shortID(uuid) + "]Inside putstate (\"" + key + "\":\"" + value + "\"), isTransaction = " + isTransaction(uuid));
 
-		// Create the channel on which to communicate the response from validating peer
-		Channel<ChaincodeMessage> responseChannel;
-		try {
-			responseChannel = createChannel(uuid);
-		} catch (Exception e) {
-			logger.error(String.format("[%s]Another state request pending for this Uuid. Cannot process.", shortID(uuid)));
-			throw e;
-		}
+        if (!isTransaction(uuid)) {
+            throw new IllegalStateException("Cannot put state in query context");
+        }
 
-		//Defer
-		try {
-			// Send PUT_STATE message to validator chaincode support
-			ChaincodeMessage message = ChaincodeMessage.newBuilder()
-					.setType(PUT_STATE)
-					.setPayload(payload.toByteString())
-					.setTxid(uuid)
-					.build();
+        PutStateInfo payload = PutStateInfo.newBuilder()
+                .setKey(key)
+                .setValue(value)
+                .build();
 
-			logger.debug(String.format("[%s]Sending %s", shortID(message), PUT_STATE));
+        // Create the channel on which to communicate the response from validating peer
+        Channel<ChaincodeMessage> responseChannel;
+        try {
+            responseChannel = createChannel(uuid);
+        } catch (Exception e) {
+            logger.error(String.format("[%s]Another state request pending for this Uuid. Cannot process.", shortID(uuid)));
+            throw e;
+        }
 
-			try {
-				serialSend(message);
-			} catch (Exception e) {
-				logger.error(String.format("[%s]error sending PUT_STATE %s", message.getTxid(), e));
-				throw new RuntimeException("could not send message");
-			}
+        //Defer
+        try {
+            // Send PUT_STATE message to validator chaincode support
+            ChaincodeMessage message = ChaincodeMessage.newBuilder()
+                    .setType(PUT_STATE)
+                    .setPayload(payload.toByteString())
+                    .setTxid(uuid)
+                    .build();
 
-			// Wait on responseChannel for response
-			ChaincodeMessage response;
-			try {
-				response = receiveChannel(responseChannel);
-			} catch (Exception e) {
-				//TODO figure out how to get uuid of receive channel
-				logger.error(String.format("[%s]Received unexpected message type", e));
-				throw e;
-			}
+            logger.debug(String.format("[%s]Sending %s", shortID(message), PUT_STATE));
 
-			// Success response
-			if (response.getType() == RESPONSE) {
-				logger.debug(String.format("[%s]Received %s. Successfully updated state", shortID(response.getTxid()), RESPONSE));
-				return;
-			}
+            try {
+                serialSend(message);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]error sending PUT_STATE %s", message.getTxid(), e));
+                throw new RuntimeException("could not send message");
+            }
 
-			// Error response
-			if (response.getType() == ERROR) {
-				logger.error(String.format("[%s]Received %s. Payload: %s", shortID(response.getTxid()), ERROR, response.getPayload()));
-				throw new RuntimeException(response.getPayload().toStringUtf8());
-			}
+            // Wait on responseChannel for response
+            ChaincodeMessage response;
+            try {
+                response = receiveChannel(responseChannel);
+            } catch (Exception e) {
+                //TODO figure out how to get uuid of receive channel
+                logger.error(String.format("[%s]Received unexpected message type", e));
+                throw e;
+            }
 
-			// Incorrect chaincode message received
-			logger.error(String.format("[%s]Incorrect chaincode message %s received. Expecting %s or %s",
-					shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
+            // Success response
+            if (response.getType() == RESPONSE) {
+                logger.debug(String.format("[%s]Received %s. Successfully updated state", shortID(response.getTxid()), RESPONSE));
+                return;
+            }
 
-			throw new RuntimeException("Incorrect chaincode message received");
-		} catch (Exception e) {
-			throw e;
-		} finally {
-			deleteChannel(uuid);
-		}
-	}
+            // Error response
+            if (response.getType() == ERROR) {
+                logger.error(String.format("[%s]Received %s. Payload: %s", shortID(response.getTxid()), ERROR, response.getPayload()));
+                throw new RuntimeException(response.getPayload().toStringUtf8());
+            }
 
-	public void handleDeleteState(String key, String uuid) {
-		// Check if this is a transaction
-		if (!isTransaction(uuid)) {
-			throw new RuntimeException("Cannot del state in query context");
-		}
+            // Incorrect chaincode message received
+            logger.error(String.format("[%s]Incorrect chaincode message %s received. Expecting %s or %s",
+                    shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
 
-		// Create the channel on which to communicate the response from validating peer
-		Channel<ChaincodeMessage> responseChannel;
-		try {
-			responseChannel = createChannel(uuid);
-		} catch (Exception e) {
-			logger.error(String.format("[%s]Another state request pending for this Uuid."
-					+ " Cannot process create createChannel.", shortID(uuid)));
-			throw e;
-		}
+            throw new RuntimeException("Incorrect chaincode message received");
+        } catch (Exception e) {
+            throw e;
+        } finally {
+            deleteChannel(uuid);
+        }
+    }
 
-		//Defer
-		try {
-			// Send DEL_STATE message to validator chaincode support
-			ChaincodeMessage message = ChaincodeMessage.newBuilder()
-					.setType(DEL_STATE)
-					.setPayload(ByteString.copyFromUtf8(key))
-					.setTxid(uuid)
-					.build();
-			logger.debug(String.format("[%s]Sending %s", shortID(uuid), DEL_STATE));
-			try {
-				serialSend(message);
-			} catch (Exception e) {
-				logger.error(String.format("[%s]error sending DEL_STATE %s", shortID(message), DEL_STATE));
-				throw new RuntimeException("could not send message");
-			}
+    public void handleDeleteState(String key, String uuid) {
+        // Check if this is a transaction
+        if (!isTransaction(uuid)) {
+            throw new RuntimeException("Cannot del state in query context");
+        }
 
-			// Wait on responseChannel for response
-			ChaincodeMessage response;
-			try {
-				response = receiveChannel(responseChannel);
-			} catch (Exception e) {
-				logger.error(String.format("[%s]Received unexpected message type", shortID(message)));
-				throw new RuntimeException("Received unexpected message type");
-			}
+        // Create the channel on which to communicate the response from validating peer
+        Channel<ChaincodeMessage> responseChannel;
+        try {
+            responseChannel = createChannel(uuid);
+        } catch (Exception e) {
+            logger.error(String.format("[%s]Another state request pending for this Uuid."
+                    + " Cannot process create createChannel.", shortID(uuid)));
+            throw e;
+        }
 
-			if (response.getType() == RESPONSE) {
-				// Success response
-				logger.debug(String.format("[%s]Received %s. Successfully deleted state", message.getTxid(), RESPONSE));
-				return;
-			}
+        //Defer
+        try {
+            // Send DEL_STATE message to validator chaincode support
+            ChaincodeMessage message = ChaincodeMessage.newBuilder()
+                    .setType(DEL_STATE)
+                    .setPayload(ByteString.copyFromUtf8(key))
+                    .setTxid(uuid)
+                    .build();
+            logger.debug(String.format("[%s]Sending %s", shortID(uuid), DEL_STATE));
+            try {
+                serialSend(message);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]error sending DEL_STATE %s", shortID(message), DEL_STATE));
+                throw new RuntimeException("could not send message");
+            }
 
-			if (response.getType() == ERROR) {
-				// Error response
-				logger.error(String.format("[%s]Received %s. Payload: %s", message.getTxid(), ERROR, response.getPayload()));
-				throw new RuntimeException(response.getPayload().toStringUtf8());
-			}
+            // Wait on responseChannel for response
+            ChaincodeMessage response;
+            try {
+                response = receiveChannel(responseChannel);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]Received unexpected message type", shortID(message)));
+                throw new RuntimeException("Received unexpected message type");
+            }
 
-			// Incorrect chaincode message received
-			logger.error(String.format("[%s]Incorrect chaincode message %s received. Expecting %s or %s",
-					shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
-			throw new RuntimeException("Incorrect chaincode message received");
-		} finally {
-			deleteChannel(uuid);
-		}
-	}
+            if (response.getType() == RESPONSE) {
+                // Success response
+                logger.debug(String.format("[%s]Received %s. Successfully deleted state", message.getTxid(), RESPONSE));
+                return;
+            }
 
-	public RangeQueryStateResponse handleRangeQueryState(String startKey, String endKey, String uuid) {
-		// Create the channel on which to communicate the response from validating peer
-		Channel<ChaincodeMessage> responseChannel;
-		try {
-			responseChannel = createChannel(uuid);
-		} catch (Exception e) {
-			logger.debug(String.format("[%s]Another state request pending for this Uuid."
-					+ " Cannot process.", shortID(uuid)));
-			throw e;
-		}
+            if (response.getType() == ERROR) {
+                // Error response
+                logger.error(String.format("[%s]Received %s. Payload: %s", message.getTxid(), ERROR, response.getPayload()));
+                throw new RuntimeException(response.getPayload().toStringUtf8());
+            }
 
-		//Defer
-		try {
-			// Send RANGE_QUERY_STATE message to validator chaincode support
-			RangeQueryState payload = RangeQueryState.newBuilder()
-					.setStartKey(startKey)
-					.setEndKey(endKey)
-					.build();
+            // Incorrect chaincode message received
+            logger.error(String.format("[%s]Incorrect chaincode message %s received. Expecting %s or %s",
+                    shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
+            throw new RuntimeException("Incorrect chaincode message received");
+        } finally {
+            deleteChannel(uuid);
+        }
+    }
 
-			ChaincodeMessage message = ChaincodeMessage.newBuilder()
-					.setType(RANGE_QUERY_STATE)
-					.setPayload(payload.toByteString())
-					.setTxid(uuid)
-					.build();
+    public RangeQueryStateResponse handleRangeQueryState(String startKey, String endKey, String uuid) {
+        // Create the channel on which to communicate the response from validating peer
+        Channel<ChaincodeMessage> responseChannel;
+        try {
+            responseChannel = createChannel(uuid);
+        } catch (Exception e) {
+            logger.debug(String.format("[%s]Another state request pending for this Uuid."
+                    + " Cannot process.", shortID(uuid)));
+            throw e;
+        }
 
-			logger.debug(String.format("[%s]Sending %s", shortID(message), RANGE_QUERY_STATE));
-			try {
-				serialSend(message);
-			} catch (Exception e){
-				logger.error(String.format("[%s]error sending %s", shortID(message), RANGE_QUERY_STATE));
-				throw new RuntimeException("could not send message");
-			}
+        //Defer
+        try {
+            // Send RANGE_QUERY_STATE message to validator chaincode support
+            RangeQueryState payload = RangeQueryState.newBuilder()
+                    .setStartKey(startKey)
+                    .setEndKey(endKey)
+                    .build();
 
-			// Wait on responseChannel for response
-			ChaincodeMessage response;
-			try {
-				response = receiveChannel(responseChannel);
-			} catch (Exception e) {
-				logger.error(String.format("[%s]Received unexpected message type", uuid));
-				throw new RuntimeException("Received unexpected message type");
-			}
+            ChaincodeMessage message = ChaincodeMessage.newBuilder()
+                    .setType(RANGE_QUERY_STATE)
+                    .setPayload(payload.toByteString())
+                    .setTxid(uuid)
+                    .build();
 
-			if (response.getType() == RESPONSE) {
-				// Success response
-				logger.debug(String.format("[%s]Received %s. Successfully got range",
-						shortID(response.getTxid()), RESPONSE));
+            logger.debug(String.format("[%s]Sending %s", shortID(message), RANGE_QUERY_STATE));
+            try {
+                serialSend(message);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]error sending %s", shortID(message), RANGE_QUERY_STATE));
+                throw new RuntimeException("could not send message");
+            }
 
-				RangeQueryStateResponse rangeQueryResponse;
-				try {
-					rangeQueryResponse = RangeQueryStateResponse.parseFrom(response.getPayload());
-				} catch (Exception e) {
-					logger.error(String.format("[%s]unmarshall error", shortID(response.getTxid())));
-					throw new RuntimeException("Error unmarshalling RangeQueryStateResponse.");
-				}
+            // Wait on responseChannel for response
+            ChaincodeMessage response;
+            try {
+                response = receiveChannel(responseChannel);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]Received unexpected message type", uuid));
+                throw new RuntimeException("Received unexpected message type");
+            }
 
-				return rangeQueryResponse;
-			}
+            if (response.getType() == RESPONSE) {
+                // Success response
+                logger.debug(String.format("[%s]Received %s. Successfully got range",
+                        shortID(response.getTxid()), RESPONSE));
 
-			if (response.getType() == ERROR) {
-				// Error response
-				logger.error(String.format("[%s]Received %s",
-						shortID(response.getTxid()), ERROR));
-				throw new RuntimeException(response.getPayload().toStringUtf8());
-			}
+                RangeQueryStateResponse rangeQueryResponse;
+                try {
+                    rangeQueryResponse = RangeQueryStateResponse.parseFrom(response.getPayload());
+                } catch (Exception e) {
+                    logger.error(String.format("[%s]unmarshall error", shortID(response.getTxid())));
+                    throw new RuntimeException("Error unmarshalling RangeQueryStateResponse.");
+                }
 
-			// Incorrect chaincode message received
-			logger.error(String.format("Incorrect chaincode message %s recieved. Expecting %s or %s",
-					response.getType(), RESPONSE, ERROR));
-			throw new RuntimeException("Incorrect chaincode message received");
-		} finally {
-			deleteChannel(uuid);
-		}
-	}
+                return rangeQueryResponse;
+            }
 
-	public ByteString handleInvokeChaincode(String chaincodeName, String function, List<ByteString> args, String uuid) {
-		// Check if this is a transaction
-		if (!isTransaction.containsKey(uuid)) {
-			throw new RuntimeException("Cannot invoke chaincode in query context");
-		}
+            if (response.getType() == ERROR) {
+                // Error response
+                logger.error(String.format("[%s]Received %s",
+                        shortID(response.getTxid()), ERROR));
+                throw new RuntimeException(response.getPayload().toStringUtf8());
+            }
 
-		ChaincodeID id = ChaincodeID.newBuilder()
-				.setName(chaincodeName).build();
-		ChaincodeInput input = ChaincodeInput.newBuilder()
-				.addArgs(ByteString.copyFromUtf8(function))
-				.addAllArgs(args)
-				.build();
-		ChaincodeSpec payload = ChaincodeSpec.newBuilder()
-				.setChaincodeID(id)
-				.setCtorMsg(input)
-				.build();
+            // Incorrect chaincode message received
+            logger.error(String.format("Incorrect chaincode message %s recieved. Expecting %s or %s",
+                    response.getType(), RESPONSE, ERROR));
+            throw new RuntimeException("Incorrect chaincode message received");
+        } finally {
+            deleteChannel(uuid);
+        }
+    }
 
-		// Create the channel on which to communicate the response from validating peer
-		Channel<ChaincodeMessage> responseChannel;
-		try {
-			responseChannel = createChannel(uuid);
-		} catch (Exception e) {
-			logger.error(String.format("[%s]Another state request pending for this Uuid. Cannot process.", shortID(uuid)));
-			throw e;
-		}
+    public ByteString handleInvokeChaincode(String chaincodeName, String function, List<ByteString> args, String uuid) {
+        // Check if this is a transaction
+        if (!isTransaction.containsKey(uuid)) {
+            throw new RuntimeException("Cannot invoke chaincode in query context");
+        }
 
-		//Defer
-		try {
-			// Send INVOKE_CHAINCODE message to validator chaincode support
-			ChaincodeMessage message = ChaincodeMessage.newBuilder()
-					.setType(INVOKE_CHAINCODE)
-					.setPayload(payload.toByteString())
-					.setTxid(uuid)
-					.build();
+        ChaincodeID id = ChaincodeID.newBuilder()
+                .setName(chaincodeName).build();
+        ChaincodeInput input = ChaincodeInput.newBuilder()
+                .addArgs(ByteString.copyFromUtf8(function))
+                .addAllArgs(args)
+                .build();
+        ChaincodeSpec payload = ChaincodeSpec.newBuilder()
+                .setChaincodeID(id)
+                .setCtorMsg(input)
+                .build();
 
-			logger.debug(String.format("[%s]Sending %s",
-					shortID(message), INVOKE_CHAINCODE));
+        // Create the channel on which to communicate the response from validating peer
+        Channel<ChaincodeMessage> responseChannel;
+        try {
+            responseChannel = createChannel(uuid);
+        } catch (Exception e) {
+            logger.error(String.format("[%s]Another state request pending for this Uuid. Cannot process.", shortID(uuid)));
+            throw e;
+        }
 
-			try {
-				serialSend(message);
-			} catch (Exception e) {
-				logger.error("["+ shortID(message)+"]Error sending "+INVOKE_CHAINCODE+": "+e.getMessage());
-				throw e;
-			}
+        //Defer
+        try {
+            // Send INVOKE_CHAINCODE message to validator chaincode support
+            ChaincodeMessage message = ChaincodeMessage.newBuilder()
+                    .setType(INVOKE_CHAINCODE)
+                    .setPayload(payload.toByteString())
+                    .setTxid(uuid)
+                    .build();
 
-			// Wait on responseChannel for response
-			ChaincodeMessage response;
-			try {
-				response = receiveChannel(responseChannel);
-			} catch (Exception e) {
-				logger.error(String.format("[%s]Received unexpected message type", shortID(message)));
-				throw new RuntimeException("Received unexpected message type");
-			}
+            logger.debug(String.format("[%s]Sending %s",
+                    shortID(message), INVOKE_CHAINCODE));
 
-			if (response.getType() == RESPONSE) {
-				// Success response
-				logger.debug(String.format("[%s]Received %s. Successfully invoked chaincode", shortID(response.getTxid()), RESPONSE));
-				return response.getPayload();
-			}
+            try {
+                serialSend(message);
+            } catch (Exception e) {
+                logger.error("[" + shortID(message) + "]Error sending " + INVOKE_CHAINCODE + ": " + e.getMessage());
+                throw e;
+            }
 
-			if (response.getType() == ERROR) {
-				// Error response
-				logger.error(String.format("[%s]Received %s.", shortID(response.getTxid()), ERROR));
-				throw new RuntimeException(response.getPayload().toStringUtf8());
-			}
+            // Wait on responseChannel for response
+            ChaincodeMessage response;
+            try {
+                response = receiveChannel(responseChannel);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]Received unexpected message type", shortID(message)));
+                throw new RuntimeException("Received unexpected message type");
+            }
 
-			// Incorrect chaincode message received
-			logger.debug(String.format("[%s]Incorrect chaincode message %s received. Expecting %s or %s",
-					shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
-			throw new RuntimeException("Incorrect chaincode message received");
-		} finally {
-			deleteChannel(uuid);
-		}
-	}
+            if (response.getType() == RESPONSE) {
+                // Success response
+                logger.debug(String.format("[%s]Received %s. Successfully invoked chaincode", shortID(response.getTxid()), RESPONSE));
+                return response.getPayload();
+            }
 
-//	public ByteString handleQueryChaincode(String chaincodeName, String function, List<ByteString> args, String uuid) {
-//		ChaincodeID id = ChaincodeID.newBuilder().setName(chaincodeName).build();
-//		ChaincodeInput input = ChaincodeInput.newBuilder()
-//				.addArgs(ByteString.copyFromUtf8(function))
-//				.addAllArgs(args)
-//				.build();
-//		ChaincodeSpec payload = ChaincodeSpec.newBuilder()
-//				.setChaincodeID(id)
-//				.setCtorMsg(input)
-//				.build();
-//
-//		// Create the channel on which to communicate the response from validating peer
-//		Channel<ChaincodeMessage> responseChannel;
-//		try {
-//			responseChannel = createChannel(uuid);
-//		} catch (Exception e) {
-//			logger.debug(String.format("Another request pending for this Uuid. Cannot process."));
-//			throw e;
-//		}
-//
-//		//Defer
-//		try {
-//
-//			// Send INVOKE_QUERY message to validator chaincode support
-//			ChaincodeMessage message = ChaincodeMessage.newBuilder()
-//					.setType(INVOKE_QUERY)
-//					.setPayload(payload.toByteString())
-//					.setTxid(uuid)
-//					.build();
-//
-//			logger.debug(String.format("[%s]Sending %s", shortID(message), INVOKE_QUERY));
-//
-//			try {
-//				serialSend(message);
-//			} catch (Exception e) {
-//				logger.error(String.format("[%s]error sending %s", shortID(message), INVOKE_QUERY));
-//				throw new RuntimeException("could not send message");
-//			}
-//
-//			// Wait on responseChannel for response
-//			ChaincodeMessage response;
-//			try {
-//				response = receiveChannel(responseChannel);
-//			} catch (Exception e) {
-//				logger.error(String.format("[%s]Received unexpected message type", shortID(message)));
-//				throw new RuntimeException("Received unexpected message type");
-//			}
-//
-//			if (response.getType() == RESPONSE) {
-//				// Success response
-//				logger.debug(String.format("[%s]Received %s. Successfully queried chaincode",
-//						shortID(response.getTxid()), RESPONSE));
-//				return response.getPayload();
-//			}
-//
-//			if (response.getType() == ERROR) {
-//				// Error response
-//				logger.error(String.format("[%s]Received %s.",
-//						shortID(response.getTxid()), ERROR));
-//				throw new RuntimeException(response.getPayload().toStringUtf8());
-//			}
-//
-//			// Incorrect chaincode message received
-//			logger.error(String.format("[%s]Incorrect chaincode message %s recieved. Expecting %s or %s",
-//					shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
-//			throw new RuntimeException("Incorrect chaincode message received");
-//		} finally {
-//			deleteChannel(uuid);
-//		}
-//	}
+            if (response.getType() == ERROR) {
+                // Error response
+                logger.error(String.format("[%s]Received %s.", shortID(response.getTxid()), ERROR));
+                throw new RuntimeException(response.getPayload().toStringUtf8());
+            }
 
-	// handleMessage message handles loop for org.hyperledger.fabric.java.shim side of chaincode/validator stream.
-	public synchronized void handleMessage(ChaincodeMessage message) throws Exception {
+            // Incorrect chaincode message received
+            logger.debug(String.format("[%s]Incorrect chaincode message %s received. Expecting %s or %s",
+                    shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
+            throw new RuntimeException("Incorrect chaincode message received");
+        } finally {
+            deleteChannel(uuid);
+        }
+    }
 
-		if (message.getType() == ChaincodeMessage.Type.KEEPALIVE){
-			logger.debug(String.format("[%s] Recieved KEEPALIVE message, do nothing",
-					shortID(message)));
-			// Received a keep alive message, we don't do anything with it for now
-			// and it does not touch the state machine
-				return;
-		}
+    /*public ByteString handleQueryChaincode(String chaincodeName, String function, List<ByteString> args, String uuid) {
+        ChaincodeID id = ChaincodeID.newBuilder().setName(chaincodeName).build();
+        ChaincodeInput input = ChaincodeInput.newBuilder()
+                .addArgs(ByteString.copyFromUtf8(function))
+                .addAllArgs(args)
+                .build();
+        ChaincodeSpec payload = ChaincodeSpec.newBuilder()
+                .setChaincodeID(id)
+                .setCtorMsg(input)
+                .build();
 
-		logger.debug(String.format("[%s]Handling ChaincodeMessage of type: %s(state:%s)",
-				shortID(message), message.getType(), fsm.current()));
+        // Create the channel on which to communicate the response from validating peer
+        Channel<ChaincodeMessage> responseChannel;
+        try {
+            responseChannel = createChannel(uuid);
+        } catch (Exception e) {
+            logger.debug(String.format("Another request pending for this Uuid. Cannot process."));
+            throw e;
+        }
 
-		if (fsm.eventCannotOccur(message.getType().toString())) {
-			String errStr = String.format("[%s]Chaincode handler org.hyperledger.fabric.java.fsm cannot handle message (%s) with payload size (%d) while in state: %s",
-					message.getTxid(), message.getType(), message.getPayload().size(), fsm.current());
-			ByteString payload = ByteString.copyFromUtf8(errStr);
-			ChaincodeMessage errormessage = ChaincodeMessage.newBuilder()
-					.setType(ERROR)
-					.setPayload(payload)
-					.setTxid(message.getTxid())
-					.build();
-			serialSend(errormessage);
-			throw new RuntimeException(errStr);
-		}
+        //Defer
+        try {
 
-		// Filter errors to allow NoTransitionError and CanceledError
-		// to not propagate for cases where embedded Err == nil.
-		try {
-			fsm.raiseEvent(message.getType().toString(), message);
-		} catch (NoTransitionException e) {
-			if (e.error != null) throw e;
-			logger.debug("["+ shortID(message)+"]Ignoring NoTransitionError");
-		} catch (CancelledException e) {
-			if (e.error != null) throw e;
-			logger.debug("["+ shortID(message)+"]Ignoring CanceledError");
-		}
-	}
+            // Send INVOKE_QUERY message to validator chaincode support
+            ChaincodeMessage message = ChaincodeMessage.newBuilder()
+                    .setType(INVOKE_QUERY)
+                    .setPayload(payload.toByteString())
+                    .setTxid(uuid)
+                    .build();
 
-	private String shortID(ChaincodeMessage message) {
-		return shortID(message.getTxid());
-	}
+            logger.debug(String.format("[%s]Sending %s", shortID(message), INVOKE_QUERY));
+
+            try {
+                serialSend(message);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]error sending %s", shortID(message), INVOKE_QUERY));
+                throw new RuntimeException("could not send message");
+            }
+
+            // Wait on responseChannel for response
+            ChaincodeMessage response;
+            try {
+                response = receiveChannel(responseChannel);
+            } catch (Exception e) {
+                logger.error(String.format("[%s]Received unexpected message type", shortID(message)));
+                throw new RuntimeException("Received unexpected message type");
+            }
+
+            if (response.getType() == RESPONSE) {
+                // Success response
+                logger.debug(String.format("[%s]Received %s. Successfully queried chaincode",
+                        shortID(response.getTxid()), RESPONSE));
+                return response.getPayload();
+            }
+
+            if (response.getType() == ERROR) {
+                // Error response
+                logger.error(String.format("[%s]Received %s.",
+                        shortID(response.getTxid()), ERROR));
+                throw new RuntimeException(response.getPayload().toStringUtf8());
+            }
+
+            // Incorrect chaincode message received
+            logger.error(String.format("[%s]Incorrect chaincode message %s recieved. Expecting %s or %s",
+                    shortID(response.getTxid()), response.getType(), RESPONSE, ERROR));
+            throw new RuntimeException("Incorrect chaincode message received");
+        } finally {
+            deleteChannel(uuid);
+        }
+    }*/
+
+    // handleMessage message handles loop for org.hyperledger.fabric.java.shim side of chaincode/validator stream.
+    public synchronized void handleMessage(ChaincodeMessage message) throws Exception {
+
+        if (message.getType() == ChaincodeMessage.Type.KEEPALIVE) {
+            logger.debug(String.format("[%s] Recieved KEEPALIVE message, do nothing",
+                    shortID(message)));
+            // Received a keep alive message, we don't do anything with it for now
+            // and it does not touch the state machine
+            return;
+        }
+
+        logger.debug(String.format("[%s]Handling ChaincodeMessage of type: %s(state:%s)",
+                shortID(message), message.getType(), fsm.current()));
+
+        if (fsm.eventCannotOccur(message.getType().toString())) {
+            String errStr = String.format("[%s]Chaincode handler org.hyperledger.fabric.java.fsm cannot handle message "
+                            + "(%s) with payload size (%d) while in state: %s",
+                    message.getTxid(), message.getType(), message.getPayload().size(), fsm.current());
+            ByteString payload = ByteString.copyFromUtf8(errStr);
+            ChaincodeMessage errormessage = ChaincodeMessage.newBuilder()
+                    .setType(ERROR)
+                    .setPayload(payload)
+                    .setTxid(message.getTxid())
+                    .build();
+            serialSend(errormessage);
+            throw new RuntimeException(errStr);
+        }
+
+        // Filter errors to allow NoTransitionError and CanceledError
+        // to not propagate for cases where embedded Err == nil.
+        try {
+            fsm.raiseEvent(message.getType().toString(), message);
+        } catch (NoTransitionException e) {
+            if (e.error != null) {
+                throw e;
+            }
+
+            logger.debug("[" + shortID(message) + "]Ignoring NoTransitionError");
+        } catch (CancelledException e) {
+            if (e.error != null) {
+                throw e;
+            }
+
+            logger.debug("[" + shortID(message) + "]Ignoring CanceledError");
+        }
+    }
+
+    private String shortID(ChaincodeMessage message) {
+        return shortID(message.getTxid());
+    }
 
 }

@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,78 +14,81 @@
 
 package org.hyperledger.fabric.sdk;
 
+import static org.hyperledger.fabric.sdk.TransactionResponse.Status.UNDEFINED;
+
 public class TransactionResponse {
-	public static enum Status {
-		UNDEFINED(0),
-		SUCCESS(200),
-		FAILURE(500);
-		
-		private int status = 0;
-		private Status(int status) {
-			this.status = status;
-		}
-		
-		public int getStatus() {
-			return this.status;
-		}
-	}
-	
-	private Status status = Status.UNDEFINED;
-	private String message = null;
-	private String transactionID = null;
-	private String chainCodeID = null;
-	
-	public TransactionResponse(String transactionID, String chainCodeID, Status status, String message) {
-		construct(transactionID, chainCodeID, status, message);
-	}
-	
-	public TransactionResponse(String transactionID, String chainCodeID, int statusVal, String message) {
-		Status status = Status.UNDEFINED;
-		
-		switch (statusVal) {
-        case 200:
-            status = Status.SUCCESS;
-            break;
-        case 500:
-            status = Status.FAILURE;
-            break;
-		}
-		construct(transactionID, chainCodeID, status, message);		
-	}
-	
-	private void construct(String transactionID, String chainCodeID, Status status, String message) {
-		this.status = status;
-		this.message = message;
-		this.transactionID = transactionID;
-		this.chainCodeID = chainCodeID;
-	}
+    private Status status = UNDEFINED;
+    private String message = null;
+    private String transactionID = null;
+    private String chainCodeID = null;
+    public TransactionResponse(String transactionID, String chainCodeID, Status status, String message) {
+        construct(transactionID, chainCodeID, status, message);
+    }
 
-	/**
-	 * @return the status
-	 */
-	public Status getStatus() {
-		return status;
-	}
-	
-	/**
-	 * @return the message
-	 */
-	public String getMessage() {
-		return message;
-	}
+    public TransactionResponse(String transactionID, String chainCodeID, int statusVal, String message) {
+        Status status = Status.findByValue(statusVal);
 
-	/**
-	 * @return the transactionID
-	 */
-	public String getTransactionID() {
-		return transactionID;
-	}
+        construct(transactionID, chainCodeID, status, message);
+    }
 
-	/**
-	 * @return the chainCodeID
-	 */
-	public String getChainCodeID() {
-		return chainCodeID;
-	}
-	
+    private void construct(String transactionID, String chainCodeID, Status status, String message) {
+        this.status = status;
+        this.message = message;
+        this.transactionID = transactionID;
+        this.chainCodeID = chainCodeID;
+    }
+
+    /**
+     * @return the status
+     */
+    public Status getStatus() {
+        return status;
+    }
+
+    /**
+     * @return the message
+     */
+    public String getMessage() {
+        return message;
+    }
+
+    /**
+     * @return the transactionID
+     */
+    public String getTransactionID() {
+        return transactionID;
+    }
+
+    /**
+     * @return the chainCodeID
+     */
+    public String getChainCodeID() {
+        return chainCodeID;
+    }
+
+    public enum Status {
+        UNDEFINED(0),
+        SUCCESS(200),
+        FAILURE(500);
+
+        private int status = 0;
+
+        Status(int status) {
+            this.status = status;
+        }
+
+        public int getValue() {
+            return this.status;
+        }
+
+        public static Status findByValue(final int value) {
+            for (Status status : values()) {
+                if (value == status.getValue()) {
+                    return status;
+                }
+            }
+            return UNDEFINED;
+        }
+    }
+
 }

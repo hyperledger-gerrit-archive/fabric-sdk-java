@@ -32,15 +32,16 @@ public class MemberTest {
         }
 
     }
-    
+
     @Test
     public void testNoChain() {
-    	try {
-    		Member member = new Member("test", null);
-    		Assert.fail("Should have failed as chain is null");
-    	} catch(IllegalArgumentException ex) {}
+        try {
+            Member member = new Member("test", null);
+            Assert.fail("Should have failed as chain is null");
+        } catch (IllegalArgumentException ex) {
+        }
     }
-    
+
     //@Test
     public void testRegister() {
         RegistrationRequest req = createRegistrationRequest("testuser01", "bank_a");
@@ -77,7 +78,7 @@ public class MemberTest {
     @Test
     public void testEnroll() {
         Member member = testChain.getMember("testUser2");
-        
+
         try {
             member.enroll("user2");
         } catch (EnrollmentException e) {
@@ -95,7 +96,7 @@ public class MemberTest {
     public void testIsEnrolled() {
         Member member = testChain.getMember("testUser3");
         Assert.assertFalse(member.isEnrolled());
-        
+
         try {
             member.enroll("user3");
         } catch (EnrollmentException e) {

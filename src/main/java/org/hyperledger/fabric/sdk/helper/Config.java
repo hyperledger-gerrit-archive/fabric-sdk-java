@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -32,15 +32,15 @@ import java.util.Properties;
  * Property hierarchy goes System property overrides config file overrides default values specified here.
  */
 
-public class Config {
+public final class Config {
     private static final Log logger = LogFactory.getLog(Config.class);
 
     private static final String DEFAULT_CONFIG = "config.properties";
     private static final String ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION = "org.hyperledger.fabric.sdk.configuration";
     private static final String ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL = "org.hyperledger.fabric.sdk.security_level";
     private static final String ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM = "org.hyperledger.fabric.sdk.hash_algorithm";
-    private static  Config config;
-    private final static Properties sdkProperties = new Properties();
+    private static final Properties SDK_PROPERTIES = new Properties();
+    private static Config config;
 
     private Config() {
         File loadFile = null;
@@ -53,13 +53,13 @@ public class Config {
             logger.debug(String.format("Loading configuration from %s and it is present: %b", loadFile.toString(), loadFile.exists()));
 
             configProps = new FileInputStream(loadFile);
-            sdkProperties.load(configProps);
+            SDK_PROPERTIES.load(configProps);
 
         } catch (IOException e) {
             //Fail or use defaults ?
             // throw new RuntimeException(String.format("Failed to load configuration file %s", loadFile.toString()), e);
             logger.warn(String.format("Failed to load any configuration from: %s. Using toolkit defaults", loadFile));
-        }finally {
+        } finally {
 
             //Default values
             defaultProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL, "256");
@@ -72,24 +72,36 @@ public class Config {
 
     /**
      * getConfig return back singlton for SDK configuration.
+     *
      * @return Global configuration
      */
     public static Config getConfig() {
-        if( null == config) {
+        if (null == config) {
             config = new Config();
         }
         return config;
 
     }
 
+    private static void defaultProperty(String key, String value) {
+
+        String ret = System.getProperty(key);
+        if (ret != null) {
+            SDK_PROPERTIES.put(key, ret);
+        } else if (null == SDK_PROPERTIES.getProperty(key)) {
+            SDK_PROPERTIES.put(key, value);
+        }
+    }
+
     /**
      * getProperty return back property for the given value.
+     *
      * @param property
      * @return String value for the property
      */
     private String getProperty(String property) {
 
-        String ret = sdkProperties.getProperty(property);
+        String ret = SDK_PROPERTIES.getProperty(property);
 
         if (null == ret) {
             logger.warn(String.format("No configuration value found for '%s'", property));
@@ -97,34 +109,25 @@ public class Config {
         return ret;
     }
 
-
-    static private void defaultProperty(String key, String value) {
-
-        String ret = System.getProperty(key);
-        if(ret != null){
-            sdkProperties.put(key, ret);
-        }else if (null == sdkProperties.getProperty(key)){
-            sdkProperties.put(key, value);
-        }
-    }
-
     /**
      * Return default security level.
+     *
      * @return
      */
-    public int getDefaultSecurityLevel(){
+    public int getDefaultSecurityLevel() {
 
-       return Integer.parseInt(getProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL));
+        return Integer.parseInt(getProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL));
 
     }
 
     /**
      * Return default hash algorithm
+     *
      * @return
      */
 
-    public String getDefaultHashAlgorithm(){
-        return  getProperty(ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM);
+    public String getDefaultHashAlgorithm() {
+        return getProperty(ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM);
 
     }
 }

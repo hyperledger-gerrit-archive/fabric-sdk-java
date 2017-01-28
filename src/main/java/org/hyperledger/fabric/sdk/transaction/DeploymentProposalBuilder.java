@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,11 +14,10 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
+import com.google.common.io.Files;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
+import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode;
@@ -26,19 +25,17 @@ import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.sdk.exception.DeploymentException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 
-import com.google.common.io.Files;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Timestamp;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-import io.netty.util.internal.StringUtil;
 
-
-public class DeploymentProposalBuilder extends  ProposalBuilder{
+public final class DeploymentProposalBuilder extends ProposalBuilder {
 
     private static Log logger = LogFactory.getLog(DeploymentProposalBuilder.class);
 
-    //TODO: is this really a static chain name? or can be replaced with the current chain.getName()?
-    private String LCCC_CHAIN_NAME = "lccc";
+    private static final String LCCC_CHAIN_NAME = "lccc";
 
     private boolean devMode = false;
 
@@ -51,33 +48,33 @@ public class DeploymentProposalBuilder extends  ProposalBuilder{
     }
 
     public DeploymentProposalBuilder devMode(boolean devMode) {
-    	this.devMode = devMode;
-    	return this;
+        this.devMode = devMode;
+        return this;
     }
 
     @Override
     public FabricProposal.Proposal build() {
-    	try {
-    		createDeploymentProposal();
-    		return super.build();
-    	} catch(IOException ioexp) {
-	    throw new DeploymentException("Failed to build deployment proposal", ioexp);
-    	}
+        try {
+            createDeploymentProposal();
+            return super.build();
+        } catch (IOException ioexp) {
+            throw new DeploymentException("Failed to build deployment proposal", ioexp);
+        }
     }
 
     public void createDeploymentProposal() throws IOException {
-            if(devMode){
-                createDevModeTransaction();
-            }else {
-                createNetModeTransaction();
-            }
+        if (devMode) {
+            createDevModeTransaction();
+        } else {
+            createNetModeTransaction();
+        }
     }
 
     private void createNetModeTransaction() throws IOException {
         logger.debug("newNetModeTransaction");
 
         if (getChaincodeID() == null || StringUtil.isNullOrEmpty(getChaincodeID().getPath())) {
-	    throw new IllegalArgumentException("[NetMode] Missing chaincodePath in DeployRequest");
+            throw new IllegalArgumentException("[NetMode] Missing chaincodePath in DeployRequest");
         }
 
         String rootDir = "";
@@ -87,14 +84,14 @@ public class DeploymentProposalBuilder extends  ProposalBuilder{
             // Determine the user's $GOPATH
             String goPath = System.getenv("GOPATH");
             logger.info(String.format("Using GOPATH :%s", goPath));
-	    if (StringUtil.isNullOrEmpty(goPath)) {
-		throw new IllegalArgumentException("[NetMode] Missing GOPATH environment variable");
-	    }
+            if (StringUtil.isNullOrEmpty(goPath)) {
+                throw new IllegalArgumentException("[NetMode] Missing GOPATH environment variable");
+            }
 
             logger.debug("$GOPATH: " + goPath);
 
             // Compose the path to the chaincode project directory
-            rootDir = SDKUtil.combinePaths(goPath,  "src");
+            rootDir = SDKUtil.combinePaths(goPath, "src");
             chaincodeDir = getChaincodeID().getPath();
         } else {
             // Compose the path to the chaincode project directory
@@ -106,11 +103,11 @@ public class DeploymentProposalBuilder extends  ProposalBuilder{
         String projDir = SDKUtil.combinePaths(rootDir, chaincodeDir);
         logger.debug("projDir: " + projDir);
 
-        String dockerFileContents =  getDockerFileContents(getChaincodeType());
+        String dockerFileContents = getDockerFileContents(getChaincodeType());
 
         String ccName = getChaincodeID().getName();
         if (StringUtil.isNullOrEmpty(ccName)) {
-        	ccName = SDKUtil.generateUUID(); // autogenerated cc name
+            ccName = SDKUtil.generateUUID(); // autogenerated cc name
         }
 
         dockerFileContents = String.format(dockerFileContents, ccName);
@@ -132,7 +129,7 @@ public class DeploymentProposalBuilder extends  ProposalBuilder{
         SDKUtil.deleteFileOrDirectory(new File(targzFilePath));
         SDKUtil.deleteFileOrDirectory(new File(dockerFilePath));
 
-		Chaincode.ChaincodeDeploymentSpec depspec = createDeploymentSpec(data);
+        Chaincode.ChaincodeDeploymentSpec depspec = createDeploymentSpec(data);
 
         List<ByteString> argList = new ArrayList<>();
         argList.add(ByteString.copyFromUtf8("deploy"));
@@ -164,18 +161,18 @@ public class DeploymentProposalBuilder extends  ProposalBuilder{
     }
 
 
-	private Chaincode.ChaincodeDeploymentSpec createDeploymentSpec(byte[] codePackage) {
+    private Chaincode.ChaincodeDeploymentSpec createDeploymentSpec(byte[] codePackage) {
         logger.trace("Creating deployment Specification.");
 
         // build chaincodeInput
-		List<ByteString> argList = getArgList();
+        List<ByteString> argList = getArgList();
 
         Chaincode.ChaincodeInput chaincodeInput = Chaincode.ChaincodeInput.newBuilder().addAllArgs(argList).build();
 
-		// Construct the ChaincodeSpec
-		Chaincode.ChaincodeSpec chaincodeSpec = Chaincode.ChaincodeSpec.newBuilder().setType(getChaincodeType())
-		        .setChaincodeID(getChaincodeID()).setCtorMsg(chaincodeInput)
-		        .setConfidentialityLevel(Chaincode.ConfidentialityLevel.PUBLIC).build();
+        // Construct the ChaincodeSpec
+        Chaincode.ChaincodeSpec chaincodeSpec = Chaincode.ChaincodeSpec.newBuilder().setType(getChaincodeType())
+                .setChaincodeID(getChaincodeID()).setCtorMsg(chaincodeInput)
+                .setConfidentialityLevel(Chaincode.ConfidentialityLevel.PUBLIC).build();
 
 
         Chaincode.ChaincodeDeploymentSpec.Builder chaincodeDeploymentSpecBuilder = Chaincode.ChaincodeDeploymentSpec
@@ -183,14 +180,12 @@ public class DeploymentProposalBuilder extends  ProposalBuilder{
                 .setExecEnv(Chaincode.ChaincodeDeploymentSpec.ExecutionEnvironment.DOCKER);
 
         if (codePackage != null) {
-        	chaincodeDeploymentSpecBuilder.setCodePackage(ByteString.copyFrom(codePackage));
+            chaincodeDeploymentSpecBuilder.setCodePackage(ByteString.copyFrom(codePackage));
         }
 
         return chaincodeDeploymentSpecBuilder.build();
 
     }
-
-
 
 
     private String getDockerFileContents(Chaincode.ChaincodeSpec.Type lang) throws IOException {

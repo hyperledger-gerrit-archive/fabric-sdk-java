@@ -373,7 +373,7 @@ public class ChainTest {
 		Assert.assertFalse(responses.isEmpty());
 		ProposalResponse response = responses.get(0);
 		Assert.assertNotNull(response);
-		Assert.assertEquals(TransactionResponse.Status.SUCCESS, response.getResponse().getStatus());
+		Assert.assertEquals(TransactionResponse.Status.SUCCESS, response.getResponse().getValue());
 	}*/
 
 	public static Member getEnrolledMember(String user, String secret) throws EnrollmentException {
