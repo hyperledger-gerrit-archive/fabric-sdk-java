@@ -61,6 +61,7 @@ import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.Store;
 import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
@@ -79,8 +80,8 @@ import javax.crypto.spec.SecretKeySpec;
 public class CryptoPrimitives {
     private static final Config config = Config.getConfig();
 
-    private String hashAlgorithm = config.getDefaultHashAlgorithm();
-    private int securityLevel = config.getDefaultSecurityLevel();
+    private String hashAlgorithm = config.getHashAlgorithm();
+    private int securityLevel = config.getSecurityLevel();
     private String curveName;
     private static final String SECURITY_PROVIDER = BouncyCastleProvider.PROVIDER_NAME;
     private static final String ASYMMETRIC_KEY_TYPE = "EC";
@@ -89,21 +90,21 @@ public class CryptoPrimitives {
     private static final int SYMMETRIC_KEY_BYTE_COUNT = 32;
     private static final String SYMMETRIC_ALGORITHM = "AES/CFB/NoPadding";
     private static final int MAC_KEY_BYTE_COUNT = 32;
-    
+
     private static final String CERTIFICATE_FORMAT = "X.509" ;
     private static final String SIGNATURE_ALGORITHM = "SHA256withECDSA" ; // TODO configure via .properties or genesis block
-    
+
     private static final Log logger = LogFactory.getLog(CryptoPrimitives.class);
-    
+
     public CryptoPrimitives(String hashAlgorithm, int securityLevel) {
         this.hashAlgorithm = hashAlgorithm;
         this.securityLevel = securityLevel;
         Security.addProvider(new BouncyCastleProvider());
         init();
     }
-    
+
     /**
-     * Verify a signature 
+     * Verify a signature
      * @param plainText original text.
      * @param signature signature generated from plainText
      * @param pemCertificate the X509 certificate to be used for verification
@@ -111,10 +112,10 @@ public class CryptoPrimitives {
      */
     public static boolean verify(byte[] plainText, byte[] signature, byte[] pemCertificate) {
     	boolean isVerified = false ;
-    	
+
     	if (plainText == null || signature == null || pemCertificate == null )
     		return false;
-    	
+
     	logger.debug("plaintext in hex: " + DatatypeConverter.printHexBinary(plainText));
     	logger.debug("signature in hex: " + DatatypeConverter.printHexBinary(signature));
     	logger.debug("PEM cert in hex: " + DatatypeConverter.printHexBinary(pemCertificate));
@@ -123,60 +124,123 @@ public class CryptoPrimitives {
     		BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(pemCertificate));
     		CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_FORMAT) ;
     		X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(pem);
-    		Signature sig = Signature.getInstance(SIGNATURE_ALGORITHM) ;
-    		sig.initVerify(certificate);
-    		sig.update(plainText);
-    		isVerified = sig.verify(signature);
+    		isVerified = CryptoPrimitives.validateCertificate(certificate); // validate chain of trust
+    		if (isVerified) {												// only proceed if cert is trusted
+    			Signature sig = Signature.getInstance(SIGNATURE_ALGORITHM) ;
+    			sig.initVerify(certificate);
+    			sig.update(plainText);
+    			isVerified = sig.verify(signature);
+    		}
     	} catch (InvalidKeyException | CertificateException e) {
-    		logger.error("Cannot verify. Invalid Certificate. Error is: " + 
+    		logger.error("Cannot verify signature. Error is: " +
     	                    e.getMessage() +
     	                    "\r\nCertificate (PEM, hex): " + DatatypeConverter.printHexBinary(pemCertificate));
+    		isVerified = false;
     	} catch (NoSuchAlgorithmException e) {
     		logger.error("Cannot verify. Signature algorithm is invalid. Error is: " + e.getMessage());
+    		isVerified = false;
     	} catch (SignatureException e) {
-    		logger.error("Cannot verify. Error is: " + e.getMessage());;
+    		logger.error("Cannot verify. Error is: " + e.getMessage());
+    		isVerified = false;
     	}
 
 		return isVerified;
     } // verify
- 
+
     // TODO refactor TrustStore, CertFactory depending on whether we want to make CryptoPrimitives static 
-    private static KeyStore trustStore ;
-    
-    public static void setTrustStore(KeyStore keyStore) {
-    	CryptoPrimitives.trustStore = keyStore ;
+    private static KeyStore trustStore = null;
+
+    private static void createTrustStore() {
+		try {
+			KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+			keyStore.load(null, null);
+			CryptoPrimitives.setTrustStore(keyStore);
+		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
+			logger.error("Cannot create trust store. Error: " + e.getMessage());
+			e.printStackTrace();
+		}
     }
-    
+
+    /**
+     * setTrustStore uses the given KeyStore object as the container for trusted certificates
+     * @param keyStore the KeyStore which will be used to hold trusted certificates
+     */
+    public static void setTrustStore(KeyStore keyStore) {
+
+    	if (keyStore == null)  // no trust store == no cert is trusted
+    		return;
+
+    	CryptoPrimitives.trustStore = keyStore ;
+
+    	CertificateFactory cf;
+		try {
+			cf = CertificateFactory.getInstance(CERTIFICATE_FORMAT);
+		} catch (CertificateException e1) {
+			e1.printStackTrace();
+			cf = null ;  // TODO clean this up when we create the interface for Crypto
+		}
+
+		// TODO manually populate peer CA certs while we wait for MSP
+    	BufferedInputStream bis ;
+    	File fileName;
+    	String[] caCerts = config.getPeerCACerts();
+    	for (String caCertFile : caCerts) {
+    		try {
+    	    	fileName = new File(caCertFile).getAbsoluteFile();
+				bis = new BufferedInputStream(new FileInputStream(fileName));
+				Certificate caCert = cf.generateCertificate(bis);
+				CryptoPrimitives.trustStore.setCertificateEntry(caCertFile, caCert);
+			} catch (FileNotFoundException | CertificateException | KeyStoreException e) {
+				logger.error("Cannot read cert " + caCertFile + ". Not adding to trust store. Error: " + e.getMessage());
+			}
+    	}
+    }
+
+    /**
+     * getTrustStore returns the KeyStore object where we keep trusted certificates
+     * @return the trust store as a KeyStore object
+     */
     public static KeyStore getTrustStore() {
+    	if (CryptoPrimitives.trustStore == null)   // TODO refactor this based on MSP work. Also, not thread-safe right now
+    		CryptoPrimitives.createTrustStore() ;
     	return CryptoPrimitives.trustStore ;
     }
-    
+
+    /**
+     * validateCertificate checks whether the given certificate is trusted. It checks if the certificate is signed by one of the trusted certs in the trust store.
+     * @param certPEM the certificate in PEM format
+     * @return true if the certificate is trusted
+     */
     public static boolean validateCertificate(byte[] certPEM) {
-    	
-    	if (certPEM == null) 
+
+    	if (certPEM == null)
     		return false;
-    	
+
     	try {
     		BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(certPEM));
     		CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_FORMAT) ;
     		X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(pem);
     		return CryptoPrimitives.validateCertificate(certificate);
     		} catch (CertificateException e) {
-        		logger.error("Cannot validate certificate. Error is: " + 
+        		logger.error("Cannot validate certificate. Error is: " +
 	                    e.getMessage() +
 	                    "\r\nCertificate (PEM, hex): " + DatatypeConverter.printHexBinary(certPEM));
         		return false ;
 		}
     }
-    
+
     public static boolean validateCertificate(Certificate cert) {
     	boolean isValidated = false ;
     	
-    	if (cert == null) 
+    	if (cert == null)
     		return isValidated;
-    	
+
     	try {
-    		PKIXParameters parms = new PKIXParameters(CryptoPrimitives.getTrustStore()) ;
+    		KeyStore keyStore = CryptoPrimitives.getTrustStore() ;
+    		if (keyStore == null)
+    			throw new CryptoException("Crypto does not have a trust store. No certificate can be validated", null) ;
+
+    		PKIXParameters parms = new PKIXParameters(keyStore) ;
     		parms.setRevocationEnabled(false);
 
     		CertPathValidator certValidator = CertPathValidator.getInstance(CertPathValidator.getDefaultType()); // PKIX
@@ -187,15 +251,14 @@ public class CryptoPrimitives {
 
     		certValidator.validate(certPath, parms);
     		isValidated = true ; // if cert not validated, CertPathValidatorException thrown
-    		
     	} catch (KeyStoreException | InvalidAlgorithmParameterException | NoSuchAlgorithmException
-    			| CertificateException | CertPathValidatorException e) {
+    			| CertificateException | CertPathValidatorException | CryptoException e) {
     		logger.error("Cannot validate certificate. Error is: " + 
                     e.getMessage() +
                     "\r\nCertificate" + cert.toString());
     		isValidated = false ;
     	}
-    	
+
     	return isValidated;
     } // validateCertificate
 
