@@ -50,10 +50,6 @@ public class CryptoPrimitivesTest {
 
 	@Before
 	public void setUp() throws Exception {
-		// TODO should do this in @BeforeClass. Need to find out how to get to files from static junit method
-		BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/ca.crt"));
-		Certificate caCert = cf.generateCertificate(bis);
-		CryptoPrimitives.getTrustStore().setCertificateEntry("ca", caCert);
 	}
 
 	@Test
@@ -67,30 +63,22 @@ public class CryptoPrimitivesTest {
 	}
 	
 	@Test
-	public void testValidateBadCertificateByteArray() {
-		assertFalse(CryptoPrimitives.validateCertificate(pemCert));
+	public void testValidateCertificateByteArray() {
+		assertTrue(CryptoPrimitives.validateCertificate(pemCert));
 	}
 	
+	// Note:
+	// For the validateBADcertificate tests, we use the fact that the trustStore contains the peer CA cert
+	// the keypair-signed cert is signed by us so it will not validate.
+	
 	@Test
-	public void testValidateCertificateByteArray() {
+	public void testValidateBadCertificateByteArray() {
 		try {
 			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/keypair-signed.crt"));
     		byte[] certBytes = IOUtils.toByteArray(bis) ;
 
-			assertTrue(CryptoPrimitives.validateCertificate(certBytes));
+			assertFalse(CryptoPrimitives.validateCertificate(certBytes));
 		} catch (IOException e) {
-			Assert.fail("cannot read cert file");
-		}
-	}
-	
-	@Test
-	public void testValidateCertificate() {
-		try {
-			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/keypair-signed.crt"));
-			Certificate cert = cf.generateCertificate(bis);
-
-			assertTrue(CryptoPrimitives.validateCertificate(cert));
-		} catch (CertificateException e) {
 			Assert.fail("cannot read cert file");
 		}
 	}
@@ -98,10 +86,22 @@ public class CryptoPrimitivesTest {
 	@Test
 	public void testValidateBadCertificate() {
 		try {
+			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/keypair-signed.crt"));
+			Certificate cert = cf.generateCertificate(bis);
+
+			assertFalse(CryptoPrimitives.validateCertificate(cert));
+		} catch (CertificateException e) {
+			Assert.fail("cannot read cert file");
+		}
+	}
+	
+	@Test
+	public void testValidateCertificate() {
+		try {
     		BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(pemCert));
     		X509Certificate cert = (X509Certificate) cf.generateCertificate(pem);
 
-			assertFalse(CryptoPrimitives.validateCertificate(cert));
+			assertTrue(CryptoPrimitives.validateCertificate(cert));
 		} catch (CertificateException e) {
 			Assert.fail("cannot read cert file");
 		}

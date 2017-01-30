@@ -20,6 +20,7 @@ import org.apache.commons.logging.LogFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 
@@ -35,10 +36,11 @@ import java.util.Properties;
 public class Config {
     private static final Log logger = LogFactory.getLog(Config.class);
 
-    private static final String DEFAULT_CONFIG = "config.properties";
+    private static final String DEFAULT_CONFIG = "hyperledgerfabricsdk.properties";
     private static final String ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION = "org.hyperledger.fabric.sdk.configuration";
-    private static final String ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL = "org.hyperledger.fabric.sdk.security_level";
-    private static final String ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM = "org.hyperledger.fabric.sdk.hash_algorithm";
+    private static final String SECURITY_LEVEL = "org.hyperledger.fabric.sdk.security_level";
+    private static final String HASH_ALGORITHM = "org.hyperledger.fabric.sdk.hash_algorithm";
+    private static final String CACERTS = "org.hyperledger.fabric.sdk.cacerts";
     private static  Config config;
     private final static Properties sdkProperties = new Properties();
 
@@ -48,30 +50,26 @@ public class Config {
 
 
         try {
-
             loadFile = new File(System.getProperty(ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION, DEFAULT_CONFIG)).getAbsoluteFile();
             logger.debug(String.format("Loading configuration from %s and it is present: %b", loadFile.toString(), loadFile.exists()));
-
             configProps = new FileInputStream(loadFile);
             sdkProperties.load(configProps);
 
         } catch (IOException e) {
-            //Fail or use defaults ?
-            // throw new RuntimeException(String.format("Failed to load configuration file %s", loadFile.toString()), e);
-            logger.warn(String.format("Failed to load any configuration from: %s. Using toolkit defaults", loadFile));
+            logger.warn(String.format("Failed to load any configuration from: %s. Using toolkit defaults", DEFAULT_CONFIG));
         }finally {
 
             //Default values
-            defaultProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL, "256");
+            //defaultProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL, "256");
 
-            defaultProperty(ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM, "SHA2");
+            //defaultProperty(ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM, "SHA2");
 
         }
 
     }
 
     /**
-     * getConfig return back singlton for SDK configuration.
+     * getConfig return back singleton for SDK configuration.
      * @return Global configuration
      */
     public static Config getConfig() {
@@ -97,6 +95,17 @@ public class Config {
         return ret;
     }
 
+    /**
+     * getProperty returns the value for given property key. If not found, it will set the property to defaultValue
+     * @param property
+     * @param defaultValue
+     * @return property value as a String
+     */
+    private String getProperty(String property, String defaultValue) {
+
+        String ret = sdkProperties.getProperty(property, defaultValue);
+        return ret;
+    }
 
     static private void defaultProperty(String key, String value) {
 
@@ -109,22 +118,25 @@ public class Config {
     }
 
     /**
-     * Return default security level.
+     * Returns security level.
      * @return
      */
-    public int getDefaultSecurityLevel(){
+    public int getSecurityLevel(){
 
-        return Integer.parseInt(getProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL));
+        return Integer.parseInt(getProperty(SECURITY_LEVEL, "256"));
 
     }
 
     /**
-     * Return default hash algorithm
+     * Returns hash algorithm
      * @return
      */
+    public String getHashAlgorithm(){
+        return  getProperty(HASH_ALGORITHM, "SHA2");
 
-    public String getDefaultHashAlgorithm(){
-        return  getProperty(ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM);
-
+    }
+    
+    public String[] getPeerCACerts() {
+    	return getProperty(CACERTS, "resources/peercacert.pem").split("'");
     }
 }

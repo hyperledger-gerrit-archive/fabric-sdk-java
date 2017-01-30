@@ -79,8 +79,8 @@ import javax.crypto.spec.SecretKeySpec;
 public class CryptoPrimitives {
     private static final Config config = Config.getConfig();
 
-    private String hashAlgorithm = config.getDefaultHashAlgorithm();
-    private int securityLevel = config.getDefaultSecurityLevel();
+    private String hashAlgorithm = config.getHashAlgorithm();
+    private int securityLevel = config.getSecurityLevel();
     private String curveName;
     private static final String SECURITY_PROVIDER = BouncyCastleProvider.PROVIDER_NAME;
     private static final String ASYMMETRIC_KEY_TYPE = "EC";
@@ -92,7 +92,7 @@ public class CryptoPrimitives {
     
     private static final String CERTIFICATE_FORMAT = "X.509" ;
     private static final String SIGNATURE_ALGORITHM = "SHA256withECDSA" ; // TODO configure via .properties or genesis block
-    
+
     private static final Log logger = LogFactory.getLog(CryptoPrimitives.class);
     
     public CryptoPrimitives(String hashAlgorithm, int securityLevel) {
@@ -139,12 +139,33 @@ public class CryptoPrimitives {
 
 		return isVerified;
     } // verify
- 
+
     // TODO refactor TrustStore, CertFactory depending on whether we want to make CryptoPrimitives static 
     private static KeyStore trustStore ;
     
     public static void setTrustStore(KeyStore keyStore) {
     	CryptoPrimitives.trustStore = keyStore ;
+
+    	CertificateFactory cf;
+		try {
+			cf = CertificateFactory.getInstance(CERTIFICATE_FORMAT);
+		} catch (CertificateException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+			cf = null ;  // TODO clean this up when we create the interface for Crypto
+		}
+
+    	BufferedInputStream bis ;
+    	String[] caCerts = config.getPeerCACerts();
+    	for (String caCertFile : caCerts) {
+    		try {
+				bis = new BufferedInputStream(new FileInputStream(new File(caCertFile).getAbsoluteFile()));
+				Certificate caCert = cf.generateCertificate(bis);
+				CryptoPrimitives.trustStore.setCertificateEntry(caCertFile, caCert);
+			} catch (FileNotFoundException | CertificateException | KeyStoreException e) {
+				logger.error("Cannot read cert " + caCertFile + ". Not adding to trust store. Error: " + e.getMessage());
+			}
+    	}
     }
     
     public static KeyStore getTrustStore() {
