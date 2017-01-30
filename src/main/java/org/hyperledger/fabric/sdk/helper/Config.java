@@ -13,118 +13,135 @@
  */
 package org.hyperledger.fabric.sdk.helper;
 
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 /**
- * Config  allows for a global config of the toolkit.
- * Central location for all toolkit configuration defaults.
- * Has a local config file that can override any property defaults.
- * Config file can be relocated via a system property "org.hyperledger.fabric.sdk.configuration".
- * Any property can be overridden with a java system property.
- * Property hierarchy goes System property overrides config file overrides default values specified here.
+ * Config allows for a global config of the toolkit. Central location for all
+ * toolkit configuration defaults. Has a local config file that can override any
+ * property defaults. Config file can be relocated via a system property
+ * "org.hyperledger.fabric.sdk.configuration". Any property can be overridden
+ * with a java system property. Property hierarchy goes System property
+ * overrides config file overrides default values specified here.
  */
 
 public class Config {
-    private static final Log logger = LogFactory.getLog(Config.class);
+	private static final Log logger = LogFactory.getLog(Config.class);
 
-    private static final String DEFAULT_CONFIG = "config.properties";
-    private static final String ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION = "org.hyperledger.fabric.sdk.configuration";
-    private static final String ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL = "org.hyperledger.fabric.sdk.security_level";
-    private static final String ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM = "org.hyperledger.fabric.sdk.hash_algorithm";
-    private static  Config config;
-    private final static Properties sdkProperties = new Properties();
+	private static final String DEFAULT_CONFIG = "hyperledgerfabricsdk.properties";
+	private static final String ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION = "org.hyperledger.fabric.sdk.configuration";
+	private static final String SECURITY_LEVEL = "org.hyperledger.fabric.sdk.security_level";
+	private static final String HASH_ALGORITHM = "org.hyperledger.fabric.sdk.hash_algorithm";
+	private static final String CACERTS = "org.hyperledger.fabric.sdk.cacerts";
+	private static Config config;
+	private final static Properties sdkProperties = new Properties();
 
-    private Config() {
-        File loadFile = null;
-        FileInputStream configProps;
+	private Config() {
+		File loadFile = null;
+		FileInputStream configProps;
 
+		try {
+			loadFile = new File(System.getProperty(ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION, DEFAULT_CONFIG))
+					.getAbsoluteFile();
+			logger.debug(String.format("Loading configuration from %s and it is present: %b", loadFile.toString(),
+					loadFile.exists()));
+			configProps = new FileInputStream(loadFile);
+			sdkProperties.load(configProps);
 
-        try {
+		} catch (IOException e) {
+			logger.warn(
+					String.format("Failed to load any configuration from: %s. Using toolkit defaults", DEFAULT_CONFIG));
+		} finally {
 
-            loadFile = new File(System.getProperty(ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION, DEFAULT_CONFIG)).getAbsoluteFile();
-            logger.debug(String.format("Loading configuration from %s and it is present: %b", loadFile.toString(), loadFile.exists()));
+			// Default values
+			defaultProperty(SECURITY_LEVEL, "256");
+			defaultProperty(HASH_ALGORITHM, "SHA2");
+			defaultProperty(CACERTS, "src/resources/peercacert.pem");
 
-            configProps = new FileInputStream(loadFile);
-            sdkProperties.load(configProps);
+		}
 
-        } catch (IOException e) {
-            //Fail or use defaults ?
-            // throw new RuntimeException(String.format("Failed to load configuration file %s", loadFile.toString()), e);
-            logger.warn(String.format("Failed to load any configuration from: %s. Using toolkit defaults", loadFile));
-        }finally {
+	}
 
-            //Default values
-            defaultProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL, "256");
+	/**
+	 * getConfig return back singleton for SDK configuration.
+	 * 
+	 * @return Global configuration
+	 */
+	public static Config getConfig() {
+		if (null == config) {
+			config = new Config();
+		}
+		return config;
 
-            defaultProperty(ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM, "SHA2");
+	}
 
-        }
+	/**
+	 * getProperty return back property for the given value.
+	 * 
+	 * @param property
+	 * @return String value for the property
+	 */
+	private String getProperty(String property) {
 
-    }
+		String ret = sdkProperties.getProperty(property);
 
-    /**
-     * getConfig return back singlton for SDK configuration.
-     * @return Global configuration
-     */
-    public static Config getConfig() {
-        if( null == config) {
-            config = new Config();
-        }
-        return config;
+		if (null == ret) {
+			logger.warn(String.format("No configuration value found for '%s'", property));
+		}
+		return ret;
+	}
 
-    }
+	/**
+	 * getProperty returns the value for given property key. If not found, it
+	 * will set the property to defaultValue
+	 * 
+	 * @param property
+	 * @param defaultValue
+	 * @return property value as a String
+	 */
+	private String getProperty(String property, String defaultValue) {
 
-    /**
-     * getProperty return back property for the given value.
-     * @param property
-     * @return String value for the property
-     */
-    private String getProperty(String property) {
+		String ret = sdkProperties.getProperty(property, defaultValue);
+		return ret;
+	}
 
-        String ret = sdkProperties.getProperty(property);
+	static private void defaultProperty(String key, String value) {
 
-        if (null == ret) {
-            logger.warn(String.format("No configuration value found for '%s'", property));
-        }
-        return ret;
-    }
+		String ret = System.getProperty(key);
+		if (ret != null) {
+			sdkProperties.put(key, ret);
+		} else if (null == sdkProperties.getProperty(key)) {
+			sdkProperties.put(key, value);
+		}
+	}
 
+	/**
+	 * Returns security level.
+	 * 
+	 * @return
+	 */
+	public int getSecurityLevel() {
 
-    static private void defaultProperty(String key, String value) {
+		return Integer.parseInt(getProperty(SECURITY_LEVEL));
 
-        String ret = System.getProperty(key);
-        if(ret != null){
-            sdkProperties.put(key, ret);
-        }else if (null == sdkProperties.getProperty(key)){
-            sdkProperties.put(key, value);
-        }
-    }
+	}
 
-    /**
-     * Return default security level.
-     * @return
-     */
-    public int getDefaultSecurityLevel(){
+	/**
+	 * Returns hash algorithm
+	 * 
+	 * @return
+	 */
+	public String getHashAlgorithm() {
+		return getProperty(HASH_ALGORITHM);
 
-        return Integer.parseInt(getProperty(ORG_HYPERLEDGER_FABRIC_SDK_SECURITY_LEVEL));
+	}
 
-    }
-
-    /**
-     * Return default hash algorithm
-     * @return
-     */
-
-    public String getDefaultHashAlgorithm(){
-        return  getProperty(ORG_HYPERLEDGER_FABRIC_SDK_HASH_ALGORITHM);
-
-    }
+	public String[] getPeerCACerts() {
+		return getProperty(CACERTS).split("'");
+	}
 }
