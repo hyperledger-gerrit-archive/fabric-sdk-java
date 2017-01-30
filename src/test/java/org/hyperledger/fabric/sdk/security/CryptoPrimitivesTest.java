@@ -43,34 +43,33 @@ public class CryptoPrimitivesTest {
 	
 	public static CertificateFactory cf ;
 	
+	public static CryptoPrimitives crypto ;
+
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
 		plainText = DatatypeConverter.parseHexBinary(plainTextHex) ;
 		sig = DatatypeConverter.parseHexBinary(sigHex) ;
 		pemCert= DatatypeConverter.parseHexBinary(pemCertHex) ;
-		
+
 		kf = KeyFactory.getInstance("EC");
 
 		cf = CertificateFactory.getInstance("X.509") ;
 		
-		trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-		trustStore.load(null, null);
-		CryptoPrimitives.setTrustStore(trustStore);
+		crypto = new CryptoPrimitives("SHA2", 256);
 	}
 
 	@Before
 	public void setUp() throws Exception {
-
 		// TODO should do this in @BeforeClass. Need to find out how to get to files from static junit method
 		BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/ca.crt"));
 		Certificate caCert = cf.generateCertificate(bis);
 		bis.close();
-		CryptoPrimitives.getTrustStore().setCertificateEntry("ca", caCert);
-		
+		crypto.getTrustStore().setCertificateEntry("ca", caCert);
+
 		bis = new BufferedInputStream(this.getClass().getResourceAsStream("/keypair-signed.crt"));
 		Certificate cert = cf.generateCertificate(bis);
 		bis.close();
-		
+
 		// TODO: get PEM file without dropping down to BouncyCastle ?
 		PEMParser pem = new PEMParser(new FileReader(this.getClass().getResource("/keypair-signed.key").getFile()));
 		PEMKeyPair bcKeyPair = (PEMKeyPair) pem.readObject();
@@ -78,93 +77,102 @@ public class CryptoPrimitivesTest {
 		PrivateKey key = kf.generatePrivate(keySpec);
 
 		Certificate[] chain = new Certificate[] {cert, caCert} ;
-		CryptoPrimitives.getTrustStore().setKeyEntry("key", key, "123456".toCharArray(), chain);
+		crypto.getTrustStore().setKeyEntry("key", key, "123456".toCharArray(), chain);
+	}
+
+	@Test
+	public void testTrustStore() {
+		// getTrustStore should have created a KeyStore if setTrustStore hasn't been called
+		assertNotNull(crypto.getTrustStore());
 	}
 
 	@Test
 	public void testValidateNullCertificateByteArray() {
-		assertFalse(CryptoPrimitives.validateCertificate((byte[]) null));
+		assertFalse(crypto.validateCertificate((byte[]) null));
 	}
-	
+
 	@Test
 	public void testValidateNullCertificate() {
-		assertFalse(CryptoPrimitives.validateCertificate((Certificate) null));
+		assertFalse(crypto.validateCertificate((Certificate) null));
 	}
-	
-	@Test
-	public void testValidateBadCertificateByteArray() {
-		assertFalse(CryptoPrimitives.validateCertificate(pemCert));
-	}
-	
+
 	@Test
 	public void testValidateCertificateByteArray() {
+		assertTrue(crypto.validateCertificate(pemCert));
+	}
+
+	// Note:
+	// For the validateBADcertificate tests, we use the fact that the trustStore contains the peer CA cert
+	// the keypair-signed cert is signed by us so it will not validate.
+
+	@Test
+	public void testValidateBadCertificateByteArray() {
 		try {
-			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/keypair-signed.crt"));
+			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/notsigned.crt"));
     		byte[] certBytes = IOUtils.toByteArray(bis) ;
 
-			assertTrue(CryptoPrimitives.validateCertificate(certBytes));
+			assertFalse(crypto.validateCertificate(certBytes));
 		} catch (IOException e) {
 			Assert.fail("cannot read cert file");
 		}
 	}
-	
+
 	@Test
-	public void testValidateCertificate() {
+	public void testValidateBadCertificate() {
 		try {
-			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/keypair-signed.crt"));
+			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/notsigned.crt"));
 			Certificate cert = cf.generateCertificate(bis);
 
-			assertTrue(CryptoPrimitives.validateCertificate(cert));
+			assertFalse(crypto.validateCertificate(cert));
 		} catch (CertificateException e) {
 			Assert.fail("cannot read cert file");
 		}
 	}
-	
+
 	@Test
-	public void testValidateBadCertificate() {
+	public void testValidateCertificate() {
 		try {
     		BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(pemCert));
     		X509Certificate cert = (X509Certificate) cf.generateCertificate(pem);
 
-			assertFalse(CryptoPrimitives.validateCertificate(cert));
+			assertTrue(crypto.validateCertificate(cert));
 		} catch (CertificateException e) {
 			Assert.fail("cannot read cert file");
 		}
 	}
-	
+
 	@Test
 	public void testVerifyNullInput() {
-			assertFalse(CryptoPrimitives.verify(null, null, null));
+			assertFalse(crypto.verify(null, null, null));
 	} // testVerifyNullInput
-	
+
 	@Test
 	public void testVerifyBadCert() {
 		byte[] badCert = new byte[] { (byte) 0x00 };
-		assertFalse(CryptoPrimitives.verify(plainText, sig, badCert));
+		assertFalse(crypto.verify(plainText, sig, badCert));
 	} // testVerifyBadCert
-	
+
 	@Test
 	public void testVerifyBadSig() {
 		byte[] badSig = new byte[] { (byte) 0x00 };
-		assertFalse(CryptoPrimitives.verify(plainText, badSig, pemCert));
+		assertFalse(crypto.verify(plainText, badSig, pemCert));
 	} // testVerifyBadSign
-	
+
 	@Test
 	public void testVerifyBadPlaintext() {
 		byte[] badPlainText = new byte[] { (byte) 0x00 };
-		assertFalse(CryptoPrimitives.verify(badPlainText, sig, pemCert));
-		
+		assertFalse(crypto.verify(badPlainText, sig, pemCert));
 	} // testVerifyBadPlainText
-	
+
 	@Test
 	public void testVerify() {
-		assertTrue(CryptoPrimitives.verify(plainText, sig, pemCert)) ;
+		assertTrue(crypto.verify(plainText, sig, pemCert)) ;
 	} // testVerify
-	
+
 	@Test
 	public void testSignNullKey() {
 		try {
-			CryptoPrimitives.sign(null, new byte[] {(byte) 0x00});
+			crypto.sign(null, new byte[] {(byte) 0x00});
 			Assert.fail("sign() should have thrown an exception");
 		} catch (CryptoException e) {
 		}
@@ -174,29 +182,30 @@ public class CryptoPrimitivesTest {
 	public void testSignNullData() {
 		PrivateKey key;
 		try {
-			key = (PrivateKey) CryptoPrimitives.getTrustStore().getKey("key", "123456".toCharArray());
-			CryptoPrimitives.sign(key, null);
+			key = (PrivateKey) crypto.getTrustStore().getKey("key", "123456".toCharArray());
+			crypto.sign(key, null);
 			Assert.fail("sign() should have thrown an exception");
 		} catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
 			Assert.fail("Could not create private key. Error: " + e.getMessage() );
 		} catch (CryptoException e) {
 		}
 	}
-	
+
 	@Test
 	public void testSign() {
-		PrivateKey key;
+
 		byte[] plainText = "123456".getBytes() ;
 		byte[] signature;
 		try {
-			key = (PrivateKey) CryptoPrimitives.getTrustStore().getKey("key", "123456".toCharArray());
-			signature = CryptoPrimitives.sign(key, plainText);
-			
+			PrivateKey key = (PrivateKey) crypto.getTrustStore().getKey("key", "123456".toCharArray());
+			signature = crypto.sign(key, plainText);
+
 			BufferedInputStream bis = new BufferedInputStream(this.getClass().getResourceAsStream("/keypair-signed.crt"));
 			byte[] cert = IOUtils.toByteArray(bis);
 			bis.close();
-			assertTrue(CryptoPrimitives.verify(plainText, signature, cert));
-		} catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException | CryptoException | IOException e) {
+
+			assertTrue(crypto.verify(plainText, signature, cert));
+		} catch (KeyStoreException | CryptoException | IOException | UnrecoverableKeyException | NoSuchAlgorithmException e) {
 			Assert.fail("Could not verify signature. Error: " + e.getMessage());
 		}
 	}
