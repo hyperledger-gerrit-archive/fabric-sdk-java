@@ -1,0 +1,8 @@
+Verified+1: Hyperledger Jobbuilder <jobbuilder@jenkins.hyperledger.org>
+Code-Review+2: Jim Zhang <jim_the_matrix@hotmail.com>
+Code-Review+2: Satheesh Kathamuthu <satheesh.ceg@gmail.com>
+Submitted-by: Satheesh Kathamuthu <satheesh.ceg@gmail.com>
+Submitted-at: Tue, 31 Jan 2017 05:50:30 +0000
+Reviewed-on: http://gerrit.hyperledger.org/r/4921
+Project: fabric-sdk-java
+Branch: refs/heads/fabric_v1
