@@ -98,7 +98,9 @@ public class ProposalResponse extends ChainCodeResponse {
 
     public void setProposalResponse(FabricProposalResponse.ProposalResponse proposalResponse) {
         this.proposalResponse = proposalResponse;
-        this.endorsement = proposalResponse.getEndorsement();
+        if (proposalResponse != null) {
+            this.endorsement = proposalResponse.getEndorsement();
+        }
     }
 
     Peer peer = null;
