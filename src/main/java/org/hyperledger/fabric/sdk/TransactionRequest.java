@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk;
 
+import org.hyperledger.fabric.sdk.helper.Config;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -21,7 +23,9 @@ import java.util.Arrays;
  * A base transaction request common for DeploymentProposalRequest, InvokeRequest, and QueryRequest.
  */
 public class TransactionRequest {
-    // The local path containing the chaincode to deploy in network mode.
+    private final Config config = Config.getConfig();
+
+	// The local path containing the chaincode to deploy in network mode.
     private String chaincodePath;
     // The name identifier for the chaincode to deploy in development mode.
     private String chaincodeName;
@@ -39,6 +43,8 @@ public class TransactionRequest {
     private byte[] metadata;
     // Chaincode language
     private Type chaincodeLanguage = Type.GO_LANG;
+    // timeout for a single peer proposal request in milliseconds.
+	private long proposalWaitTime = config.getProposalWaitTime();
 
 
 	public String getChaincodePath() {
@@ -120,5 +126,21 @@ public class TransactionRequest {
 		this.chaincodeLanguage = chaincodeLanguage;
 	}
 
+	/**
+	 * Gets the timeout for a single peer proposal request in milliseconds.
+	 *
+	 * @return the timeout for a single peer proposal request in milliseconds
+	 */
+	public long getProposalWaitTime() {
+		return proposalWaitTime;
+	}
 
+	/**
+	 * Sets the timeout for a single peer proposal request in milliseconds.
+	 *
+	 * @param proposalWaitTime the timeout for a single peer proposal request in milliseconds
+	 */
+	public void setProposalWaitTime(long proposalWaitTime) {
+		this.proposalWaitTime = proposalWaitTime;
+	}
 }
