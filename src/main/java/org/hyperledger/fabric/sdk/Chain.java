@@ -16,6 +16,7 @@ package org.hyperledger.fabric.sdk;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.grpc.StatusRuntimeException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
@@ -41,6 +42,7 @@ import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
+import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.transaction.DeploymentProposalBuilder;
@@ -55,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -63,9 +66,13 @@ import java.util.Objects;
 import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.lang.String.format;
@@ -83,6 +90,8 @@ import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
  */
 public class Chain {
     private static final Log logger = LogFactory.getLog(Chain.class);
+
+    private final Config config = Config.getConfig();
 
     // Name of the chain is only meaningful to the client
     private String name;
@@ -135,6 +144,9 @@ public class Chain {
     }
 
     private Enrollment enrollment;
+
+    // timeout for a single proposal request to endorser in milliseconds.
+    private long proposalWaitTime = config.getProposalWaitTime();
 
     /**
      * isInitialized - Has the chain been initialized?
@@ -403,6 +415,23 @@ public class Chain {
         this.tcertBatchSize = batchSize;
     }
 
+    /**
+     * Gets the timeout for a single proposal request to endorser in milliseconds.
+     *
+     * @return the timeout for a single proposal request to endorser in milliseconds
+     */
+    public long getProposalWaitTime() {
+        return proposalWaitTime;
+    }
+
+    /**
+     * Sets the timeout for a single proposal request to endorser in milliseconds.
+     *
+     * @param proposalWaitTime the timeout for a single proposal request to endorser in milliseconds
+     */
+    public void setProposalWaitTime(long proposalWaitTime) {
+        this.proposalWaitTime = proposalWaitTime;
+    }
 
     public Chain initialize() throws InvalidArgumentException { //TODO for multi chain
         if (peers.size() == 0) {  // assume this makes no sense.  have no orders seems reasonable if all you do is query.
@@ -589,8 +618,12 @@ public class Chain {
     }
 
 
-    public Collection<ProposalResponse> sendDeploymentProposal(DeploymentProposalRequest deploymentProposalRequest, Collection<Peer> peers) throws Exception {
+    public Collection<ProposalResponse> sendDeploymentProposal(DeploymentProposalRequest deploymentProposalRequest) throws Exception {
+        return sendDeploymentProposal(deploymentProposalRequest, this.peers);
+    }
 
+    public Collection<ProposalResponse> sendDeploymentProposal(DeploymentProposalRequest deploymentProposalRequest, Collection<Peer> peers)
+            throws Exception {
         if (null == deploymentProposalRequest) {
             throw new InvalidArgumentException("sendDeploymentProposal deploymentProposalRequest is null");
         }
@@ -618,26 +651,7 @@ public class Chain {
         FabricProposal.SignedProposal signedProposal = getSignedProposal(deploymentProposal);
 
 
-        Collection<ProposalResponse> proposalResponses = new LinkedList<>();
-
-        for (Peer peer : peers) {//TODO need to make async.
-
-            FabricProposalResponse.ProposalResponse fabricResponse = peer.sendProposal(signedProposal);
-
-
-            ProposalResponse proposalResponse = new ProposalResponse(transactionContext.getTxID(),
-                    transactionContext.getChainID(), fabricResponse.getResponse().getStatus(),
-                    fabricResponse.getResponse().getMessage());
-            proposalResponse.setProposalResponse(fabricResponse);
-            proposalResponse.setProposal(signedProposal);
-
-            proposalResponse.verify(cryptoPrimitives);
-
-            proposalResponses.add(proposalResponse);
-
-        }
-
-        return proposalResponses;
+        return sendProposalToPeers(peers, signedProposal, transactionContext);
     }
 
 
@@ -663,6 +677,9 @@ public class Chain {
         return signedProposal.build();
     }
 
+    public Collection<ProposalResponse> sendInvokeProposal(InvokeProposalRequest invokeProposalRequest) throws Exception {
+        return sendInvokeProposal(invokeProposalRequest, peers);
+    }
 
     public Collection<ProposalResponse> sendInvokeProposal(InvokeProposalRequest invokeProposalRequest, Collection<Peer> peers) throws Exception {
 
@@ -670,6 +687,9 @@ public class Chain {
         return sendProposal(invokeProposalRequest, peers);
     }
 
+    public Collection<ProposalResponse> sendQueryProposal(QueryProposalRequest queryProposalRequest) throws Exception {
+        return sendProposal(queryProposalRequest, peers);
+    }
 
     public Collection<ProposalResponse> sendQueryProposal(QueryProposalRequest queryProposalRequest, Collection<Peer> peers) throws Exception {
 
@@ -714,30 +734,67 @@ public class Chain {
 
 
         FabricProposal.SignedProposal invokeProposal = getSignedProposal(proposalBuilder.build());
+        return sendProposalToPeers(peers, invokeProposal, transactionContext);
+    }
 
+    private Collection<ProposalResponse> sendProposalToPeers(Collection<Peer> peers,
+                                                             FabricProposal.SignedProposal signedProposal,
+                                                             TransactionContext transactionContext) throws Exception {
+        List<Future<FabricProposalResponse.ProposalResponse>> futures = new ArrayList<>();
+        for (Peer peer : peers) {
+            futures.add(peer.sendProposalAsync(signedProposal));
+        }
 
-        Collection<ProposalResponse> proposalResponses = new LinkedList<>();
-        for (Peer peer : peers) {//TODO need to make async.
-
-            FabricProposalResponse.ProposalResponse fabricResponse = peer.sendProposal(invokeProposal);
-
+        Collection<ProposalResponse> proposalResponses = new ArrayList<>();
+        Iterator<Peer> peersIterator = peers.iterator();
+        for (Future<FabricProposalResponse.ProposalResponse> future : futures) {
+            FabricProposalResponse.ProposalResponse fabricResponse = null;
+            String message;
+            int status;
+            try {
+                fabricResponse = future.get(proposalWaitTime, TimeUnit.MILLISECONDS);
+                message = fabricResponse.getResponse().getMessage();
+                status = fabricResponse.getResponse().getStatus();
+            } catch (InterruptedException e) {
+                message = "Sending proposal to peer failed because of interruption";
+                status = 500;
+                logger.error(message, e);
+            } catch (TimeoutException e) {
+                message = String.format("Sending proposal to peer failed because of timeout(%d milliseconds) expiration",
+                        proposalWaitTime);
+                status = 500;
+                logger.error(message, e);
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof Error) {
+                    throw (Error) cause;
+                } else {
+                    if (cause instanceof StatusRuntimeException) {
+                        message = String.format("Sending proposal to peer failed because of gRPC failure=%s",
+                                ((StatusRuntimeException) cause).getStatus());
+                    } else {
+                        message = String.format("Sending proposal to peer failed because of %s", cause.getMessage());
+                    }
+                    status = 500;
+                    logger.error(message, cause);
+                }
+            }
 
             ProposalResponse proposalResponse = new ProposalResponse(transactionContext.getTxID(),
-                    transactionContext.getChainID(), fabricResponse.getResponse().getStatus(),
-                    fabricResponse.getResponse().getMessage());
+                    transactionContext.getChainID(), status, message);
             proposalResponse.setProposalResponse(fabricResponse);
-            proposalResponse.setProposal(invokeProposal);
+            proposalResponse.setProposal(signedProposal);
+            proposalResponse.setPeer(peersIterator.next());
 
-            proposalResponse.verify(cryptoPrimitives);
+            if (fabricResponse != null) {
+                proposalResponse.verify(cryptoPrimitives);
+            }
 
             proposalResponses.add(proposalResponse);
-
-
         }
 
         return proposalResponses;
     }
-
 
     /////////////////////////////////////////////////////////
     // transactions order
