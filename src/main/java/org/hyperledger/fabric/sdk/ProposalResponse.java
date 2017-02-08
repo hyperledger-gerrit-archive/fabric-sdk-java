@@ -48,17 +48,18 @@ public class ProposalResponse extends ChainCodeResponse {
             // by client code
             return isVerified();
 
-        ByteString sig = this.endorsement.getSignature();
+        FabricProposalResponse.Endorsement endorsement = this.proposalResponse.getEndorsement();
+        ByteString sig = endorsement.getSignature();
 
         try {
             Identities.SerializedIdentity endorser = Identities.SerializedIdentity
-                            .parseFrom(this.endorsement.getEndorser());
+                            .parseFrom(endorsement.getEndorser());
             // TODO check chain of trust. Need to handle CA certs somewhere
             ByteString plainText = this.getPayload().concat(endorsement.getEndorser());
 
             logger.debug("payload bytes in hex: " + DatatypeConverter.printHexBinary(this.getPayload().toByteArray()));
             logger.debug("endorser bytes in hex: "
-                            + DatatypeConverter.printHexBinary(this.endorsement.getEndorser().toByteArray()));
+                            + DatatypeConverter.printHexBinary(endorsement.getEndorser().toByteArray()));
             logger.debug("plainText bytes in hex: " + DatatypeConverter.printHexBinary(plainText.toByteArray()));
 
             this.isVerified = crypto.verify(plainText.toByteArray(), sig.toByteArray(),
@@ -94,11 +95,8 @@ public class ProposalResponse extends ChainCodeResponse {
         }
     }
 
-    private FabricProposalResponse.Endorsement endorsement;
-
     public void setProposalResponse(FabricProposalResponse.ProposalResponse proposalResponse) {
         this.proposalResponse = proposalResponse;
-        this.endorsement = proposalResponse.getEndorsement();
     }
 
     Peer peer = null;

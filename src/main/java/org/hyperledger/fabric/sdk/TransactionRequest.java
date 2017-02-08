@@ -21,7 +21,8 @@ import java.util.Arrays;
  * A base transaction request common for DeploymentProposalRequest, InvokeRequest, and QueryRequest.
  */
 public class TransactionRequest {
-    // The local path containing the chaincode to deploy in network mode.
+
+	// The local path containing the chaincode to deploy in network mode.
     private String chaincodePath;
     // The name identifier for the chaincode to deploy in development mode.
     private String chaincodeName;
@@ -119,6 +120,4 @@ public class TransactionRequest {
 	public void setChaincodeLanguage(Type chaincodeLanguage) {
 		this.chaincodeLanguage = chaincodeLanguage;
 	}
-
-
 }
