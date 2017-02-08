@@ -16,6 +16,7 @@ package org.hyperledger.fabric.sdk;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.grpc.StatusRuntimeException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
@@ -55,6 +56,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -63,9 +65,13 @@ import java.util.Objects;
 import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.lang.String.format;
@@ -403,7 +409,6 @@ public class Chain {
         this.tcertBatchSize = batchSize;
     }
 
-
     public Chain initialize() throws InvalidArgumentException { //TODO for multi chain
         if (peers.size() == 0) {  // assume this makes no sense.  have no orders seems reasonable if all you do is query.
 
@@ -588,9 +593,8 @@ public class Chain {
         return new Chain(name, clientContext);
     }
 
-
-    public Collection<ProposalResponse> sendDeploymentProposal(DeploymentProposalRequest deploymentProposalRequest, Collection<Peer> peers) throws Exception {
-
+    public Collection<ProposalResponse> sendDeploymentProposal(DeploymentProposalRequest deploymentProposalRequest, Collection<Peer> peers)
+            throws Exception {
         if (null == deploymentProposalRequest) {
             throw new InvalidArgumentException("sendDeploymentProposal deploymentProposalRequest is null");
         }
@@ -606,6 +610,7 @@ public class Chain {
 
 
         TransactionContext transactionContext = new TransactionContext(this, this.client.getUserContext(), cryptoPrimitives);
+        transactionContext.setProposalWaitTime(deploymentProposalRequest.getProposalWaitTime());
         DeploymentProposalBuilder deploymentProposalbuilder = DeploymentProposalBuilder.newBuilder();
         deploymentProposalbuilder.context(transactionContext);
         deploymentProposalbuilder.setChaincodeLanguage(deploymentProposalRequest.getChaincodeLanguage());
@@ -618,26 +623,7 @@ public class Chain {
         FabricProposal.SignedProposal signedProposal = getSignedProposal(deploymentProposal);
 
 
-        Collection<ProposalResponse> proposalResponses = new LinkedList<>();
-
-        for (Peer peer : peers) {//TODO need to make async.
-
-            FabricProposalResponse.ProposalResponse fabricResponse = peer.sendProposal(signedProposal);
-
-
-            ProposalResponse proposalResponse = new ProposalResponse(transactionContext.getTxID(),
-                    transactionContext.getChainID(), fabricResponse.getResponse().getStatus(),
-                    fabricResponse.getResponse().getMessage());
-            proposalResponse.setProposalResponse(fabricResponse);
-            proposalResponse.setProposal(signedProposal);
-
-            proposalResponse.verify(cryptoPrimitives);
-
-            proposalResponses.add(proposalResponse);
-
-        }
-
-        return proposalResponses;
+        return sendProposalToPeers(peers, signedProposal, transactionContext);
     }
 
 
@@ -697,6 +683,7 @@ public class Chain {
         }
 
         TransactionContext transactionContext = new TransactionContext(this, this.client.getUserContext(), cryptoPrimitives);
+        transactionContext.setProposalWaitTime(queryProposalRequest.getProposalWaitTime());
         ProposalBuilder proposalBuilder = ProposalBuilder.newBuilder();
         proposalBuilder.context(transactionContext);
 
@@ -714,30 +701,67 @@ public class Chain {
 
 
         FabricProposal.SignedProposal invokeProposal = getSignedProposal(proposalBuilder.build());
+        return sendProposalToPeers(peers, invokeProposal, transactionContext);
+    }
 
+    private Collection<ProposalResponse> sendProposalToPeers(Collection<Peer> peers,
+                                                             FabricProposal.SignedProposal signedProposal,
+                                                             TransactionContext transactionContext) throws Exception {
+        List<Future<FabricProposalResponse.ProposalResponse>> futures = new ArrayList<>();
+        for (Peer peer : peers) {
+            futures.add(peer.sendProposalAsync(signedProposal));
+        }
 
-        Collection<ProposalResponse> proposalResponses = new LinkedList<>();
-        for (Peer peer : peers) {//TODO need to make async.
-
-            FabricProposalResponse.ProposalResponse fabricResponse = peer.sendProposal(invokeProposal);
-
+        Collection<ProposalResponse> proposalResponses = new ArrayList<>();
+        Iterator<Peer> peersIterator = peers.iterator();
+        for (Future<FabricProposalResponse.ProposalResponse> future : futures) {
+            FabricProposalResponse.ProposalResponse fabricResponse = null;
+            String message;
+            int status;
+            try {
+                fabricResponse = future.get(transactionContext.getProposalWaitTime(), TimeUnit.MILLISECONDS);
+                message = fabricResponse.getResponse().getMessage();
+                status = fabricResponse.getResponse().getStatus();
+            } catch (InterruptedException e) {
+                message = "Sending proposal to peer failed because of interruption";
+                status = 500;
+                logger.error(message, e);
+            } catch (TimeoutException e) {
+                message = String.format("Sending proposal to peer failed because of timeout(%d milliseconds) expiration",
+                        transactionContext.getProposalWaitTime());
+                status = 500;
+                logger.error(message, e);
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof Error) {
+                    throw (Error) cause;
+                } else {
+                    if (cause instanceof StatusRuntimeException) {
+                        message = String.format("Sending proposal to peer failed because of gRPC failure=%s",
+                                ((StatusRuntimeException) cause).getStatus());
+                    } else {
+                        message = String.format("Sending proposal to peer failed because of %s", cause.getMessage());
+                    }
+                    status = 500;
+                    logger.error(message, cause);
+                }
+            }
 
             ProposalResponse proposalResponse = new ProposalResponse(transactionContext.getTxID(),
-                    transactionContext.getChainID(), fabricResponse.getResponse().getStatus(),
-                    fabricResponse.getResponse().getMessage());
+                    transactionContext.getChainID(), status, message);
             proposalResponse.setProposalResponse(fabricResponse);
-            proposalResponse.setProposal(invokeProposal);
+            proposalResponse.setProposal(signedProposal);
+            proposalResponse.setPeer(peersIterator.next());
 
-            proposalResponse.verify(cryptoPrimitives);
+            if (fabricResponse != null) {
+                proposalResponse.verify(cryptoPrimitives);
+            }
 
             proposalResponses.add(proposalResponse);
-
-
         }
 
         return proposalResponses;
     }
-
 
     /////////////////////////////////////////////////////////
     // transactions order
