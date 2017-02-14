@@ -18,21 +18,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.bouncycastle.asn1.ASN1Encodable;
-import org.bouncycastle.asn1.ASN1EncodableVector;
-import org.bouncycastle.asn1.ASN1Object;
-import org.bouncycastle.asn1.ASN1OctetString;
-import org.bouncycastle.asn1.ASN1OutputStream;
-import org.bouncycastle.asn1.ASN1Primitive;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.ASN1TaggedObject;
-import org.bouncycastle.asn1.DERBitString;
-import org.bouncycastle.asn1.DEREncodableVector;
-import org.bouncycastle.asn1.DERGeneralizedTime;
-import org.bouncycastle.asn1.DERInteger;
-import org.bouncycastle.asn1.DEROctetString;
-import org.bouncycastle.asn1.DERSequence;
-import org.bouncycastle.asn1.DERUTF8String;
+import org.bouncycastle.asn1.*;
 import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.MemberServices;
 import org.hyperledger.fabric.sdk.TCert;
@@ -40,8 +26,6 @@ import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.Buffer;
 import java.time.Instant;
 import java.util.List;
@@ -88,7 +72,7 @@ public class TransactionContext {
     /**
      * Get the user with which this transaction context is associated.
      *
-     * @returns The user
+     * @return The user
      */
     public User getUser() {
         return this.user;
@@ -97,7 +81,7 @@ public class TransactionContext {
     /**
      * Get the chain with which this transaction context is associated.
      *
-     * @returns The chain
+     * @return The chain
      */
     public Chain getChain() {
         return this.chain;
@@ -106,7 +90,7 @@ public class TransactionContext {
     /**
      * Get the user services, or undefined if security is not enabled.
      *
-     * @returns The user services
+     * @return The user services
      */
     public MemberServices getMemberServices() {
         return this.memberServices;

@@ -14,16 +14,11 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Properties;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import java.io.*;
+import java.util.Properties;
 
 /**
  * A local file-based key value store.
@@ -56,7 +51,7 @@ public class FileKeyValStore implements KeyValStore {
     	} catch(FileNotFoundException e) {
     		logger.warn(String.format("Could not find the file \"%s\"", file));
     	} catch(IOException e) {
-    		logger.warn(String.format("Could not load keyvalue store from file \"%s\", reason:%s", 
+    		logger.warn(String.format("Could not load keyvalue store from file \"%s\", reason:%s",
     				file, e.getMessage()));
     	}
 
@@ -65,8 +60,8 @@ public class FileKeyValStore implements KeyValStore {
 
     /**
      * Set the value associated with name.
-     * @param name
-     * @param value
+     * @param name The name of the parameter
+     * @param value Value for the parameter
      */
     public void setValue(String name, String value) {
     	Properties properties = loadProperties();
