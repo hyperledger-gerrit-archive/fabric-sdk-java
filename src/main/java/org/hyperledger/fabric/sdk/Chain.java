@@ -165,7 +165,7 @@ public class Chain {
     /**
      * Get the chain name
      *
-     * @returns The name of the chain
+     * @return The name of the chain
      */
     public String getName() {
         return this.name;
@@ -174,8 +174,8 @@ public class Chain {
     /**
      * Add a peer to the chain
      *
-     * @param peer the Peer to add.
-     * @return
+     * @param peer The Peer to add.
+     * @return Chain The current chain added.
      * @throws InvalidArgumentException
      */
     public Chain addPeer(Peer peer) throws InvalidArgumentException {
@@ -279,7 +279,7 @@ public class Chain {
     /**
      * Get the member service associated this chain.
      *
-     * @returns MemberServices associated with the chain, or undefined if not set.
+     * @return MemberServices associated with the chain, or undefined if not set.
      */
     public MemberServices getMemberServices() {
         return this.memberServices;
@@ -376,7 +376,7 @@ public class Chain {
     /**
      * Get the key val store implementation (if any) that is currently associated with this chain.
      *
-     * @returnsThe current KeyValStore associated with this chain, or undefined if not set.
+     * @return The current KeyValStore associated with this chain, or undefined if not set.
      */
     public KeyValStore getKeyValStore() {
         return this.keyValStore;

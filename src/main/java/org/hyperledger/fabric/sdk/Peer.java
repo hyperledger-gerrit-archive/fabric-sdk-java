@@ -71,9 +71,8 @@ public class Peer {
     /**
      * Constructor for a peer given the endpoint config for the peer.
      *
-     * @param {string} url The URL of
-     * @param {Chain}  The chain of which this peer is a member.
-     * @returns {Peer} The new peer.
+     * @param url The URL of of the peer
+     * @param pem PEM certificate of the peer
      */
     public Peer(String url, String pem) throws InvalidArgumentException {
 
@@ -93,7 +92,7 @@ public class Peer {
     /**
      * Get the chain of which this peer is a member.
      *
-     * @returns {Chain} The chain of which this peer is a member.
+     * @return {Chain} The chain of which this peer is a member.
      */
     public Chain getChain() {
         return this.chain;
@@ -102,7 +101,7 @@ public class Peer {
     /**
      * Get the URL of the peer.
      *
-     * @returns {string} Get the URL associated with the peer.
+     * @return {string} Get the URL associated with the peer.
      */
     public String getUrl() {
 
