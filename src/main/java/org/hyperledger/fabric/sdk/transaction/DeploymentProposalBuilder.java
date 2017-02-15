@@ -14,22 +14,28 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import com.google.common.io.Files;
-import com.google.protobuf.ByteString;
-import io.netty.util.internal.StringUtil;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.protos.peer.Chaincode;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.sdk.TransactionRequest;
-import org.hyperledger.fabric.sdk.exception.DeploymentException;
-import org.hyperledger.fabric.sdk.helper.SDKUtil;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
+
+import com.google.common.io.Files;
+import com.google.protobuf.ByteString;
+import io.netty.util.internal.StringUtil;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeDeploymentSpec;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type;
+import org.hyperledger.fabric.protos.peer.FabricProposal;
+import org.hyperledger.fabric.sdk.TransactionRequest;
+import org.hyperledger.fabric.sdk.exception.DeploymentException;
+import org.hyperledger.fabric.sdk.helper.SDKUtil;
 
 
 public class DeploymentProposalBuilder extends ProposalBuilder {
@@ -37,6 +43,9 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
 
     private Log logger = LogFactory.getLog(DeploymentProposalBuilder.class);
     private String chaincodePath;
+
+
+    private String chaincodeSource;
     private String chaincodeName;
     private List<String> argList;
     private TransactionRequest.Type chaincodeLanguage;
@@ -70,6 +79,12 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
 
     public DeploymentProposalBuilder argss(List<String> argList) {
         this.argList = argList;
+        return this;
+    }
+
+    public DeploymentProposalBuilder setChaincodeSource(String chaincodeSource) {
+        this.chaincodeSource = chaincodeSource;
+
         return this;
     }
 
@@ -111,78 +126,95 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
         String rootDir = "";
         String chaincodeDir = "";
 
-        Chaincode.ChaincodeSpec.Type ccType = Chaincode.ChaincodeSpec.Type.GOLANG;
+
+
+        Type ccType = Type.GOLANG;
+
+        String projDir = null;
+        String pathPrefix = null;
 
         if (chaincodeLanguage == TransactionRequest.Type.GO_LANG) {
             // Determine the user's $GOPATH
+            if (chaincodeSource == null) {
+                chaincodeSource = System.getenv("GOPATH");
+            }
             String goPath = System.getenv("GOPATH");
             logger.info(String.format("Using GOPATH :%s", goPath));
-            if (StringUtil.isNullOrEmpty(goPath)) {
-                throw new IllegalArgumentException("[NetMode] Missing GOPATH environment variable");
+            if (StringUtil.isNullOrEmpty(chaincodeSource)) {
+                throw new IllegalArgumentException("[NetMode] chaincodeSource or set GOPATH");
             }
 
-            logger.debug("$GOPATH: " + goPath);
+            logger.debug("chaincodeSource " + chaincodeSource);
 
             // Compose the path to the chaincode project directory
-            rootDir = SDKUtil.combinePaths(goPath, "src");
-            chaincodeDir = chaincodePath;
+           // rootDir = SDKUtil.combinePaths(chaincodeSource, "src");
+        //    chaincodeDir = chaincodePath;
+            projDir = SDKUtil.combinePaths(chaincodeSource, "src", chaincodePath);
+            pathPrefix = SDKUtil.combinePaths( "src", chaincodePath);
+         //   filterpath = FilenameUtils.separatorsToUnix(SDKUtil.combinePaths("src", chaincodePath)) + "/";
+
 
         } else {
-            ccType = Chaincode.ChaincodeSpec.Type.JAVA;
+            ccType = Type.JAVA;
+
+            if (StringUtil.isNullOrEmpty(chaincodeSource)) {
+                throw new IllegalArgumentException("[NetMode] chaincodeSource ");
+            }
 
             // Compose the path to the chaincode project directory
-            File ccFile = new File(chaincodePath);
+            File ccFile = new File(chaincodeSource);
             rootDir = ccFile.getParent();
             chaincodeDir = ccFile.getName();
+
+            projDir = SDKUtil.combinePaths(rootDir, chaincodeDir);
         }
 
-        String projDir = SDKUtil.combinePaths(rootDir, chaincodeDir);
+
         logger.debug("projDir: " + projDir);
 
+        String dockerFilePath = null;
+    //    String targzFilePath = null;
+        ChaincodeDeploymentSpec depspec = null;
         String dockerFileContents = getDockerFileContents(chaincodeLanguage);
-
-        // NO longer using hash .. keep same as Node SDK.
-        // Compute the hash of the chaincode deployment parameters
-        //    String hash = SDKUtil.generateParameterHash(chaincodeDir, request.getFcn(), request.getArgs());
-
-        // Compute the hash of the project directory contents
-//        hash = SDKUtil.generateDirectoryHash(rootDir, chaincodeDir, hash);
-//        logger.debug("hash: " + hash);
-
-        // Substitute the hashStrHash for the image name
-        dockerFileContents = String.format(dockerFileContents, chaincodeName);
-
-        // Create a Docker file with dockerFileContents
-        String dockerFilePath = SDKUtil.combinePaths(projDir, "Dockerfile");
-        Files.write(dockerFileContents.getBytes(), new java.io.File(dockerFilePath));
-
-        logger.debug(String.format("Created Dockerfile at [%s]", dockerFilePath));
-
-        // Create the .tar.gz file of the chaincode package
-        String targzFilePath = SDKUtil.combinePaths(System.getProperty("java.io.tmpdir"), "deployment-package.tar.gz");
-        // Create the compressed archive
-        SDKUtil.generateTarGz(projDir, targzFilePath);
-        byte[] data = SDKUtil.readFile(new File(targzFilePath));
-
-        // Clean up temporary files
-        SDKUtil.deleteFileOrDirectory(new File(targzFilePath));
-        SDKUtil.deleteFileOrDirectory(new File(dockerFilePath));
+        try {
+            if (dockerFileContents != null) {
 
 
-        Chaincode.ChaincodeDeploymentSpec depspec = createDeploymentSpec(ccType,
-                chaincodeName, argList, data, null);
+                dockerFileContents = String.format(dockerFileContents, chaincodeName);
+
+                // Create a Docker file with dockerFileContents
+                dockerFilePath = SDKUtil.combinePaths(projDir, "Dockerfile");
+                Files.write(dockerFileContents.getBytes(), new File(dockerFilePath));
+
+                logger.debug(String.format("Created Dockerfile at [%s]", dockerFilePath));
+            }
+
+
+            byte[] data = SDKUtil.generateTarGz(projDir, pathPrefix);
+
+
+            depspec = createDeploymentSpec(ccType,
+                    chaincodeName, argList, data, chaincodePath);
+        } finally {
+            // Clean up temporary files
+//            if (targzFilePath != null)
+//                SDKUtil.deleteFileOrDirectory(new File(targzFilePath));
+            if (dockerFilePath != null)
+                SDKUtil.deleteFileOrDirectory(new File(dockerFilePath));
+        }
 
 
         List<ByteString> argList = new ArrayList<>();
-        argList.add(ByteString.copyFrom("deploy", StandardCharsets.UTF_8));
-        argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
+//        argList.add(ByteString.copyFrom("deploy", StandardCharsets.UTF_8));
+//        argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
+        argList.add(ByteString.copyFrom("install", StandardCharsets.UTF_8));
         argList.add(depspec.toByteString());
 
-        Chaincode.ChaincodeID lcccID = Chaincode.ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
+        ChaincodeID lcccID = ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
 
-        super.args(argList);
-        super.chaincodeID(lcccID);
-        super.ccType(ccType);
+        args(argList);
+        chaincodeID(lcccID);
+        ccType(ccType);
 
     }
 
@@ -191,14 +223,15 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
         logger.debug("newDevModeTransaction");
 
 
-        Chaincode.ChaincodeDeploymentSpec depspec = createDeploymentSpec(Chaincode.ChaincodeSpec.Type.GOLANG,
+        ChaincodeDeploymentSpec depspec = createDeploymentSpec(Type.GOLANG,
                 chaincodeName, argList, null, null);
 
-        Chaincode.ChaincodeID lcccID = Chaincode.ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
+        ChaincodeID lcccID = ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
 
         List<ByteString> argList = new ArrayList<>();
-        argList.add(ByteString.copyFrom("deploy", StandardCharsets.UTF_8));
-        argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
+//        argList.add(ByteString.copyFrom("deploy", StandardCharsets.UTF_8));
+//        argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
+        argList.add(ByteString.copyFrom("install", StandardCharsets.UTF_8));
         argList.add(depspec.toByteString());
 
 
@@ -209,37 +242,39 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
     }
 
 
-    private Chaincode.ChaincodeDeploymentSpec createDeploymentSpec(Chaincode.ChaincodeSpec.Type ccType,
-                                                                   String name,
-                                                                   List<String> args,
-                                                                   byte[] codePackage,
-                                                                   String chaincodePath) {
+    private ChaincodeDeploymentSpec createDeploymentSpec(Type ccType,
+                                                         String name,
+                                                         List<String> args,
+                                                         byte[] codePackage,
+                                                         String chaincodePath) {
         logger.trace("Creating deployment Specification.");
 
-        Chaincode.ChaincodeID.Builder chaincodeIDBuilder = Chaincode.ChaincodeID.newBuilder().setName(name);
+        ChaincodeID.Builder chaincodeIDBuilder = ChaincodeID.newBuilder().setName(name);
         if (chaincodePath != null) {
             chaincodeIDBuilder = chaincodeIDBuilder.setPath(chaincodePath);
         }
+        //TODO fix this to expose to user
+        chaincodeIDBuilder.setVersion("1.0");
 
-        Chaincode.ChaincodeID chaincodeID = chaincodeIDBuilder.build();
+        ChaincodeID chaincodeID = chaincodeIDBuilder.build();
 
         // build chaincodeInput
         List<ByteString> argList = new ArrayList<>(args.size());
         argList.add(ByteString.copyFrom("init", StandardCharsets.UTF_8));
-        for (String arg : args) {
-            argList.add(ByteString.copyFrom(arg.getBytes()));
-        }
-        Chaincode.ChaincodeInput chaincodeInput = Chaincode.ChaincodeInput.newBuilder().addAllArgs(argList).build();
+//        for (String arg : args) {
+//            argList.add(ByteString.copyFrom(arg.getBytes()));
+//        }
+        ChaincodeInput chaincodeInput = ChaincodeInput.newBuilder().addAllArgs(argList).build();
 
         // Construct the ChaincodeSpec
-        Chaincode.ChaincodeSpec chaincodeSpec = Chaincode.ChaincodeSpec.newBuilder().setType(ccType).setChaincodeID(chaincodeID)
+        ChaincodeSpec chaincodeSpec = ChaincodeSpec.newBuilder().setType(ccType).setChaincodeId(chaincodeID)
                 .setInput(chaincodeInput)
                 .build();
 
 
-        Chaincode.ChaincodeDeploymentSpec.Builder chaincodeDeploymentSpecBuilder = Chaincode.ChaincodeDeploymentSpec
+        ChaincodeDeploymentSpec.Builder chaincodeDeploymentSpecBuilder = ChaincodeDeploymentSpec
                 .newBuilder().setChaincodeSpec(chaincodeSpec).setEffectiveDate(context.getFabricTimestamp())
-                .setExecEnv(Chaincode.ChaincodeDeploymentSpec.ExecutionEnvironment.DOCKER);
+                .setExecEnv(ChaincodeDeploymentSpec.ExecutionEnvironment.DOCKER);
         chaincodeDeploymentSpecBuilder.setCodePackage(ByteString.copyFrom(codePackage));
 
         return chaincodeDeploymentSpecBuilder.build();
@@ -249,7 +284,7 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
 
     private String getDockerFileContents(TransactionRequest.Type lang) throws IOException {
         if (chaincodeLanguage == TransactionRequest.Type.GO_LANG) {
-            return new String(SDKUtil.readFileFromClasspath("Go.Docker"));
+            return null; //No dockerfile for GO
         } else if (chaincodeLanguage == TransactionRequest.Type.JAVA) {
             return new String(SDKUtil.readFileFromClasspath("Java.Docker"));
         }

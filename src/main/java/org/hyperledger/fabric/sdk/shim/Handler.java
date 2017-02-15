@@ -586,23 +586,23 @@ public class Handler {
 		//Defer
 		try {
 			// Send RANGE_QUERY_STATE message to validator chaincode support
-			RangeQueryState payload = RangeQueryState.newBuilder()
+			GetStateByRange payload = GetStateByRange.newBuilder()
 					.setStartKey(startKey)
 					.setEndKey(endKey)
 					.build();
 
 			ChaincodeMessage message = ChaincodeMessage.newBuilder()
-					.setType(RANGE_QUERY_STATE)
+					.setType(GET_STATE_BY_RANGE)
 					.setPayload(payload.toByteString())
 					.setTxid(uuid)
 					.build();
 
-			logger.debug(String.format("[%s]Sending %s", shortID(message), RANGE_QUERY_STATE));
+			logger.debug(String.format("[%s]Sending %s", shortID(message), GET_STATE_BY_RANGE));
 			ChaincodeMessage response;
 			try {
 				response = sendRecieve(message, responseChannel);
 			} catch (Exception e){
-				logger.error(String.format("[%s]error sending %s", shortID(message), RANGE_QUERY_STATE));
+				logger.error(String.format("[%s]error sending %s", shortID(message), GET_STATE_BY_RANGE));
 				throw new RuntimeException("could not send message");
 			}
 
@@ -646,7 +646,7 @@ public class Handler {
 				.addAllArgs(args)
 				.build();
 		ChaincodeSpec payload = ChaincodeSpec.newBuilder()
-				.setChaincodeID(id)
+				.setChaincodeId(id)
 				.setInput(input)
 				.build();
 
