@@ -15,9 +15,9 @@
 package org.hyperledger.fabric.sdk.helper;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileVisitOption;
@@ -122,23 +122,26 @@ public class SDKUtil {
 
 	/**
 	 * Compress the given directory <src> to <target> tar.gz file
-	 * @param src The source directory
 	 * @param target The target tar.gz file
+	 * @param src The source directory
+	 * @param filterPath
 	 * @throws IOException
 	 */
-	public static void generateTarGz(String src, String target) throws IOException {
+	public static byte[] generateTarGz(String src, String filterPath) throws IOException {
 		File sourceDirectory = new File(src);
-		File destinationArchive = new File(target);
+		//File destinationArchive = new File(target);
+
+		ByteArrayOutputStream bos = new ByteArrayOutputStream(500000);
 
 		String sourcePath = sourceDirectory.getAbsolutePath();
-		FileOutputStream destinationOutputStream = new FileOutputStream(destinationArchive);
+	//	FileOutputStream destinationOutputStream = new FileOutputStream(destinationArchive);
 
-		TarArchiveOutputStream archiveOutputStream = new TarArchiveOutputStream(new GzipCompressorOutputStream(new BufferedOutputStream(destinationOutputStream)));
+		TarArchiveOutputStream archiveOutputStream = new TarArchiveOutputStream(new GzipCompressorOutputStream(new BufferedOutputStream(bos)));
 		archiveOutputStream.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
 
 		try {
 			Collection<File> childrenFiles = org.apache.commons.io.FileUtils.listFiles(sourceDirectory, null, true);
-			childrenFiles.remove(destinationArchive);
+	//		childrenFiles.remove(destinationArchive);
 
 			ArchiveEntry archiveEntry;
 			FileInputStream fileInputStream;
@@ -147,6 +150,9 @@ public class SDKUtil {
 				String relativePath = childPath.substring((sourcePath.length() + 1), childPath.length());
 
 				relativePath = FilenameUtils.separatorsToUnix(relativePath);
+				if(filterPath != null &&  !relativePath.startsWith(filterPath)){
+					continue;
+				}
 				archiveEntry = new TarArchiveEntry(childFile, relativePath);
 				fileInputStream = new FileInputStream(childFile);
 				archiveOutputStream.putArchiveEntry(archiveEntry);
@@ -161,6 +167,8 @@ public class SDKUtil {
 		} finally {
 			IOUtils.closeQuietly(archiveOutputStream);
 		}
+
+		return bos.toByteArray();
 	}
 
 	/**
