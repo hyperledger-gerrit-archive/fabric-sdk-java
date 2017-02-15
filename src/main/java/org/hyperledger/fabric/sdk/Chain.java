@@ -14,41 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import io.grpc.StatusRuntimeException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.protos.common.Common;
-import org.hyperledger.fabric.protos.common.Common.Block;
-import org.hyperledger.fabric.protos.common.Common.BlockData;
-import org.hyperledger.fabric.protos.common.Common.ChainHeader;
-import org.hyperledger.fabric.protos.common.Common.Envelope;
-import org.hyperledger.fabric.protos.common.Common.Header;
-import org.hyperledger.fabric.protos.common.Common.Payload;
-import org.hyperledger.fabric.protos.common.Configuration.ConfigurationItem;
-import org.hyperledger.fabric.protos.common.Configuration.ConfigurationItem.ConfigurationType;
-import org.hyperledger.fabric.protos.common.Configuration.SignedConfigurationItem;
-import org.hyperledger.fabric.protos.orderer.Ab.BroadcastResponse;
-import org.hyperledger.fabric.protos.peer.Chaincode;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
-import org.hyperledger.fabric.protos.peer.PeerEvents.Event.EventCase;
-import org.hyperledger.fabric.sdk.events.BlockListener;
-import org.hyperledger.fabric.sdk.events.EventHub;
-import org.hyperledger.fabric.sdk.exception.CryptoException;
-import org.hyperledger.fabric.sdk.exception.DeploymentException;
-import org.hyperledger.fabric.sdk.exception.EnrollmentException;
-import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
-import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
-import org.hyperledger.fabric.sdk.exception.RegistrationException;
-import org.hyperledger.fabric.sdk.helper.SDKUtil;
-import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
-import org.hyperledger.fabric.sdk.transaction.DeploymentProposalBuilder;
-import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
-import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
-import org.hyperledger.fabric.sdk.transaction.TransactionContext;
-
 import java.net.MalformedURLException;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.CertificateException;
@@ -73,11 +38,42 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import io.grpc.StatusRuntimeException;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.common.Common;
+import org.hyperledger.fabric.protos.common.Common.Block;
+import org.hyperledger.fabric.protos.common.Common.BlockData;
+import org.hyperledger.fabric.protos.common.Common.Envelope;
+import org.hyperledger.fabric.protos.common.Common.Header;
+import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.common.Policies.Policy;
+import org.hyperledger.fabric.protos.orderer.Ab.BroadcastResponse;
+import org.hyperledger.fabric.protos.peer.Chaincode;
+import org.hyperledger.fabric.protos.peer.FabricProposal;
+import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.protos.peer.PeerEvents.Event.EventCase;
+import org.hyperledger.fabric.sdk.events.BlockListener;
+import org.hyperledger.fabric.sdk.events.EventHub;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.hyperledger.fabric.sdk.exception.DeploymentException;
+import org.hyperledger.fabric.sdk.exception.EnrollmentException;
+import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
+import org.hyperledger.fabric.sdk.exception.RegistrationException;
+import org.hyperledger.fabric.sdk.helper.SDKUtil;
+import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
+import org.hyperledger.fabric.sdk.transaction.DeploymentProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
+import org.hyperledger.fabric.sdk.transaction.TransactionContext;
+
 import static java.lang.String.format;
-import static org.hyperledger.fabric.protos.common.Configuration.ConfigurationSignature;
-import static org.hyperledger.fabric.protos.common.Configuration.Policy;
-import static org.hyperledger.fabric.protos.common.Configuration.SignaturePolicy;
-import static org.hyperledger.fabric.protos.common.Configuration.SignaturePolicyEnvelope;
+import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
+import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvelope;
 import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
@@ -408,6 +404,7 @@ public class Chain {
         this.tcertBatchSize = batchSize;
     }
 
+
     public Chain initialize() throws InvalidArgumentException { //TODO for multi chain
         if (peers.size() == 0) {  // assume this makes no sense.  have no orders seems reasonable if all you do is query.
 
@@ -464,40 +461,44 @@ public class Chain {
     }
 
 
-    private static SignedConfigurationItem buildSignedConfigurationItem(ChainHeader chainHeader, ConfigurationType type,
-                                                                        long lastModified, String modificationPolicy,
-                                                                        String key, ByteString value
-    ) {
-        return buildSignedConfigurationItem(chainHeader, type,
-                lastModified, modificationPolicy,
-                key, value,
-                null);
-
-    }
-
-    private static SignedConfigurationItem buildSignedConfigurationItem(ChainHeader chainHeader, ConfigurationType type,
-                                                                        long lastModified, String modificationPolicy,
-                                                                        String key, ByteString value,
-                                                                        ConfigurationSignature signatures) {
-
-
-        ConfigurationItem configurationItem = ConfigurationItem.newBuilder()
-                .setHeader(chainHeader)
-                .setType(type)
-                .setLastModified(lastModified)
-                .setModificationPolicy(modificationPolicy)
-                .setKey(key)
-                .setValue(value)
-                .build();
-
-        SignedConfigurationItem.Builder signedConfigurationItem = SignedConfigurationItem.newBuilder();
-        signedConfigurationItem.setConfigurationItem(configurationItem.toByteString());
-        if (signatures != null) {
-            signedConfigurationItem.addSignatures(signatures);
-        }
-
-        return signedConfigurationItem.build();
-    }
+//    private static SignedConfigurationItem buildSignedConfigurationItem(ChannelHeader chainHeader, ConfigurationType type,
+//                                                                        long lastModified, String modificationPolicy,
+//                                                                        String key, ByteString value
+//    ) {
+//        return buildSignedConfigurationItem(chainHeader, type,
+//                lastModified, modificationPolicy,
+//                key, value,
+//                null);
+//
+//    }
+//
+//    private static SignedConfigurationItem buildSignedConfigurationItem(ChannelHeader chainHeader, ConfigurationType type,
+//                                                                        long lastModified, String modificationPolicy,
+//                                                                        String key, ByteString value,
+//                                                                        ConfigurationSignature signatures) {
+//
+//
+//
+//
+//
+//        int configurationItem = Configtx.ConfigItem.newBuilder()
+//
+//                .setHeader(chainHeader)
+//                .setType(type)
+//                .setLastModified(lastModified)
+//                .setModificationPolicy(modificationPolicy)
+//                .setKey(key)
+//                .setValue(value)
+//                .build();
+//
+//        SignedConfigurationItem.Builder signedConfigurationItem = SignedConfigurationItem.newBuilder();
+//        signedConfigurationItem.setConfigurationItem(configurationItem.toByteString());
+//        if (signatures != null) {
+//            signedConfigurationItem.addSignatures(signatures);
+//        }
+//
+//        return signedConfigurationItem.build();
+//    }
 
     /**
      * Get the user with a given name
@@ -592,6 +593,40 @@ public class Chain {
         return new Chain(name, clientContext);
     }
 
+    public Collection<ProposalResponse> sendInstantiationProposal(InstantiateProposalRequest instantiateProposalRequest, Collection<Peer> peers) throws Exception {
+
+        if (null == instantiateProposalRequest) {
+            throw new InvalidArgumentException("sendDeploymentProposal deploymentProposalRequest is null");
+        }
+        if (null == peers) {
+            throw new InvalidArgumentException("sendDeploymentProposal peers is null");
+        }
+        if (peers.isEmpty()) {
+            throw new InvalidArgumentException("sendDeploymentProposal peers to send to is empty.");
+        }
+        if (!isInitialized()) {
+            throw new DeploymentException("sendDeploymentProposal on chain not initialized.");
+        }
+
+
+        TransactionContext transactionContext = new TransactionContext(this, this.client.getUserContext(), cryptoPrimitives);
+        transactionContext.setProposalWaitTime(instantiateProposalRequest.getProposalWaitTime());
+        InstantiateProposalBuilder instantiateProposalbuilder = InstantiateProposalBuilder.newBuilder();
+        instantiateProposalbuilder.context(transactionContext);
+        instantiateProposalbuilder.setChaincodeLanguage(instantiateProposalRequest.getChaincodeLanguage());
+        instantiateProposalbuilder.argss(instantiateProposalRequest.getArgs());
+        instantiateProposalbuilder.chaincodeName(instantiateProposalRequest.getChaincodeName());
+        instantiateProposalbuilder.chaincodePath(instantiateProposalRequest.getChaincodePath());
+        instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
+
+
+        FabricProposal.Proposal instantiateProposal = instantiateProposalbuilder.build();
+        FabricProposal.SignedProposal signedProposal = getSignedProposal(instantiateProposal);
+
+
+        return sendProposalToPeers(peers, signedProposal, transactionContext);
+    }
+
     public Collection<ProposalResponse> sendDeploymentProposal(DeploymentProposalRequest deploymentProposalRequest, Collection<Peer> peers)
             throws Exception {
         if (null == deploymentProposalRequest) {
@@ -613,9 +648,10 @@ public class Chain {
         DeploymentProposalBuilder deploymentProposalbuilder = DeploymentProposalBuilder.newBuilder();
         deploymentProposalbuilder.context(transactionContext);
         deploymentProposalbuilder.setChaincodeLanguage(deploymentProposalRequest.getChaincodeLanguage());
-        deploymentProposalbuilder.argss(deploymentProposalRequest.getArgs());
+       // deploymentProposalbuilder.argss(deploymentProposalRequest.getArgs());
         deploymentProposalbuilder.chaincodeName(deploymentProposalRequest.getChaincodeName());
         deploymentProposalbuilder.chaincodePath(deploymentProposalRequest.getChaincodePath());
+        deploymentProposalbuilder.chaincodeVersion(deploymentProposalRequest.getChaincodeVersion());
 
 
         FabricProposal.Proposal deploymentProposal = deploymentProposalbuilder.build();
@@ -798,7 +834,6 @@ public class Chain {
         String proposalTransactionID = null;
 
 
-
         for (ProposalResponse arg : proposalResponses) {
             ed.add(arg.getProposalResponse().getEndorsement());
             if (proposal == null) {
@@ -846,7 +881,7 @@ public class Chain {
             return sret;
         } else {
             CompletableFuture<Envelope> ret = new CompletableFuture<>();
-            ret.completeExceptionally(new Exception(format("Failed to place transaction %s on Orderer", proposalTransactionID )));
+            ret.completeExceptionally(new Exception(format("Failed to place transaction %s on Orderer", proposalTransactionID)));
             return ret;
         }
 
@@ -870,6 +905,7 @@ public class Chain {
 
     /**
      * registerBlockListener - Register a block listener.
+     *
      * @param listener
      * @return
      */
@@ -887,6 +923,8 @@ public class Chain {
 
 
     private final ChainEventQue chainEventQue = new ChainEventQue();
+
+
 
 
     public class ChainEventQue {
@@ -967,7 +1005,7 @@ public class Chain {
                         Header plh = payload.getHeader();
 
 
-                        String blockchainID = plh.getChainHeader().getChainID();
+                        String blockchainID = plh.getChannelHeader().getChannelId();
 
                         if (!Objects.equals(name, blockchainID)) {
                             continue; // not targeted for this chain
@@ -1107,7 +1145,7 @@ public class Chain {
                     Header plh = payload.getHeader();
 
 
-                    final String txID = plh.getChainHeader().getTxID();
+                    final String txID = plh.getChannelHeader().getTxId();
 
                     logger.debug("Got Block with txID= " + txID);
 

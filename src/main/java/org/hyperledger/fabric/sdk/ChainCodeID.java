@@ -18,9 +18,19 @@ public class ChainCodeID {
      ChainCodeID(Chaincode.ChaincodeID chaincodeID) {
         this.fabricChainCodeID = chaincodeID;
     }
-    @Deprecated
+
     public String getName(){
         return fabricChainCodeID.getName();
+    }
+
+    public String getPath(){
+        return  fabricChainCodeID.getPath();
+
+    }
+
+    public String getVersion(){
+        return  fabricChainCodeID.getVersion();
+
     }
 
 }

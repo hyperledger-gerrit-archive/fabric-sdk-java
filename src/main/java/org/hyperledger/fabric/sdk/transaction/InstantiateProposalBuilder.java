@@ -18,9 +18,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
-import com.google.common.io.Files;
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
@@ -36,32 +36,31 @@ import org.hyperledger.fabric.sdk.exception.DeploymentException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 
 
-public class DeploymentProposalBuilder extends ProposalBuilder {
+public class InstantiateProposalBuilder extends ProposalBuilder {
 
 
-    private Log logger = LogFactory.getLog(DeploymentProposalBuilder.class);
+    private Log logger = LogFactory.getLog(InstantiateProposalBuilder.class);
     private String chaincodePath;
 
 
     private String chaincodeSource;
     private String chaincodeName;
-    private String chaincodeVersion;
     private List<String> argList;
     private TransactionRequest.Type chaincodeLanguage;
+    private String chaincodeVersion;
 
-
-    private DeploymentProposalBuilder() {
+    private InstantiateProposalBuilder() {
         super();
     }
 
-    public static DeploymentProposalBuilder newBuilder() {
-        return new DeploymentProposalBuilder();
+    public static InstantiateProposalBuilder newBuilder() {
+        return new InstantiateProposalBuilder();
 
 
     }
 
 
-    public DeploymentProposalBuilder chaincodePath(String chaincodePath) {
+    public InstantiateProposalBuilder chaincodePath(String chaincodePath) {
 
         this.chaincodePath = chaincodePath;
 
@@ -69,7 +68,7 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
 
     }
 
-    public DeploymentProposalBuilder chaincodeName(String chaincodeName) {
+    public InstantiateProposalBuilder chaincodeName(String chaincodeName) {
 
         this.chaincodeName = chaincodeName;
 
@@ -77,16 +76,11 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
 
     }
 
-    public DeploymentProposalBuilder argss(List<String> argList) {
+    public InstantiateProposalBuilder argss(List<String> argList) {
         this.argList = argList;
         return this;
     }
 
-    public DeploymentProposalBuilder setChaincodeSource(String chaincodeSource) {
-        this.chaincodeSource = chaincodeSource;
-
-        return this;
-    }
 
     @Override
     public FabricProposal.Proposal build() throws Exception {
@@ -174,39 +168,18 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
         String dockerFilePath = null;
         //    String targzFilePath = null;
         ChaincodeDeploymentSpec depspec = null;
-        String dockerFileContents = getDockerFileContents(chaincodeLanguage);
-        try {
-            if (dockerFileContents != null) {
 
+        List<String > modlist = new LinkedList();
+        modlist.add("init");
+        modlist.addAll(argList);
 
-                dockerFileContents = String.format(dockerFileContents, chaincodeName);
-
-                // Create a Docker file with dockerFileContents
-                dockerFilePath = SDKUtil.combinePaths(projDir, "Dockerfile");
-                Files.write(dockerFileContents.getBytes(), new File(dockerFilePath));
-
-                logger.debug(String.format("Created Dockerfile at [%s]", dockerFilePath));
-            }
-
-
-            byte[] data = SDKUtil.generateTarGz(projDir, pathPrefix);
-
-
-            depspec = createDeploymentSpec(ccType,
-                    chaincodeName, chaincodePath, chaincodeVersion, data);
-        } finally {
-            // Clean up temporary files
-//            if (targzFilePath != null)
-//                SDKUtil.deleteFileOrDirectory(new File(targzFilePath));
-            if (dockerFilePath != null)
-                SDKUtil.deleteFileOrDirectory(new File(dockerFilePath));
-        }
+        depspec = createDeploymentSpec(ccType,
+                chaincodeName, chaincodePath, chaincodeVersion, modlist, null);
 
 
         List<ByteString> argList = new ArrayList<>();
-//        argList.add(ByteString.copyFrom("deploy", StandardCharsets.UTF_8));
-//        argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
-        argList.add(ByteString.copyFrom("install", StandardCharsets.UTF_8));
+        argList.add(ByteString.copyFrom("deploy", StandardCharsets.UTF_8));
+        argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
         argList.add(depspec.toByteString());
 
         ChaincodeID lcccID = ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
@@ -223,7 +196,7 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
 
 
         ChaincodeDeploymentSpec depspec = createDeploymentSpec(Type.GOLANG,
-                chaincodeName, null, null, null);
+                chaincodeName, chaincodePath, chaincodeVersion , argList, null);
 
         ChaincodeID lcccID = ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
 
@@ -241,24 +214,31 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
     }
 
 
-    private ChaincodeDeploymentSpec createDeploymentSpec(Type ccType, String name, String chaincodePath, String chaincodeVersion,  byte[] codePackage) {
+    private ChaincodeDeploymentSpec createDeploymentSpec(Type ccType, String name, String chaincodePath,
+                                                         String chainCodeVersion, List<String> args,
+                                                         byte[] codePackage) {
         logger.trace("Creating deployment Specification.");
 
-        ChaincodeID.Builder chaincodeIDBuilder = ChaincodeID.newBuilder().setName(name);
+        ChaincodeID.Builder chaincodeIDBuilder = ChaincodeID.newBuilder().setName(name).setVersion(chainCodeVersion);
         if (chaincodePath != null) {
             chaincodeIDBuilder = chaincodeIDBuilder.setPath(chaincodePath);
         }
 
-        chaincodeIDBuilder.setVersion(chaincodeVersion);
-
         ChaincodeID chaincodeID = chaincodeIDBuilder.build();
 
         // build chaincodeInput
-        List<ByteString> argList = new ArrayList<>(1);
-        argList.add(ByteString.copyFrom("init", StandardCharsets.UTF_8));
-//        for (String arg : args) {
-//            argList.add(ByteString.copyFrom(arg.getBytes()));
-//        }
+        List<ByteString> argList = new ArrayList<>(args.size());
+        if (args != null && args.size() != 0) {
+
+            for (String arg : args) {
+                argList.add(ByteString.copyFrom(arg.getBytes()));
+            }
+
+        }
+
+        //  argList.add(ByteString.copyFrom("init", StandardCharsets.UTF_8));
+
+
         ChaincodeInput chaincodeInput = ChaincodeInput.newBuilder().addAllArgs(argList).build();
 
         // Construct the ChaincodeSpec
@@ -270,7 +250,12 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
         ChaincodeDeploymentSpec.Builder chaincodeDeploymentSpecBuilder = ChaincodeDeploymentSpec
                 .newBuilder().setChaincodeSpec(chaincodeSpec).setEffectiveDate(context.getFabricTimestamp())
                 .setExecEnv(ChaincodeDeploymentSpec.ExecutionEnvironment.DOCKER);
-        chaincodeDeploymentSpecBuilder.setCodePackage(ByteString.copyFrom(codePackage));
+
+
+        if (codePackage != null) {
+            chaincodeDeploymentSpecBuilder.setCodePackage(ByteString.copyFrom(codePackage));
+
+        }
 
         return chaincodeDeploymentSpecBuilder.build();
 
@@ -291,7 +276,6 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
     public void setChaincodeLanguage(TransactionRequest.Type chaincodeLanguage) {
         this.chaincodeLanguage = chaincodeLanguage;
     }
-
 
     public void chaincodeVersion(String chaincodeVersion) {
         this.chaincodeVersion = chaincodeVersion;

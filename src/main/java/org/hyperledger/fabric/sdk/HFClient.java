@@ -82,6 +82,10 @@ public class HFClient {
         return new DeploymentProposalRequest();
     }
 
+    public InstantiateProposalRequest newInstantiationProposalRequest() {
+        return new InstantiateProposalRequest();
+    }
+
     public InvokeProposalRequest newInvokeProposalRequest() {
         return InvokeProposalRequest.newInstance();
     }

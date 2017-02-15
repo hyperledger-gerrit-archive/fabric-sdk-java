@@ -122,10 +122,10 @@ public class ProposalResponse extends ChainCodeResponse {
             Chaincode.ChaincodeInvocationSpec ccis = Chaincode.ChaincodeInvocationSpec.parseFrom(ppl.getInput());
             Chaincode.ChaincodeSpec scs = ccis.getChaincodeSpec();
             Chaincode.ChaincodeInput cci = scs.getInput();
-            ByteString deps = cci.getArgs(2);
+            ByteString deps = cci.getArgs(1);
             Chaincode.ChaincodeDeploymentSpec chaincodeDeploymentSpec = Chaincode.ChaincodeDeploymentSpec
                             .parseFrom(deps.toByteArray());
-            chaincodeID = chaincodeDeploymentSpec.getChaincodeSpec().getChaincodeID();
+            chaincodeID = chaincodeDeploymentSpec.getChaincodeSpec().getChaincodeId();
         } catch (InvalidProtocolBufferException e) {
             e.printStackTrace();
         }

@@ -31,6 +31,8 @@ public class End2endIT {
 
     static final String CHAIN_CODE_NAME = "example_cc.go";
     static final String CHAIN_CODE_PATH = "github.com/example_cc";
+    static final String CHAIN_CODE_VERSION = "1.0";
+
 
     static final String CHAIN_NAME = "testchainid";
 
@@ -82,14 +84,15 @@ public class End2endIT {
             //Deploy Proposal Request
             //
 
-            out("Creating deployment proposal");
+            out("Creating install proposal");
 
             DeploymentProposalRequest deploymentProposalRequest = client.newDeploymentProposalRequest();
             deploymentProposalRequest.setChaincodeName(CHAIN_CODE_NAME);
             deploymentProposalRequest.setChaincodePath(CHAIN_CODE_PATH);
-            deploymentProposalRequest.setFcn("init");
-            deploymentProposalRequest.setArgs(new String[]{"a", "100", "b", "200"});
-            out("Deploying chain code with a and b set to 100 and 200 respectively");
+            deploymentProposalRequest.setChaincodeVersion(CHAIN_CODE_VERSION);
+//            deploymentProposalRequest.setFcn("init");
+//            deploymentProposalRequest.setArgs(new String[]{"a", "100", "b", "200"});
+//            out("Deploying chain code with a and b set to 100 and 200 respectively");
 
 
             Collection<ProposalResponse> responses = chain.sendDeploymentProposal(deploymentProposalRequest, peers);
@@ -125,13 +128,54 @@ public class End2endIT {
             }
             ProposalResponse firstDeployProposalResponse = successful.iterator().next();
             final ChainCodeID chainCodeID = firstDeployProposalResponse.getChainCodeID();
+            //Note install chain code does not require transaction no need to send to Orderers
+
+
+            //// Instantiate chain code.
+
+
+            InstantiateProposalRequest instantiateProposalRequest = client.newInstantiationProposalRequest();
+
+
+            instantiateProposalRequest.setChaincodeID(chainCodeID);
+            instantiateProposalRequest.setFcn("init");
+            instantiateProposalRequest.setArgs(new String[]{"a", "100", "b", "200"});
+            out("Sending instantiateProposalRequest code with a and b set to 100 and 200 respectively");
+
+            responses = chain.sendInstantiationProposal(instantiateProposalRequest, peers);
+
+            successful.clear();
+            failed.clear();
+
+            for (ProposalResponse response : responses) {
+                if (response.isVerified() && response.getStatus() == ProposalResponse.Status.SUCCESS) {
+                    successful.add(response);
+
+                } else {
+                    failed.add(response);
+                }
+
+            }
+            out("Received %d instantiate proposal responses. Successful+verified: %d . Failed: %d", responses.size(), successful.size(), failed.size());
+
+            if (successful.size() < 1) {  //choose this as an arbitrary limit right now.
+
+                if (failed.size() == 0) {
+                    throw new Exception("No endorsers found ");
+
+                }
+                ProposalResponse first = failed.iterator().next();
+
+                throw new Exception("Not enough endorsers :" + successful.size() + ".  " + first.getMessage());
+            }
+
 
 
             chain.sendTransaction(successful, orderers).thenApply(block -> {
 
                 try {
 
-                    out("Successfully completed chaincode deployment.");
+                    out("Successfully completed chaincode instantiation.");
 
                     out("Creating invoke proposal");
 
@@ -156,7 +200,7 @@ public class End2endIT {
                         }
 
                     }
-                    out("Received %d invoke proposal responses. Successful+verified: %d . Failed: %d", responses.size(), successful.size(), failed.size());
+                    out("Received %d invoke proposal responses. Successful+verified: %d . Failed: %d", invokePropResp.size(), successful.size(), failed.size());
 
 
                     if (successful.size() < 1) {  //choose this as an arbitrary limit right now.

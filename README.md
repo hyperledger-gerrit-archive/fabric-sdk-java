@@ -29,10 +29,12 @@ To run the End-to-End tests, please use <code>mvn failsafe:integration-test -Dsk
 Hyperledger Fabric v1.0 is currently under active development and the very latest Hyperledger Fabric builds may not work with this sdk.
 You should use the following commit levels of the Hyperledger projects:
 
+[comment]: <> (*******   THE LEVELS HERE NEED TO MATCH THE FILE src/test/fabric_test_level.sh ******)
+
 | Project        | Commit level                               | Date        |
 |:---------------|:------------------------------------------:|------------:|
-| fabric         | 5d9e4ede298ab646ac918dc5b034c7d319dd1d9a   | Jan 30 2017 |
-| fabric-ca      | bf8fb4d5e497217cd6125025830aa6870de442aa   | Jan 27 2017 |
+| fabric         | 7559dd9d727669cc95eb0334848c7196fe4fb161   | Feb 16 2017 |
+| fabric-ca      | c4e83c10292d53fa0f1a1688899a594fe4ece26b   | Jan 27 2017 |
  
  
  
