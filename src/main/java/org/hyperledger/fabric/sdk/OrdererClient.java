@@ -22,6 +22,7 @@ import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.orderer.Ab;
 import org.hyperledger.fabric.protos.orderer.AtomicBroadcastGrpc;
+import org.hyperledger.fabric.sdk.exception.SendTransactionException;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -62,7 +63,7 @@ public class OrdererClient {
     }
 
 
-    public Ab.BroadcastResponse sendTransaction(Common.Envelope envelope) {
+    public Ab.BroadcastResponse sendTransaction(Common.Envelope envelope) throws Exception {
 
         final CountDownLatch finishLatch = new CountDownLatch(1);
         AtomicBroadcastGrpc.AtomicBroadcastStub broadcast = AtomicBroadcastGrpc.newStub(channel);
@@ -70,6 +71,7 @@ public class OrdererClient {
         bsc.withDeadlineAfter(2, TimeUnit.MINUTES);
 
         final Ab.BroadcastResponse[] ret = new Ab.BroadcastResponse[1];
+        final Throwable[] throwable = new Throwable[]{null};
 
         StreamObserver<Ab.BroadcastResponse> so = new StreamObserver<Ab.BroadcastResponse>() {
             @Override
@@ -85,7 +87,9 @@ public class OrdererClient {
             @Override
             public void onError(Throwable t) {
 
-                logger.error("broadcase error " + t);
+
+
+                throwable[0] = t;
 
                 finishLatch.countDown();
             }
@@ -108,10 +112,19 @@ public class OrdererClient {
 
         try {
             finishLatch.await(2, TimeUnit.MINUTES);
+            if( throwable[0] != null){
+                //get full stack trace
+                SendTransactionException ste = new SendTransactionException("Send transactions failed. Reason: " + throwable[0].getMessage(), throwable[0]);
+                logger.error("sendTransaction error " + ste.getMessage(), ste);
+                throw  ste;
+            }
             logger.debug("Done waiting for reply! Got:" + ret[0]);
 
         } catch (InterruptedException e) {
-            e.printStackTrace();
+
+            logger.error(e);
+
+
         }
 
         return ret[0];

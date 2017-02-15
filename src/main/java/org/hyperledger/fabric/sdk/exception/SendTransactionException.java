@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 DTCC, Fujitsu Australia Software Technology - All Rights Reserved.
+ *  Copyright 2016 DTCC, Fujitsu Australia Software Technology, IBM - All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,15 +14,10 @@
 
 package org.hyperledger.fabric.sdk.exception;
 
-public class BaseException extends Exception {
+public class SendTransactionException extends BaseException {
 
-    private static final long serialVersionUID = 1L;
-
-    public BaseException(String message, Throwable parent) {
-        super(message, parent);
-    }
-
-    public BaseException(String message) {
-        super(message);
-    }
+	private static final long serialVersionUID = 1L;
+	public SendTransactionException(String message, Throwable parent) {
+		super(message, parent);		
+	}
 }

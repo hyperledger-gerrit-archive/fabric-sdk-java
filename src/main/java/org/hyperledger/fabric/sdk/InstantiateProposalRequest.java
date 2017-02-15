@@ -12,17 +12,10 @@
  *  limitations under the License.
  */
 
-package org.hyperledger.fabric.sdk.exception;
+package org.hyperledger.fabric.sdk;
 
-public class BaseException extends Exception {
-
-    private static final long serialVersionUID = 1L;
-
-    public BaseException(String message, Throwable parent) {
-        super(message, parent);
-    }
-
-    public BaseException(String message) {
-        super(message);
-    }
+/**
+ * Deploy request.
+ */
+public class InstantiateProposalRequest extends TransactionRequest {
 }
