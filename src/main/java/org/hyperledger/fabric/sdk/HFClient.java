@@ -78,8 +78,12 @@ public class HFClient {
         return chains.get(name);
     }
 
-    public DeploymentProposalRequest newDeploymentProposalRequest() {
-        return new DeploymentProposalRequest();
+    public InstallProposalRequest newInstallProposalRequest() {
+        return new InstallProposalRequest();
+    }
+
+    public InstantiateProposalRequest newInstantiationProposalRequest() {
+        return new InstantiateProposalRequest();
     }
 
     public InvokeProposalRequest newInvokeProposalRequest() {

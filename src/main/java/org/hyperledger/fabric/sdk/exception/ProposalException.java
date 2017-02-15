@@ -14,15 +14,15 @@
 
 package org.hyperledger.fabric.sdk.exception;
 
-public class DeploymentException extends RuntimeException {
+public class ProposalException extends BaseException {
 
     private static final long serialVersionUID = 1L;
 
-    public DeploymentException(String message, Exception parent) {
+    public ProposalException(String message, Exception parent) {
         super(message, parent);
     }
 
-    public DeploymentException(String message) {
+    public ProposalException(String message) {
         super(message);
     }
 }

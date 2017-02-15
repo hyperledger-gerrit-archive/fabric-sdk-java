@@ -93,7 +93,7 @@ public class Orderer {
      * @param transaction transaction to be sent
      */
 
-    public Ab.BroadcastResponse sendTransaction(Common.Envelope transaction) {
+    public Ab.BroadcastResponse sendTransaction(Common.Envelope transaction) throws Exception {
 
         OrdererClient orderClient = new OrdererClient(new Endpoint(url, pem).getChannelBuilder());
         return orderClient.sendTransaction(transaction);

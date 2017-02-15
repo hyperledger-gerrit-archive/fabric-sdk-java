@@ -90,10 +90,11 @@ public class TransactionBuilder {
         chaincodeProposalPayloadNoTransBuilder.mergeFrom(chaincodeProposal.getPayload());
         chaincodeProposalPayloadNoTransBuilder.clearTransient();
 
-        byte[] bhash = hash.apply(chaincodeProposalPayloadNoTransBuilder.build().toByteArray());
+     //   byte[] bhash = hash.apply(chaincodeProposalPayloadNoTransBuilder.build().toByteArray());
 
 
-        chaincodeActionPayloadBuilder.setChaincodeProposalPayload(ByteString.copyFrom(bhash));
+        //chaincodeActionPayloadBuilder.setChaincodeProposalPayload(ByteString.copyFrom(bhash));
+        chaincodeActionPayloadBuilder.setChaincodeProposalPayload(chaincodeProposalPayloadNoTransBuilder.build().toByteString());
 
         //TransactionAction
         // --Header

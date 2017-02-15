@@ -8,7 +8,7 @@ import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
-import org.hyperledger.fabric.sdk.exception.DeploymentException;
+import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 
 import com.google.protobuf.ByteString;
@@ -83,13 +83,13 @@ public class ProposalResponse extends ChainCodeResponse {
 
     FabricProposalResponse.ProposalResponse proposalResponse;
 
-    public void setProposal(FabricProposal.SignedProposal signedProposal) {
+    public void setProposal(FabricProposal.SignedProposal signedProposal) throws ProposalException {
 
         try {
             this.signedProposal = signedProposal;
             this.proposal = FabricProposal.Proposal.parseFrom(signedProposal.getProposalBytes());
         } catch (InvalidProtocolBufferException e) {
-            throw new DeploymentException("Proposal exception", e);
+            throw new ProposalException("Proposal exception", e);
 
         }
     }
@@ -122,10 +122,10 @@ public class ProposalResponse extends ChainCodeResponse {
             Chaincode.ChaincodeInvocationSpec ccis = Chaincode.ChaincodeInvocationSpec.parseFrom(ppl.getInput());
             Chaincode.ChaincodeSpec scs = ccis.getChaincodeSpec();
             Chaincode.ChaincodeInput cci = scs.getInput();
-            ByteString deps = cci.getArgs(2);
+            ByteString deps = cci.getArgs(1);
             Chaincode.ChaincodeDeploymentSpec chaincodeDeploymentSpec = Chaincode.ChaincodeDeploymentSpec
                             .parseFrom(deps.toByteArray());
-            chaincodeID = chaincodeDeploymentSpec.getChaincodeSpec().getChaincodeID();
+            chaincodeID = chaincodeDeploymentSpec.getChaincodeSpec().getChaincodeId();
         } catch (InvalidProtocolBufferException e) {
             e.printStackTrace();
         }

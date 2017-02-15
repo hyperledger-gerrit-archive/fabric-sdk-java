@@ -360,7 +360,7 @@ public class User implements Serializable {
     }
 
 
-    //    public List<ProposalResponse> sendDeploymentProposal(DeploymentProposalRequest deploymentProposalRequest) {
+    //    public List<ProposalResponse> sendDeploymentProposal(InstallProposalRequest deploymentProposalRequest) {
 //        ChainCodeResponse ret = null;
 //
 //        TransactionContext tcxt = this.newTransactionContext(null);
@@ -370,11 +370,11 @@ public class User implements Serializable {
 //    /**
 //     * Issue a deploy request on behalf of this user
 //     *
-//     * @param deploymentProposalRequest {@link DeploymentProposalRequest}
+//     * @param deploymentProposalRequest {@link InstallProposalRequest}
 //     * @return {@link ChainCodeResponse} response to chain code deploy transaction
-//     * @throws DeploymentException if the deployment fails.
+//     * @throws ProposalException if the deployment fails.
 //     */
-//    public ChainCodeResponse deploy(DeploymentProposalRequest deploymentProposalRequest) throws DeploymentException {
+//    public ChainCodeResponse deploy(InstallProposalRequest deploymentProposalRequest) throws ProposalException {
 //        logger.debug("User.deploy");
 //
 //        if (getChain().getPeers().isEmpty()) {

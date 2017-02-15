@@ -20,32 +20,34 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
- * A base transaction request common for DeploymentProposalRequest, InvokeRequest, and QueryRequest.
+ * A base transaction request common for InstallProposalRequest, InvokeRequest, and QueryRequest.
  */
 public class TransactionRequest {
 
 	private final Config config = Config.getConfig();
 
 	// The local path containing the chaincode to deploy in network mode.
-	private String chaincodePath;
+	protected String chaincodePath;
 	// The name identifier for the chaincode to deploy in development mode.
-	private String chaincodeName;
+	protected String chaincodeName;
+
+
+	// The version of the chainCode
+	protected String chaincodeVersion;
 	// The chaincode ID as provided by the 'submitted' event emitted by a TransactionContext
 	private ChainCodeID chaincodeID;
+
+
 	// The name of the function to invoke
-	private String fcn;
+	protected String fcn;
 	// The arguments to pass to the chaincode invocation
-	private ArrayList<String> args;
-	// Specify whether the transaction is confidential or not.  The default value is false.
-	private boolean confidential = false;
+	protected ArrayList<String> args;
 	// Optionally provide a user certificate which can be used by chaincode to perform access control
 	private Certificate userCert;
-	// Optionally provide additional metadata
-	private byte[] metadata;
 	// Chaincode language
-	private Type chaincodeLanguage = Type.GO_LANG;
+	protected Type chaincodeLanguage = Type.GO_LANG;
 	// The timeout for a single proposal request to endorser in milliseconds
-	private long proposalWaitTime = config.getProposalWaitTime();
+	protected long proposalWaitTime = config.getProposalWaitTime();
 
 
 	public String getChaincodePath() {
@@ -59,15 +61,27 @@ public class TransactionRequest {
 	public String getChaincodeName() {
 		return chaincodeName;
 	}
+
 	public TransactionRequest setChaincodeName(String chaincodeName) {
 		this.chaincodeName = chaincodeName;
 		return this;
 	}
+	public TransactionRequest setChaincodeVersion(String chaincodeVersion) {
+		this.chaincodeVersion = chaincodeVersion;
+		return this;
+	}
+	public String getChaincodeVersion() {
+		return chaincodeVersion;
+	}
+
 	public ChainCodeID getChaincodeID() {
 		return chaincodeID;
 	}
 	public void setChaincodeID(ChainCodeID chaincodeID) {
 		this.chaincodeID = chaincodeID;
+		this.chaincodeName =chaincodeID.getName();
+		this.chaincodePath = chaincodeID.getPath();
+		this.chaincodeVersion = chaincodeID.getVersion();
 	}
 	public String getFcn() {
 		return fcn;
@@ -89,27 +103,16 @@ public class TransactionRequest {
 		this.args = args;
 		return this;
 	}
-	public boolean isConfidential() {
-		return confidential;
-	}
-	public void setConfidential(boolean confidential) {
-		this.confidential = confidential;
-	}
 	public Certificate getUserCert() {
 		return userCert;
 	}
 	public void setUserCert(Certificate userCert) {
 		this.userCert = userCert;
 	}
-	public byte[] getMetadata() {
-		return metadata;
-	}
-	public void setMetadata(byte[] metadata) {
-		this.metadata = metadata;
-	}
 
 
-	//Mirror Fabric try not expose and of it's classes
+
+    //Mirror Fabric try not expose and of it's classes
 	public enum Type{
 		JAVA,
 		GO_LANG
