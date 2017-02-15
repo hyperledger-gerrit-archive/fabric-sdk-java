@@ -14,38 +14,27 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import com.google.protobuf.ByteString;
+import java.util.Arrays;
+import java.util.Collection;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
-//import org.hyperledger.fabric.protos.peer.FabricTransaction;
-//import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.protos.peer.FabricTransaction;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.function.Function;
 
 public class TransactionBuilder {
 
-    private Log logger = LogFactory.getLog(TransactionBuilder.class);
+    private final static Log logger = LogFactory.getLog(TransactionBuilder.class);
     private FabricProposal.Proposal chaincodeProposal;
     private Collection<FabricProposalResponse.Endorsement> endorsements;
-    private FabricProposal.ChaincodeProposalPayload proposalResponcePayload;
-    private Function<byte[], byte[]> hash;
-
+    private FabricProposal.ChaincodeProposalPayload proposalResponsePayload;
 
     public static TransactionBuilder newBuilder() {
         return new TransactionBuilder();
-    }
-
-
-    public TransactionBuilder hash(Function<byte[], byte[]> hash) {
-        this.hash = hash;
-        return this;
     }
 
     public TransactionBuilder chaincodeProposal(FabricProposal.Proposal chaincodeProposal) {
@@ -58,27 +47,25 @@ public class TransactionBuilder {
         return this;
     }
 
-    public TransactionBuilder proposalResponcePayload(FabricProposal.ChaincodeProposalPayload proposalResponcePayload) {
-        this.proposalResponcePayload = proposalResponcePayload;
+    public TransactionBuilder proposalResponsePayload(FabricProposal.ChaincodeProposalPayload proposalResponsePayload) {
+        this.proposalResponsePayload = proposalResponsePayload;
         return this;
     }
 
 
     public Common.Payload build() throws InvalidProtocolBufferException {
 
-        return createTransactionCommonPayload(chaincodeProposal, proposalResponcePayload, endorsements);
+        return createTransactionCommonPayload(chaincodeProposal, proposalResponsePayload, endorsements);
 
     }
 
 
-    private Common.Payload createTransactionCommonPayload(FabricProposal.Proposal chaincodeProposal, FabricProposal.ChaincodeProposalPayload proposalResponcePayload,
+    private Common.Payload createTransactionCommonPayload(FabricProposal.Proposal chaincodeProposal, FabricProposal.ChaincodeProposalPayload proposalResponsePayload,
                                                           Collection<FabricProposalResponse.Endorsement> endorsements) throws InvalidProtocolBufferException {
 
-        //ChaincodeEndorsedAction
-        // -- proposalResponcePayload
-        // -- Endorsemens
+
         FabricTransaction.ChaincodeEndorsedAction.Builder chaincodeEndorsedActionBuilder = FabricTransaction.ChaincodeEndorsedAction.newBuilder();
-        chaincodeEndorsedActionBuilder.setProposalResponsePayload(proposalResponcePayload.toByteString());
+        chaincodeEndorsedActionBuilder.setProposalResponsePayload(proposalResponsePayload.toByteString());
         chaincodeEndorsedActionBuilder.addAllEndorsements(endorsements);
 
         //ChaincodeActionPayload
@@ -90,14 +77,8 @@ public class TransactionBuilder {
         chaincodeProposalPayloadNoTransBuilder.mergeFrom(chaincodeProposal.getPayload());
         chaincodeProposalPayloadNoTransBuilder.clearTransient();
 
-        byte[] bhash = hash.apply(chaincodeProposalPayloadNoTransBuilder.build().toByteArray());
+        chaincodeActionPayloadBuilder.setChaincodeProposalPayload(chaincodeProposalPayloadNoTransBuilder.build().toByteString());
 
-
-        chaincodeActionPayloadBuilder.setChaincodeProposalPayload(ByteString.copyFrom(bhash));
-
-        //TransactionAction
-        // --Header
-        // --payload (chaincodeActionPayload)
         FabricTransaction.TransactionAction.Builder transactionActionBuilder = FabricTransaction.TransactionAction.newBuilder();
 
         Common.Header header = Common.Header.parseFrom(chaincodeProposal.getHeader());
@@ -116,9 +97,6 @@ public class TransactionBuilder {
         transactionBuilder.addActions(transactionActionBuilder.build());
 
 
-        //Build message Payload
-        // --Header
-        // --Data (transaction)
         Common.Payload.Builder payload = Common.Payload.newBuilder();
         payload.setHeader(header);
         payload.setData(transactionBuilder.build().toByteString());
