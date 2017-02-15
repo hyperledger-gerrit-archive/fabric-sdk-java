@@ -1,5 +1,5 @@
-#!/bin/bash
-# Please change below commits if you feel end-to-end works
-
-export FABRIC_COMMIT=5d9e4ede298ab646ac918dc5b034c7d319dd1d9a
-export FABRIC_CA_COMMIT=bf8fb4d5e497217cd6125025830aa6870de442aa
+#!/usr/bin/env bash
+#file used for automatic integration build test
+#This should always match what's in the README.md
+export FABRIC_COMMIT=9a0aedb1055184631170d400b854e8225607e1a7
+export FABRIC_CA_COMMIT=c4e83c10292d53fa0f1a1688899a594fe4ece26b
