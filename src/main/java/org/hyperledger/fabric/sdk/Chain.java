@@ -31,6 +31,7 @@ import org.hyperledger.fabric.protos.common.Configuration.ConfigurationItem.Conf
 import org.hyperledger.fabric.protos.common.Configuration.SignedConfigurationItem;
 import org.hyperledger.fabric.protos.orderer.Ab.BroadcastResponse;
 import org.hyperledger.fabric.protos.peer.Chaincode;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.protos.peer.PeerEvents.Event.EventCase;
@@ -692,9 +693,18 @@ public class Chain {
         for (String arg : queryProposalRequest.getArgs()) {
             argList.add(ByteString.copyFrom(arg.getBytes()));
         }
-
         proposalBuilder.args(argList);
-        proposalBuilder.chaincodeID(queryProposalRequest.getChaincodeID().getFabricChainCodeID());
+
+        if(queryProposalRequest.getChaincodeID() != null) {
+            proposalBuilder.chaincodeID(queryProposalRequest.getChaincodeID().getFabricChainCodeID());
+        } else {
+            proposalBuilder.chaincodeID(ChaincodeID.newBuilder()
+                    .setName(queryProposalRequest.getChaincodeName())
+                    .setPath(queryProposalRequest.getChaincodePath())
+                    .build()
+            );
+        }
+
         proposalBuilder.ccType(queryProposalRequest.getChaincodeLanguage() == TransactionRequest.Type.JAVA ?
                 Chaincode.ChaincodeSpec.Type.JAVA : Chaincode.ChaincodeSpec.Type.GOLANG);
 

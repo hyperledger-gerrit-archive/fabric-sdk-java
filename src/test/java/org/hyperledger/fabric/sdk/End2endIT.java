@@ -123,9 +123,6 @@ public class End2endIT {
 
                 throw new Exception("Not enough endorsers :" + successful.size() + ".  " + first.getMessage());
             }
-            ProposalResponse firstDeployProposalResponse = successful.iterator().next();
-            final ChainCodeID chainCodeID = firstDeployProposalResponse.getChainCodeID();
-
 
             chain.sendTransaction(successful, orderers).thenApply(block -> {
 
@@ -136,8 +133,8 @@ public class End2endIT {
                     out("Creating invoke proposal");
 
                     InvokeProposalRequest invokeProposalRequest = client.newInvokeProposalRequest();
-
-                    invokeProposalRequest.setChaincodeID(chainCodeID);
+                    invokeProposalRequest.setChaincodeName(CHAIN_CODE_NAME);
+                    invokeProposalRequest.setChaincodePath(CHAIN_CODE_PATH);
                     invokeProposalRequest.setFcn("invoke");
                     invokeProposalRequest.setArgs(new String[]{"move", "a", "b", "100"});
 
@@ -208,7 +205,8 @@ public class End2endIT {
 
                     queryProposalRequest.setArgs(new String[]{"query", "b"});
                     queryProposalRequest.setFcn("invoke");
-                    queryProposalRequest.setChaincodeID(chainCodeID);
+                    queryProposalRequest.setChaincodeName(CHAIN_CODE_NAME);
+                    queryProposalRequest.setChaincodePath(CHAIN_CODE_PATH);
 
 
                     Collection<ProposalResponse> queryProposals = chain.sendQueryProposal(queryProposalRequest, peers);
