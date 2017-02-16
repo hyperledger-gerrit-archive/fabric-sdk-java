@@ -17,5 +17,42 @@ package org.hyperledger.fabric.sdk;
 /**
  * Deploy request.
  */
-public class DeploymentProposalRequest extends TransactionRequest {
+public class DeploymentProposalRequest extends TransactionRequest<DeploymentProposalRequest> {
+	
+	/* chaincode will be deployed using this name */
+	private String chaincodeName;
+	
+	/* url to chaincode bytes */
+	private String chaincodePath;
+
+	public String getChaincodeName() {
+		return chaincodeName;
+	}
+	
+	public String getChaincodePath() {
+		return chaincodePath;
+	}
+	
+	/** sets the url to the bytes of the chaincode to be deployed */
+	public DeploymentProposalRequest setChaincodeName(String chaincodeName) {
+		this.chaincodeName = chaincodeName;
+		return getThis();
+	}
+	
+	/** set the name that will be given to the chain code once instanciated */
+	public DeploymentProposalRequest setChaincodePath(String chaincodePath) {
+		this.chaincodePath = chaincodePath;
+		return getThis();
+	}
+	
+	@Override
+	public void setChaincodeID(ChainCodeID chaincodeID) {
+		throw new UnsupportedOperationException("chaincode id of deploy transaction request is not supported");
+	}
+		
+	@Override
+	protected DeploymentProposalRequest getThis() {
+		return this;
+	}
+	
 }

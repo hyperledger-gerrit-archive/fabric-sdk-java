@@ -14,22 +14,25 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import com.google.common.io.Files;
-import com.google.protobuf.ByteString;
-import io.netty.util.internal.StringUtil;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.protos.peer.Chaincode;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.sdk.TransactionRequest;
-import org.hyperledger.fabric.sdk.exception.DeploymentException;
-import org.hyperledger.fabric.sdk.helper.SDKUtil;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.peer.Chaincode;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
+import org.hyperledger.fabric.protos.peer.FabricProposal;
+import org.hyperledger.fabric.sdk.TransactionRequest;
+import org.hyperledger.fabric.sdk.exception.DeploymentException;
+import org.hyperledger.fabric.sdk.helper.SDKUtil;
+
+import com.google.common.io.Files;
+import com.google.protobuf.ByteString;
+
+import io.netty.util.internal.StringUtil;
 
 
 public class DeploymentProposalBuilder extends ProposalBuilder {
@@ -41,8 +44,10 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
     private List<String> argList;
     private TransactionRequest.Type chaincodeLanguage;
 
+	private static final String LCCC_CHAINCODE_ID_NAME = "lccc";
+	
     private DeploymentProposalBuilder() {
-        super();
+    	super.chaincodeID(ChaincodeID.newBuilder().setName(LCCC_CHAINCODE_ID_NAME).build());
     }
 
     public static DeploymentProposalBuilder newBuilder() {
@@ -80,9 +85,6 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
         return super.build();
     }
 
-    private static String LCCC_CHAIN_NAME = "lccc";
-
-
     public void constructDeploymentProposal() {
 
 
@@ -102,7 +104,7 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
 
     private void createNetModeTransaction() throws Exception {
         logger.debug("newNetModeTransaction");
-
+        
         // Verify that chaincodePath is being passed
         if (StringUtil.isNullOrEmpty(chaincodePath)) {
             throw new IllegalArgumentException("[NetMode] Missing chaincodePath in DeployRequest");
@@ -178,10 +180,7 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
         argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
         argList.add(depspec.toByteString());
 
-        Chaincode.ChaincodeID lcccID = Chaincode.ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
-
         super.args(argList);
-        super.chaincodeID(lcccID);
         super.ccType(ccType);
 
     }
@@ -194,8 +193,6 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
         Chaincode.ChaincodeDeploymentSpec depspec = createDeploymentSpec(Chaincode.ChaincodeSpec.Type.GOLANG,
                 chaincodeName, argList, null, null);
 
-        Chaincode.ChaincodeID lcccID = Chaincode.ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
-
         List<ByteString> argList = new ArrayList<>();
         argList.add(ByteString.copyFrom("deploy", StandardCharsets.UTF_8));
         argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
@@ -203,7 +200,6 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
 
 
         super.args(argList);
-        super.chaincodeID(lcccID);
 
 
     }
