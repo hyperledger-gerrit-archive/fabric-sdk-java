@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * Invoke or query request.
  */
-public class InvokeOrQueryRequest extends TransactionRequest {
+public class InvokeOrQueryRequest extends TransactionRequest<InvokeOrQueryRequest> {
     // Optionally pass a list of attributes which can be used by chaincode to perform access control
     private List<String> attributes;
 
@@ -35,5 +35,10 @@ public class InvokeOrQueryRequest extends TransactionRequest {
 	 */
 	public void setAttributes(List<String> attributes) {
 		this.attributes = attributes;
+	}
+	
+	@Override
+	protected InvokeOrQueryRequest getThis() {
+		return this;
 	}
 }

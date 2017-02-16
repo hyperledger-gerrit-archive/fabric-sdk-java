@@ -102,7 +102,7 @@ public class DeploymentProposalBuilder extends ProposalBuilder {
 
     private void createNetModeTransaction() throws Exception {
         logger.debug("newNetModeTransaction");
-
+        
         // Verify that chaincodePath is being passed
         if (StringUtil.isNullOrEmpty(chaincodePath)) {
             throw new IllegalArgumentException("[NetMode] Missing chaincodePath in DeployRequest");

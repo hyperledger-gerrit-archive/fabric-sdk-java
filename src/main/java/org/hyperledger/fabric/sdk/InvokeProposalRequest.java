@@ -16,57 +16,17 @@ package org.hyperledger.fabric.sdk;
 
 
 
-public class InvokeProposalRequest extends TransactionRequest{
+public class InvokeProposalRequest extends TransactionRequest<InvokeProposalRequest>{
     private InvokeProposalRequest(){
-
     }
+    
     public static InvokeProposalRequest newInstance() {
         return new InvokeProposalRequest();
-
-
+    }
+    
+    @Override
+    protected InvokeProposalRequest getThis() {
+    	return this;
     }
 
-//    Chaincode.ChaincodeID chaincodeId;
-//    String fcn;
-//    String[] args;
-//
-//    public Chaincode.ChaincodeID getChaincodeId() {
-//        return chaincodeId;
-//    }
-//
-//    public String getFcn() {
-//        return fcn;
-//    }
-//
-//    public String[] getArgs() {
-//        return args;
-//    }
-//
-//    public void setChaincodeId(Chaincode.ChaincodeID chaincodeId) {
-//        this.chaincodeId = chaincodeId;
-//    }
-//
-//    public void setFcn(String fcn) {
-//        this.fcn = fcn;
-//    }
-//
-//    public void setArgs(String[] args) {
-//        this.args = args;
-//    }
-//
-//    public static InvokeProposalRequest newInstance(){
-//        return new InvokeProposalRequest();
-//    }
-//
-
-
-
-    /*
-    var request = {
-				target: hfc.getPeer('grpc://localhost:7051'),
-				chaincodeId : chaincode_id,
-				fcn: 'invoke',
-				args: ['move', 'a', 'b','100']
-			};
-     */
 }
