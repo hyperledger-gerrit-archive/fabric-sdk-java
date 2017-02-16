@@ -14,10 +14,10 @@
 
 package org.hyperledger.fabric.sdk;
 
-import org.hyperledger.fabric.sdk.helper.Config;
-
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import org.hyperledger.fabric.sdk.helper.Config;
 
 /**
  * A base transaction request common for DeploymentProposalRequest, InvokeRequest, and QueryRequest.
@@ -52,7 +52,9 @@ public class TransactionRequest {
 		return null == chaincodePath ? "" : chaincodePath;
 	}
 	public TransactionRequest setChaincodePath(String chaincodePath) {
-
+		if(this.chaincodeID != null){
+			throw new IllegalStateException("cannot specify both chaincodePath and chainCodeID");
+		}
 		this.chaincodePath = chaincodePath;
 		return this;
 	}
@@ -60,6 +62,9 @@ public class TransactionRequest {
 		return chaincodeName;
 	}
 	public TransactionRequest setChaincodeName(String chaincodeName) {
+		if(this.chaincodeID != null){
+			throw new IllegalStateException("cannot specify both chainCodeName and chainCodeID");
+		}
 		this.chaincodeName = chaincodeName;
 		return this;
 	}
@@ -67,6 +72,9 @@ public class TransactionRequest {
 		return chaincodeID;
 	}
 	public void setChaincodeID(ChainCodeID chaincodeID) {
+		if(this.chaincodeName != null || this.chaincodePath != null){
+			throw new IllegalStateException("cannot specify chainCodeID if either chainCodeName or chainCodePath is specified");
+		}
 		this.chaincodeID = chaincodeID;
 	}
 	public String getFcn() {
@@ -81,8 +89,7 @@ public class TransactionRequest {
 	}
 
 	public TransactionRequest setArgs(String[] args) {
-
-		this.args = new ArrayList( Arrays.asList( args ) );
+		this.args = new ArrayList<String>( Arrays.asList( args ) );
 		return this;
 	}
 	public TransactionRequest setArgs(ArrayList<String> args) {
