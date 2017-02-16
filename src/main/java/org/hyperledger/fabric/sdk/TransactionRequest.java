@@ -14,24 +14,23 @@
 
 package org.hyperledger.fabric.sdk;
 
-import org.hyperledger.fabric.sdk.helper.Config;
-
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import org.hyperledger.fabric.sdk.helper.Config;
+
+import io.netty.util.internal.StringUtil;
 
 /**
  * A base transaction request common for DeploymentProposalRequest, InvokeRequest, and QueryRequest.
  */
-public class TransactionRequest {
+public abstract class TransactionRequest<T extends TransactionRequest<T>> {
 
 	private final Config config = Config.getConfig();
 
-	// The local path containing the chaincode to deploy in network mode.
-	private String chaincodePath;
-	// The name identifier for the chaincode to deploy in development mode.
-	private String chaincodeName;
 	// The chaincode ID as provided by the 'submitted' event emitted by a TransactionContext
 	private ChainCodeID chaincodeID;
+	
 	// The name of the function to invoke
 	private String fcn;
 	// The arguments to pass to the chaincode invocation
@@ -48,46 +47,38 @@ public class TransactionRequest {
 	private long proposalWaitTime = config.getProposalWaitTime();
 
 
-	public String getChaincodePath() {
-		return null == chaincodePath ? "" : chaincodePath;
-	}
-	public TransactionRequest setChaincodePath(String chaincodePath) {
-
-		this.chaincodePath = chaincodePath;
-		return this;
-	}
-	public String getChaincodeName() {
-		return chaincodeName;
-	}
-	public TransactionRequest setChaincodeName(String chaincodeName) {
-		this.chaincodeName = chaincodeName;
-		return this;
-	}
 	public ChainCodeID getChaincodeID() {
 		return chaincodeID;
 	}
+	
 	public void setChaincodeID(ChainCodeID chaincodeID) {
+		if(!StringUtil.isNullOrEmpty(chaincodeID.getFabricChainCodeID().getPath())) {
+			throw new IllegalArgumentException("chaincode ID path must not be set");
+		}
 		this.chaincodeID = chaincodeID;
 	}
+	
 	public String getFcn() {
 		return fcn;
 	}
-	public TransactionRequest setFcn(String fcn) {
+	public T setFcn(String fcn) {
 		this.fcn = fcn;
-		return this;
+		return getThis();
 	}
+	
+	protected abstract T getThis();
+	
 	public ArrayList<String> getArgs() {
 		return args;
 	}
 
-	public TransactionRequest setArgs(String[] args) {
-
-		this.args = new ArrayList( Arrays.asList( args ) );
-		return this;
+	public T setArgs(String[] args) {
+		this.args = new ArrayList<String>( Arrays.asList( args ) );
+		return getThis();
 	}
-	public TransactionRequest setArgs(ArrayList<String> args) {
+	public T setArgs(ArrayList<String> args) {
 		this.args = args;
-		return this;
+		return getThis();
 	}
 	public boolean isConfidential() {
 		return confidential;

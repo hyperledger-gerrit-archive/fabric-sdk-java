@@ -1,26 +1,40 @@
 package org.hyperledger.fabric.sdk;
 
-
-import org.hyperledger.fabric.protos.peer.Chaincode;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
 
 /**
  * Wrapper to not expose Fabric's ChainCoodeId
-
+ * 
  */
 public class ChainCodeID {
 
-     Chaincode.ChaincodeID getFabricChainCodeID() {
-        return fabricChainCodeID;
-    }
+	private final ChaincodeID protoChaincodeID;
+	
+	public static class Builder {
+		private final ChaincodeID.Builder protoBuilder = ChaincodeID.newBuilder();
 
-    final Chaincode.ChaincodeID fabricChainCodeID;
+		private Builder(){}
+		
+		public Builder setName(String value) {
+			this.protoBuilder.setName(value);
+			return this;
+		}
 
-     ChainCodeID(Chaincode.ChaincodeID chaincodeID) {
-        this.fabricChainCodeID = chaincodeID;
-    }
-    @Deprecated
-    public String getName(){
-        return fabricChainCodeID.getName();
-    }
+		public ChainCodeID build() {
+			return new ChainCodeID(this.protoBuilder.build());
+		}
+	}
+
+	public static Builder newBuilder() {
+		return new Builder();
+	}
+	
+	ChaincodeID getFabricChainCodeID() {
+		return protoChaincodeID;
+	}
+
+	ChainCodeID(ChaincodeID chaincodeID) {
+		this.protoChaincodeID = chaincodeID;
+	}
 
 }

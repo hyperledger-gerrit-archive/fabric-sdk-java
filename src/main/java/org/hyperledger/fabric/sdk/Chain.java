@@ -31,6 +31,7 @@ import org.hyperledger.fabric.protos.common.Configuration.ConfigurationItem.Conf
 import org.hyperledger.fabric.protos.common.Configuration.SignedConfigurationItem;
 import org.hyperledger.fabric.protos.orderer.Ab.BroadcastResponse;
 import org.hyperledger.fabric.protos.peer.Chaincode;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.protos.peer.PeerEvents.Event.EventCase;
@@ -661,7 +662,7 @@ public class Chain {
         return sendProposal(queryProposalRequest, peers);
     }
 
-    private Collection<ProposalResponse> sendProposal(TransactionRequest queryProposalRequest, Collection<Peer> peers) throws Exception {
+    private <T extends TransactionRequest<T>>  Collection<ProposalResponse> sendProposal(T queryProposalRequest, Collection<Peer> peers) throws Exception {
 
         if (null == queryProposalRequest) {
             throw new InvalidTransactionException("sendProposal queryProposalRequest is null");
@@ -692,9 +693,9 @@ public class Chain {
         for (String arg : queryProposalRequest.getArgs()) {
             argList.add(ByteString.copyFrom(arg.getBytes()));
         }
-
         proposalBuilder.args(argList);
         proposalBuilder.chaincodeID(queryProposalRequest.getChaincodeID().getFabricChainCodeID());
+
         proposalBuilder.ccType(queryProposalRequest.getChaincodeLanguage() == TransactionRequest.Type.JAVA ?
                 Chaincode.ChaincodeSpec.Type.JAVA : Chaincode.ChaincodeSpec.Type.GOLANG);
 
