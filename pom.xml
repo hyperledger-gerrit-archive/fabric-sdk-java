@@ -32,6 +32,7 @@
         <bouncycastle.version>1.55</bouncycastle.version>
         <httpclient.version>4.5.2</httpclient.version>
         <skipITs>true</skipITs>
+        <org.hyperledger.fabric.sdk.proposal.wait.time>12000</org.hyperledger.fabric.sdk.proposal.wait.time>
     </properties>
     <dependencies>
         <dependency>
@@ -162,6 +163,9 @@
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
+                    <systemPropertyVariables>
+                        <org.hyperledger.fabric.sdk.proposal.wait.time>${org.hyperledger.fabric.sdk.proposal.wait.time}</org.hyperledger.fabric.sdk.proposal.wait.time>
+                    </systemPropertyVariables>
                     <skipITs>${skipITs}</skipITs>
                 </configuration>
                 <executions>
