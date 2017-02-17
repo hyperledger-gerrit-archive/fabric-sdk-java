@@ -32,6 +32,7 @@
         <bouncycastle.version>1.55</bouncycastle.version>
         <httpclient.version>4.5.2</httpclient.version>
         <skipITs>true</skipITs>
+        <org.hyperledger.fabric.sdk.config.location></org.hyperledger.fabric.sdk.config.location>
     </properties>
     <dependencies>
         <dependency>
@@ -162,6 +163,9 @@
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
+                    <systemPropertyVariables>
+                        <org.hyperledger.fabric.sdk.config.location>${org.hyperledger.fabric.sdk.config.location}</org.hyperledger.fabric.sdk.config.location>
+                    </systemPropertyVariables>
                     <skipITs>${skipITs}</skipITs>
                 </configuration>
                 <executions>
@@ -170,6 +174,7 @@
                         <phase>integration-test</phase>
                         <goals>
                             <goal>integration-test</goal>
+                            <goal>verify</goal>
                         </goals>
                     </execution>
                 </executions>
