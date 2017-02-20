@@ -15,11 +15,13 @@
 package org.hyperledger.fabric.sdk;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.compress.utils.IOUtils;
 import org.hyperledger.fabric.sdk.events.EventHub;
 import org.junit.After;
 import org.junit.Assert;
@@ -148,6 +150,12 @@ public class End2endIT {
             instantiateProposalRequest.setChaincodeID(chainCodeID);
             instantiateProposalRequest.setFcn("init");
             instantiateProposalRequest.setArgs(new String[]{"a", "100", "b", "200"});
+
+            InputStream policyFile = this.getClass().getResourceAsStream("/policyBits");
+            byte[] policyBits = IOUtils.toByteArray(policyFile);
+            ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy(policyBits);
+            instantiateProposalRequest.setEndorsementPolicy(chaincodeEndorsementPolicy);
+
             out("Sending instantiateProposalRequest code with a and b set to 100 and 200 respectively");
 
             responses = chain.sendInstantiationProposal(instantiateProposalRequest, peers);
