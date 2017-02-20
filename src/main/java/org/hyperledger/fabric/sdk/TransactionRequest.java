@@ -46,6 +46,8 @@ public class TransactionRequest {
     private Certificate userCert;
     // Chaincode language
     protected Type chaincodeLanguage = Type.GO_LANG;
+    // The policy associated with this chaincode
+    private Policy policy = null;
     // The timeout for a single proposal request to endorser in milliseconds
     protected long proposalWaitTime = config.getProposalWaitTime();
 
@@ -139,6 +141,26 @@ public class TransactionRequest {
      */
     public void setChaincodeLanguage(Type chaincodeLanguage) {
         this.chaincodeLanguage = chaincodeLanguage;
+    }
+
+    /**
+     * sets the policy associated with the chaincode of this transaction
+     * @param policy a Policy object
+     *
+     * @see Policy
+     */
+    public void setPolicy(Policy policy) {
+        this.policy = policy;
+    }
+
+    /**
+     * returns the Policy object associated with the chaincode of this transaction
+     * @return a Policy object
+     *
+     * @see Policy
+     */
+    public Policy getPolicy() {
+        return this.policy;
     }
 
     /**

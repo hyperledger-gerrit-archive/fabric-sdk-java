@@ -29,6 +29,7 @@ import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
+import org.hyperledger.fabric.sdk.Policy;
 import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 
@@ -47,6 +48,8 @@ public class InstantiateProposalBuilder extends ProposalBuilder {
     private List<String> argList;
     private TransactionRequest.Type chaincodeLanguage;
     private String chaincodeVersion;
+
+    private byte[] chaincodePolicy = null ;
 
     private InstantiateProposalBuilder() {
         super();
@@ -73,6 +76,12 @@ public class InstantiateProposalBuilder extends ProposalBuilder {
 
         return this;
 
+    }
+
+    public void setPolicy(Policy policy) {
+        if (policy != null) {
+            this.chaincodePolicy = policy.getPolicyAsBytes();
+        }
     }
 
     public InstantiateProposalBuilder argss(List<String> argList) {
@@ -125,11 +134,15 @@ public class InstantiateProposalBuilder extends ProposalBuilder {
         ChaincodeDeploymentSpec depspec = createDeploymentSpec(ccType,
                 chaincodeName, chaincodePath, chaincodeVersion, modlist, null);
 
-
+        // for chaincode deploy, peer.ChaincodeInput.Args is in following order ( all args are byte[] ) :
+        // proposal type, chainID, chainDeploymentSpec, policy, escc, vscc
         List<ByteString> argList = new ArrayList<>();
         argList.add(ByteString.copyFrom("deploy", StandardCharsets.UTF_8));
         argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
         argList.add(depspec.toByteString());
+        if (this.chaincodePolicy != null ) {
+            argList.add(ByteString.copyFrom(this.chaincodePolicy));
+        }
 
         ChaincodeID lcccID = ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
 

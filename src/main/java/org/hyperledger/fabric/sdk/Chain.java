@@ -619,6 +619,7 @@ public class Chain {
         instantiateProposalbuilder.chaincodeName(instantiateProposalRequest.getChaincodeName());
         instantiateProposalbuilder.chaincodePath(instantiateProposalRequest.getChaincodePath());
         instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
+        instantiateProposalbuilder.setPolicy(instantiateProposalRequest.getPolicy());
 
 
         FabricProposal.Proposal instantiateProposal = instantiateProposalbuilder.build();
@@ -652,7 +653,6 @@ public class Chain {
         installProposalbuilder.chaincodeName(installProposalRequest.getChaincodeName());
         installProposalbuilder.chaincodePath(installProposalRequest.getChaincodePath());
         installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
-
 
         FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
         FabricProposal.SignedProposal signedProposal = getSignedProposal(deploymentProposal);
