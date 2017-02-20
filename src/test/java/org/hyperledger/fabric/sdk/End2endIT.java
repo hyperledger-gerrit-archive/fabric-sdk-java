@@ -134,6 +134,10 @@ public class End2endIT {
             instantiateProposalRequest.setChaincodeID(chainCodeID);
             instantiateProposalRequest.setFcn("init");
             instantiateProposalRequest.setArgs(new String[]{"a", "100", "b", "200"});
+
+            Policy chaincodePolicy = null ;   // TODO need to initialize . Policy to be given as a byte array
+            instantiateProposalRequest.setPolicy(chaincodePolicy);
+
             out("Sending instantiateProposalRequest code with a and b set to 100 and 200 respectively");
 
             responses = chain.sendInstantiationProposal(instantiateProposalRequest, peers);
@@ -328,7 +332,7 @@ public class End2endIT {
         System.err.flush();
         System.out.flush();
 
-        System.out.println(String.format(format, (Object[]) args));
+        System.out.println(String.format(format, args));
         System.err.flush();
         System.out.flush();
 
