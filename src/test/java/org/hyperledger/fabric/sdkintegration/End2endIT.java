@@ -20,7 +20,12 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
 
+import javax.xml.bind.DatatypeConverter;
+
+import org.bouncycastle.util.encoders.Hex;
+
 import org.hyperledger.fabric.sdk.BlockEvent;
+import org.hyperledger.fabric.sdk.BlockchainInfo;
 import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeID;
 import org.hyperledger.fabric.sdk.ChainConfiguration;
@@ -43,9 +48,9 @@ import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import static org.junit.Assert.*;
 
 import static java.lang.String.format;
 
@@ -127,7 +132,7 @@ public class End2endIT {
         }catch (Exception e){
             e.printStackTrace();
 
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
 
 
@@ -184,10 +189,10 @@ public class End2endIT {
 
                 if (successful.size() < 1) { // TODO choose this as an arbitrary limit right now.
                     if (failed.size() == 0) {
-                        Assert.fail("No endorsers found for CC install");
+                        fail("No endorsers found for CC install");
                     }
                     ProposalResponse first = failed.iterator().next();
-                    Assert.fail("Not enough endorsers for install :" + successful.size() + ".  " + first.getMessage());
+                    fail("Not enough endorsers for install :" + successful.size() + ".  " + first.getMessage());
                 }
                 ProposalResponse firstInstallProposalResponse = successful.iterator().next();
             }
@@ -244,7 +249,7 @@ public class End2endIT {
             chain.sendTransaction(successful, orderers).thenApply(transactionEvent -> {
 
 
-                Assert.assertTrue(transactionEvent.isValid()); // must be valid to be here.
+                assertTrue(transactionEvent.isValid()); // must be valid to be here.
                 out("Finished instantiate transaction with transaction id %s", transactionEvent.getTransactionID());
 
                 try {
@@ -306,16 +311,17 @@ public class End2endIT {
 
 
                 } catch (Exception e) {
-
-                    throw new RuntimeException(e);
-
+                    out("Caught an exception while invoking chaincode");
+                    e.printStackTrace();
+                    fail("Failed invoking chaincode with error : " + e.getMessage());
                 }
 
+                return null;
 
             }).thenApply(transactionEvent -> {
                 try {
 
-                    Assert.assertTrue(transactionEvent.isValid()); // must be valid to be here.
+                    assertTrue(transactionEvent.isValid()); // must be valid to be here.
                     out("Finished invoke transaction with transaction id %s", transactionEvent.getTransactionID());
 
                     ////////////////////////////
@@ -352,20 +358,27 @@ public class End2endIT {
 
                     out("Query payload of b returned %s", payload);
 
-                    final String expect = "" +(300 + delta);
+                    String expect = "" +(300 + delta);
+                    assertEquals(payload, expect);
+
+                    // Channel queries
+                    Peer peer = chain.getPeers().iterator().next() ;
+                    BlockchainInfo channelInfo = chain.queryBlockchainInfo(peer);
 
 
-                    Assert.assertEquals(payload, expect);
-
-                    if (!payload.equals("300")) {
-                        return new Exception("Expected " + expect + " for value b but got: " + payload);
-                    }
-
+                    out("Channel info for : " + chainName);
+                    out("Channel height: " + channelInfo.getHeight());
+                    out("Channel current block hash: " + DatatypeConverter.printHexBinary(channelInfo.getCurrentBlockHash()));
+                    out("Channel previous block hash: " + DatatypeConverter.printHexBinary(channelInfo.getPreviousBlockHash()));
 
                     return null;
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    out("Caught exception while running query");
+                    e.printStackTrace();
+                    fail("Failed during chaincode query with error : " + e.getMessage());
                 }
+
+                return null;
 
             }).exceptionally(e -> {
                 System.err.println("Bad status value for proposals transaction: " + e.getMessage());
@@ -373,10 +386,10 @@ public class End2endIT {
                     BlockEvent.TransactionEvent te = ((TransactionEventException) e).getTransactionEvent();
                     if (te != null) {
 
-                        Assert.fail(format("Transaction with txid %s failed. %s", te.getTransactionID(), e.getMessage()));
+                        fail(format("Transaction with txid %s failed. %s", te.getTransactionID(), e.getMessage()));
                     }
                 }
-                Assert.fail(format("Transaction  failed  %s", e.getMessage()));
+                fail(format("Transaction  failed  %s", e.getMessage()));
                 return null;
             }).get(120, TimeUnit.SECONDS);
             out("Running for Chain %s done", chainName);
@@ -385,8 +398,7 @@ public class End2endIT {
         } catch (Exception e) {
             out("Caught an exception running chain %s", chain.getName());
             e.printStackTrace();
-
-            Assert.fail(e.getMessage());
+            fail("Test failed with error : " + e.getMessage());
 
         }
     }
