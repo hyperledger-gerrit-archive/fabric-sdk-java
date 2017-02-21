@@ -29,6 +29,7 @@ import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeHeaderExtension;
 import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeProposalPayload;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.hyperledger.fabric.sdk.exception.ProposalException;
 
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
 
@@ -82,7 +83,7 @@ public class ProposalBuilder {
     }
 
 
-    public FabricProposal.Proposal build() throws Exception {
+    public FabricProposal.Proposal build() throws CryptoException, ProposalException {
         return createFabricProposal(chainID, chaincodeID, argList);
     }
 
