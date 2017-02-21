@@ -47,6 +47,7 @@ import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
 import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.common.Ledger;
 import org.hyperledger.fabric.protos.common.Policies.Policy;
 import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.protos.orderer.Ab;
@@ -56,6 +57,7 @@ import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.protos.peer.FabricProposalResponse.ProposalResponsePayload;
 import org.hyperledger.fabric.protos.peer.PeerEvents.Event.EventCase;
 import org.hyperledger.fabric.sdk.BlockEvent.TransactionEvent;
 import org.hyperledger.fabric.sdk.events.BlockListener;
@@ -64,6 +66,7 @@ import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
+import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
@@ -838,7 +841,6 @@ public class Chain {
         instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
         instantiateProposalbuilder.chaincodEndorsementPolicy(instantiateProposalRequest.getChaincodeEndorsementPolicy());
 
-
         FabricProposal.Proposal instantiateProposal = instantiateProposalbuilder.build();
         SignedProposal signedProposal = getSignedProposal(instantiateProposal);
 
@@ -906,6 +908,49 @@ public class Chain {
         return signedProposal.build();
     }
 
+    /**
+     * query all peers in this channel for chain info
+     * @return a {@Collection} of {@link BlockchainInfo} objects, each containing the chain info requested
+     * @throws Exception
+     */
+    public Collection<BlockchainInfo> queryBlockchainInfo() throws Exception {
+        if (peers.isEmpty()) {
+            throw new IllegalStateException("This channel " + this.getName() + "does not have any peers associated with it.");
+        }
+        ArrayList<BlockchainInfo> responses = new ArrayList<>(peers.size());
+        for (Peer peer : peers) {
+            responses.add(queryBlockchainInfo(peer));
+        }
+        return responses;
+    }
+
+    /**
+     * query for chain information
+     * @param peer The peer to send the request to
+     * @return a {@link BlockchainInfo} object containing the chain info requested
+     * @throws Exception
+     */
+    public BlockchainInfo queryBlockchainInfo(Peer peer) throws Exception {
+        if (peer == null) {
+            throw new InvalidArgumentException("Must give a peer to send request to.");
+        }
+
+        QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+        querySCCRequest.setFcn(QuerySCCRequest.GETCHAININFO);
+        querySCCRequest.setArgs(new String[]{this.name});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() != 200) {
+            throw new PeerException("Unable to query block chain info from peer " + peer.getName() + " with message : " + proposalResponse.getMessage());
+        }
+
+        Ledger.BlockchainInfo blockchainInfo = Ledger.BlockchainInfo.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload());
+
+        return new BlockchainInfo(blockchainInfo.getHeight(), blockchainInfo.getCurrentBlockHash().toByteArray(),
+                blockchainInfo.getPreviousBlockHash().toByteArray());
+    }
 
     public Collection<ProposalResponse> sendInvokeProposal(InvokeProposalRequest invokeProposalRequest, Collection<Peer> peers) throws Exception {
 
@@ -940,10 +985,12 @@ public class Chain {
         }
 
         TransactionContext transactionContext = getTransactionContext();
+        transactionContext.verify(queryProposalRequest.doVerify());
         transactionContext.setProposalWaitTime(queryProposalRequest.getProposalWaitTime());
         ProposalBuilder proposalBuilder = ProposalBuilder.newBuilder();
         proposalBuilder.context(transactionContext);
-
+        if (queryProposalRequest instanceof QuerySCCRequest )
+            proposalBuilder.chainID("");
 
         List<ByteString> argList = new ArrayList<>();
         argList.add(ByteString.copyFrom(queryProposalRequest.getFcn(), StandardCharsets.UTF_8));
