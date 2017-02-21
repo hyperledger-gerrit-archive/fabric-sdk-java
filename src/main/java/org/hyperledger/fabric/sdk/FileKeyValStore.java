@@ -17,6 +17,7 @@ package org.hyperledger.fabric.sdk;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -34,8 +35,8 @@ public class FileKeyValStore implements KeyValStore {
     private String file;
     private Log logger = LogFactory.getLog(FileKeyValStore.class);
 
-    public FileKeyValStore(String file) {
-    	this.file = file;
+    public FileKeyValStore(File file) {
+    	this.file = file.getAbsolutePath();
     }
 
     /**

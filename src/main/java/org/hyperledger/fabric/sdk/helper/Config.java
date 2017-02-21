@@ -26,8 +26,9 @@ import org.apache.commons.logging.LogFactory;
  * toolkit configuration defaults. Has a local config file that can override any
  * property defaults. Config file can be relocated via a system property
  * "org.hyperledger.fabric.sdk.configuration". Any property can be overridden
+ * with environment variable and then overridden
  * with a java system property. Property hierarchy goes System property
- * overrides config file overrides default values specified here.
+ * overrides environment variable which overrides config file for default values specified here.
  */
 
 public class Config {
@@ -115,11 +116,22 @@ public class Config {
 
     static private void defaultProperty(String key, String value) {
 
+
         String ret = System.getProperty(key);
         if (ret != null) {
             sdkProperties.put(key, ret);
-        } else if (null == sdkProperties.getProperty(key)) {
-            sdkProperties.put(key, value);
+        } else {
+            String envKey = key.toUpperCase().replaceAll("\\.","_");
+             ret =System.getenv(envKey);
+            if(null != ret){
+                sdkProperties.put(key, ret);
+            }else {
+                if (null == sdkProperties.getProperty(key)) {
+                    sdkProperties.put(key, value);
+                }
+
+            }
+
         }
     }
 

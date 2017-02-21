@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -24,8 +26,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.orderer.Ab;
+import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
 import org.hyperledger.fabric.protos.orderer.AtomicBroadcastGrpc;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
+
+import static org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse.TypeCase.STATUS;
 
 /**
  * Sample client code that makes gRPC calls to the server.
@@ -127,6 +132,80 @@ class OrdererClient {
         }
 
         return ret[0];
+
+    }
+
+    public DeliverResponse[] sendDeliver(Common.Envelope envelope) {
+
+        final CountDownLatch finishLatch = new CountDownLatch(1);
+        AtomicBroadcastGrpc.AtomicBroadcastStub broadcast = AtomicBroadcastGrpc.newStub(channel);
+        AtomicBroadcastGrpc.AtomicBroadcastBlockingStub bsc = AtomicBroadcastGrpc.newBlockingStub(channel);
+        bsc.withDeadlineAfter(2, TimeUnit.MINUTES);
+
+        // final DeliverResponse[] ret = new DeliverResponse[1];
+        final List<DeliverResponse> retList = new ArrayList<DeliverResponse>();
+        //   ret[0] = null;
+
+        StreamObserver<DeliverResponse> so = new StreamObserver<DeliverResponse>() {
+            boolean done = false;
+
+            @Override
+            public void onNext(DeliverResponse resp) {
+
+                // logger.info("Got Broadcast response: " + resp);
+                logger.debug("resp status value: " + resp.getStatusValue() + ", resp: " + resp.getStatus() + ", typecase" + resp.getTypeCase());
+
+                if (done) {
+                    return;
+                }
+
+                if (resp.getTypeCase() == STATUS) {
+                    done = true;
+                    retList.add(0, resp);
+
+                    finishLatch.countDown();
+
+                } else {
+                    retList.add(resp);
+                }
+
+            }
+
+            @Override
+            public void onError(Throwable t) {
+
+                logger.error("broadcase error " + t);
+
+                finishLatch.countDown();
+            }
+
+            @Override
+            public void onCompleted() {
+
+                logger.debug("onCompleted");
+
+                finishLatch.countDown();
+            }
+        };
+
+
+        StreamObserver<Common.Envelope> nso = broadcast.deliver(so);
+
+
+        nso.onNext(envelope);
+        //nso.onCompleted();
+
+        try {
+            boolean res = finishLatch.await(2, TimeUnit.MINUTES);
+            logger.debug("Done waiting for reply! Got:" + retList);
+
+        } catch (InterruptedException e) {
+
+            logger.error(e);
+
+        }
+
+        return retList.toArray(new DeliverResponse[retList.size()]);
 
     }
 }
