@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 DTCC, Fujitsu Australia Software Technology, IBM - All Rights Reserved.
+ *  Copyright 2016, 2017 DTCC, Fujitsu Australia Software Technology, IBM - All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ public class End2endIT {
     static final String CHAIN_CODE_VERSION = "1.0";
 
 
+   // static final String CHAIN_NAME = "foo";
     static final String CHAIN_NAME = "testchainid";
 
     final static Collection<String> PEER_LOCATIONS = Arrays.asList("grpc://localhost:7051");
@@ -68,28 +69,32 @@ public class End2endIT {
         HFClient client = HFClient.createNewInstance();
         try {
 
-            //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved
-            //Construct the chain
-            //
-
-            constructChain(client);
-
-            client.setUserContext(new User("admin")); // User will be defined by pluggable
-
-            Chain chain = client.getChain(CHAIN_NAME);
 
 
-            chain.setInvokeWaitTime(1000);
-            chain.setDeployWaitTime(12000);
-
-            chain.setMemberServicesUrl(FABRIC_CA_SERVICES_LOCATION, null);
+            ////////////////////////////
+            // Setup client
 
             File fileStore = new File(System.getProperty("user.home") + "/test.properties");
             if (fileStore.exists()) {
                 fileStore.delete();
             }
-            chain.setKeyValStore(new FileKeyValStore(fileStore.getAbsolutePath()));
-            chain.enroll("admin", "adminpw");
+            client.setKeyValStore(new FileKeyValStore(fileStore));
+            client.setMemberServices(new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null));
+            User user =client.enroll("admin", "adminpw");
+            client.setUserContext(user);;
+
+            ////////////////////////////
+            //Construct the chain
+            //
+
+            constructChain(client);
+
+            Chain chain = client.getChain(CHAIN_NAME);
+
+
+            chain.setInvokeWaitTime(100000);
+            chain.setDeployWaitTime(120000);
+
 
             chain.initialize();
 
@@ -116,7 +121,7 @@ public class End2endIT {
 
 
             for (ProposalResponse response : responses) {
-                if (response.isVerified() && response.getStatus() == ProposalResponse.Status.SUCCESS) {
+                if ( response.getStatus() == ProposalResponse.Status.SUCCESS) {
                     successful.add(response);
 
                 } else {
@@ -180,7 +185,7 @@ public class End2endIT {
                 }
                 ProposalResponse first = failed.iterator().next();
 
-                throw new Exception("Not enough endorsers for instantiate  :" + successful.size() + ".  " + first.getMessage());
+                throw new Exception("Not enough endorsers for instantiate  :" + successful.size() + ".  " + first.getMessage() + ". Was verified:" + first.isVerified());
             }
 
 
@@ -214,7 +219,8 @@ public class End2endIT {
                         }
 
                     }
-                    out("Received %d invoke proposal responses. Successful+verified: %d . Failed: %d", invokePropResp.size(), successful.size(), failed.size());
+                    out("Received %d invoke proposal responses. Successful+verified: %d . Failed: %d",
+                            invokePropResp.size(), successful.size(), failed.size());
 
 
                     if (successful.size() < 1) {  //choose this as an arbitrary limit right now.
@@ -226,7 +232,9 @@ public class End2endIT {
                         ProposalResponse firstInvokeProposalResponse = failed.iterator().next();
 
 
-                        throw new Exception("Not enough endorsers :" + successful.size() + ".  " + firstInvokeProposalResponse.getMessage());
+                        throw new Exception("Not enough endorsers :" + successful.size() + ".  " +
+                                firstInvokeProposalResponse.getMessage() +
+                                ". Was verified: " + firstInvokeProposalResponse.isVerified());
 
 
                     }
@@ -273,7 +281,9 @@ public class End2endIT {
 
                     for (ProposalResponse proposalResponse : queryProposals) {
                         if (!proposalResponse.isVerified() || proposalResponse.getStatus() != ProposalResponse.Status.SUCCESS) {
-                            return new Exception("Failed invoke proposal.  status: " + proposalResponse.getStatus() + ". messages: " + proposalResponse.getMessage());
+                            return new Exception("Failed invoke proposal.  status: " + proposalResponse.getStatus() +
+                                    ". messages: " + proposalResponse.getMessage()
+                                    + ". Was verified : " + proposalResponse.isVerified());
 
                         }
 
