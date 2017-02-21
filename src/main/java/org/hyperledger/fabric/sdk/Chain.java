@@ -47,6 +47,7 @@ import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
 import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.common.Ledger;
 import org.hyperledger.fabric.protos.common.Policies.Policy;
 import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.protos.orderer.Ab;
@@ -56,6 +57,7 @@ import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.protos.peer.FabricProposalResponse.ProposalResponsePayload;
 import org.hyperledger.fabric.protos.peer.PeerEvents.Event.EventCase;
 import org.hyperledger.fabric.sdk.BlockEvent.TransactionEvent;
 import org.hyperledger.fabric.sdk.events.BlockListener;
@@ -64,6 +66,7 @@ import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
+import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
@@ -838,7 +841,6 @@ public class Chain {
         instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
         instantiateProposalbuilder.chaincodEndorsementPolicy(instantiateProposalRequest.getChaincodeEndorsementPolicy());
 
-
         FabricProposal.Proposal instantiateProposal = instantiateProposalbuilder.build();
         SignedProposal signedProposal = getSignedProposal(instantiateProposal);
 
@@ -906,6 +908,35 @@ public class Chain {
         return signedProposal.build();
     }
 
+    /**
+     * query for chain information
+     * @param peer The peer to send the request to
+     * @return a {@link BlockchainInfo} object containing the chain info requested
+     * @throws InvalidArgumentException
+     * @throws PeerException
+     * @throws InvalidProtocolBufferException
+     * @throws CryptoException
+     */
+    public BlockchainInfo queryBlockchainInfo(Peer peer) throws ProposalException, InvalidArgumentException, PeerException, InvalidProtocolBufferException, CryptoException {
+        if (peer == null) {
+            throw new InvalidArgumentException("Must give a peer to send request to.");
+        }
+
+        QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+        querySCCRequest.setFcn(QuerySCCRequest.GETCHAININFO);
+        querySCCRequest.setArgs(new String[]{name});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() != 200) {
+            throw new PeerException("Unable to query block chain info for " + name + " from peer " + peer.getName() + " with message : " + proposalResponse.getMessage());
+        }
+
+        Ledger.BlockchainInfo blockchainInfo = Ledger.BlockchainInfo.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload());
+
+        return new BlockchainInfo(blockchainInfo);
+    }
 
     public Collection<ProposalResponse> sendInvokeProposal(InvokeProposalRequest invokeProposalRequest, Collection<Peer> peers) throws Exception {
 
@@ -919,51 +950,38 @@ public class Chain {
         return sendProposal(queryProposalRequest, peers);
     }
 
-    private Collection<ProposalResponse> sendProposal(TransactionRequest queryProposalRequest, Collection<Peer> peers) throws Exception {
+    private Collection<ProposalResponse> sendProposal(TransactionRequest proposalRequest, Collection<Peer> peers) throws CryptoException, InvalidArgumentException, ProposalException, PeerException {
 
-        if (null == queryProposalRequest) {
-            throw new InvalidTransactionException("sendProposal queryProposalRequest is null");
+        if (null == proposalRequest) {
+            throw new InvalidArgumentException("sendProposal queryProposalRequest is null");
         }
         if (null == peers) {
-            throw new InvalidTransactionException("sendProposal peers is null");
+            throw new InvalidArgumentException("sendProposal peers is null");
         }
         if (peers.isEmpty()) {
-            throw new InvalidTransactionException("sendProposal peers to send to is empty.");
+            throw new InvalidArgumentException("sendProposal peers to send to is empty.");
         }
         if (!isInitialized()) {
-            throw new InvalidTransactionException("sendProposal on chain not initialized.");
+            throw new ProposalException("sendProposal on chain not initialized.");
         }
 
         if (this.client.getUserContext() == null) {
-
-            throw new InvalidTransactionException("sendProposal on chain not initialized.");
+            throw new ProposalException("sendProposal on chain not initialized.");
         }
 
         TransactionContext transactionContext = getTransactionContext();
-        transactionContext.setProposalWaitTime(queryProposalRequest.getProposalWaitTime());
-        ProposalBuilder proposalBuilder = ProposalBuilder.newBuilder();
-        proposalBuilder.context(transactionContext);
+        transactionContext.verify(proposalRequest.doVerify());
+        transactionContext.setProposalWaitTime(proposalRequest.getProposalWaitTime());
 
+        // TODO think about refactoring the other sendProposals and move proposalBuilder into the request
 
-        List<ByteString> argList = new ArrayList<>();
-        argList.add(ByteString.copyFrom(queryProposalRequest.getFcn(), StandardCharsets.UTF_8));
-        for (String arg : queryProposalRequest.getArgs()) {
-            argList.add(ByteString.copyFrom(arg.getBytes()));
-        }
-
-        proposalBuilder.args(argList);
-        proposalBuilder.chaincodeID(queryProposalRequest.getChaincodeID().getFabricChainCodeID());
-        proposalBuilder.ccType(queryProposalRequest.getChaincodeLanguage() == TransactionRequest.Type.JAVA ?
-                Chaincode.ChaincodeSpec.Type.JAVA : Chaincode.ChaincodeSpec.Type.GOLANG);
-
-
-        SignedProposal invokeProposal = getSignedProposal(proposalBuilder.build());
+        SignedProposal invokeProposal = getSignedProposal(proposalRequest.buildProposalMessage(transactionContext));
         return sendProposalToPeers(peers, invokeProposal, transactionContext);
     }
 
     private Collection<ProposalResponse> sendProposalToPeers(Collection<Peer> peers,
                                                              SignedProposal signedProposal,
-                                                             TransactionContext transactionContext) throws Exception {
+                                                             TransactionContext transactionContext) throws PeerException, InvalidArgumentException, ProposalException {
         class Pair {
             private final Peer peer;
             private final Future<FabricProposalResponse.ProposalResponse> future;

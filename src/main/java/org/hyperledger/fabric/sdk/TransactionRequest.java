@@ -14,10 +14,20 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
+import org.hyperledger.fabric.protos.peer.Chaincode;
+import org.hyperledger.fabric.protos.peer.FabricProposal;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.helper.Config;
+import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.TransactionContext;
+
+import com.google.protobuf.ByteString;
 
 /**
  * A base transaction request common for InstallProposalRequest, InvokeRequest, and QueryRequest.
@@ -25,6 +35,7 @@ import org.hyperledger.fabric.sdk.helper.Config;
 public class TransactionRequest {
 
     private final Config config = Config.getConfig();
+    private boolean noChainID = false;  // calls to QSCC leave the chainID field as a empty string.
 
     // The local path containing the chaincode to deploy in network mode.
     protected String chaincodePath;
@@ -51,6 +62,27 @@ public class TransactionRequest {
     // The timeout for a single proposal request to endorser in milliseconds
     protected long proposalWaitTime = config.getProposalWaitTime();
 
+    // Protobuf message builder
+    protected ProposalBuilder proposalBuilder = ProposalBuilder.newBuilder();
+
+    /**
+     * set the chainID field in the protobuf Proposal to the empty string.
+     * Some peer requests (e.g. queries to QSCC) require the field to be blank.
+     * Subclasses should override this method as needed.
+     * @param proposalBuilder
+     */
+    protected void clearChainID(ProposalBuilder proposalBuilder) {
+        return;
+    }
+
+    /**
+     * Some proposal responses from Fabric are not signed. We default to always verify a ProposalResponse.
+     * Subclasses should override this method if you do not want the response signature to be verified
+     * @return true if proposal response is to be checked for a valid signature
+     */
+    public boolean doVerify() {
+        return true;
+    }
 
     public String getChaincodePath() {
         return null == chaincodePath ? "" : chaincodePath;
@@ -194,5 +226,23 @@ public class TransactionRequest {
      */
     public void setProposalWaitTime(long proposalWaitTime) {
         this.proposalWaitTime = proposalWaitTime;
+    }
+
+    public FabricProposal.Proposal buildProposalMessage(TransactionContext transactionContext) throws CryptoException, ProposalException {
+        proposalBuilder.context(transactionContext);
+        clearChainID(proposalBuilder);
+
+        List<ByteString> argList = new ArrayList<>();
+        argList.add(ByteString.copyFrom(getFcn(), StandardCharsets.UTF_8));
+        for (String arg : getArgs()) {
+            argList.add(ByteString.copyFrom(arg.getBytes()));
+        }
+
+        proposalBuilder.args(argList);
+        proposalBuilder.chaincodeID(getChaincodeID().getFabricChainCodeID());
+        proposalBuilder.ccType(getChaincodeLanguage() == TransactionRequest.Type.JAVA ?
+                Chaincode.ChaincodeSpec.Type.JAVA : Chaincode.ChaincodeSpec.Type.GOLANG);
+
+        return proposalBuilder.build();
     }
 }
