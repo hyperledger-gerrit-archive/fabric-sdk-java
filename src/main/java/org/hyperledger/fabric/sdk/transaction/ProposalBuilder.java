@@ -17,8 +17,6 @@ package org.hyperledger.fabric.sdk.transaction;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.xml.bind.DatatypeConverter;
-
 import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -45,6 +43,7 @@ public class ProposalBuilder {
     private List<ByteString> argList;
     protected TransactionContext context;
     private ChaincodeSpec.Type ccType = ChaincodeSpec.Type.GOLANG;
+    private String chainId;
 
 
     protected ProposalBuilder() {
@@ -69,13 +68,17 @@ public class ProposalBuilder {
         return this;
     }
 
+    public ProposalBuilder chainId(String chainId) {
+        this.chainId = chainId;
+        return this;
+    }
 
     public FabricProposal.Proposal build() throws Exception {
-        return createFabricProposal(context.getChain().getName(), chaincodeID, argList);
+        return createFabricProposal(chaincodeID, argList);
     }
 
 
-    private FabricProposal.Proposal createFabricProposal(String chainID, Chaincode.ChaincodeID chaincodeID, List<ByteString> argList)  {
+    private FabricProposal.Proposal createFabricProposal(Chaincode.ChaincodeID chaincodeID, List<ByteString> argList)  {
 
         ChaincodeInvocationSpec chaincodeInvocationSpec = createChaincodeInvocationSpec(
                 chaincodeID,
@@ -89,7 +92,7 @@ public class ProposalBuilder {
 
 
         Common.ChannelHeader chainHeader = createChannelHeader(HeaderType.ENDORSER_TRANSACTION,
-                context.getTxID(), chainID, 0, chaincodeHeaderExtension.build());
+                context.getTxID(), chainId == null ? context.getChain().getName() : chainId, 0, chaincodeHeaderExtension.build());
 
         Common.SignatureHeader.Builder sigHeaderBldr = Common.SignatureHeader.newBuilder();
 

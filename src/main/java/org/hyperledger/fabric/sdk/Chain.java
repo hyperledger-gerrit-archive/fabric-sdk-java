@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import common.Ledger;
 import io.grpc.StatusRuntimeException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -63,6 +64,7 @@ import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
+import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
@@ -620,7 +622,7 @@ public class Chain {
         instantiateProposalbuilder.chaincodeName(instantiateProposalRequest.getChaincodeName());
         instantiateProposalbuilder.chaincodePath(instantiateProposalRequest.getChaincodePath());
         instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
-
+        instantiateProposalbuilder.chainId(instantiateProposalRequest.getChainId());
 
         FabricProposal.Proposal instantiateProposal = instantiateProposalbuilder.build();
         FabricProposal.SignedProposal signedProposal = getSignedProposal(instantiateProposal);
@@ -653,6 +655,7 @@ public class Chain {
         installProposalbuilder.chaincodeName(installProposalRequest.getChaincodeName());
         installProposalbuilder.chaincodePath(installProposalRequest.getChaincodePath());
         installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
+        installProposalbuilder.chainId(installProposalRequest.getChainId());
 
 
         FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
@@ -685,6 +688,26 @@ public class Chain {
         return signedProposal.build();
     }
 
+    public BlockchainInfo queryBlockchainInfo() throws Exception {
+        return queryBlockchainInfo(peers.iterator().next());
+    }
+
+    public BlockchainInfo queryBlockchainInfo(Peer peer) throws Exception {
+        QueryBlockchainInfoRequest queryBlockchainInfoRequest = new QueryBlockchainInfoRequest();
+        queryBlockchainInfoRequest.setFcn("GetChainInfo");
+        queryBlockchainInfoRequest.setArgs(new String[]{this.name});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(queryBlockchainInfoRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() == 500) {
+            throw new PeerException("Unable to query block chain info : " + proposalResponse.getMessage());
+        }
+
+        Ledger.BlockchainInfo blockchainInfo = Ledger.BlockchainInfo.parseFrom(proposalResponse.getPayload());
+        return new BlockchainInfo(blockchainInfo.getHeight(), blockchainInfo.getCurrentBlockHash().toByteArray(),
+                blockchainInfo.getPreviousBlockHash().toByteArray());
+    }
 
     public Collection<ProposalResponse> sendInvokeProposal(InvokeProposalRequest invokeProposalRequest, Collection<Peer> peers) throws Exception {
 
@@ -734,6 +757,7 @@ public class Chain {
         proposalBuilder.chaincodeID(queryProposalRequest.getChaincodeID().getFabricChainCodeID());
         proposalBuilder.ccType(queryProposalRequest.getChaincodeLanguage() == TransactionRequest.Type.JAVA ?
                 Chaincode.ChaincodeSpec.Type.JAVA : Chaincode.ChaincodeSpec.Type.GOLANG);
+        proposalBuilder.chainId(queryProposalRequest.getChainId());
 
 
         FabricProposal.SignedProposal invokeProposal = getSignedProposal(proposalBuilder.build());

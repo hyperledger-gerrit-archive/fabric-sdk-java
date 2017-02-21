@@ -299,6 +299,8 @@ public class End2endIT {
             }).get(120, TimeUnit.SECONDS);
             out("That's all folks!");
 
+            BlockchainInfo blockchainInfo = chain.queryBlockchainInfo();
+            Assert.assertNotNull(blockchainInfo);
 
         } catch (Exception e) {
             out("Caught an exception");
