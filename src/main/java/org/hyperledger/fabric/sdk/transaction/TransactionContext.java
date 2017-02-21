@@ -60,6 +60,7 @@ public class TransactionContext {
     private TCert tcert;
     private List<String> attrs;
     private long proposalWaitTime;
+    private String chainId;
 
     public TransactionContext(Chain chain, User user, CryptoPrimitives cryptoPrimitives) {
 
@@ -84,7 +85,7 @@ public class TransactionContext {
         byte[] txh = cryptoPrimitives.hash(comp.toByteArray());
     //    txID = Hex.encodeHexString(txh);
         txID = new String( Hex.encodeHex(txh));
-
+        chainId = chain.getName();
 
 
     }
@@ -167,6 +168,23 @@ public class TransactionContext {
         this.proposalWaitTime = proposalWaitTime;
     }
 
+    /**
+     * Gets the chain id.
+     *
+     * @return the chain id
+     */
+    public String getChainId() {
+        return chainId;
+    }
+
+    /**
+     * Sets the chain id
+     *
+     * @param chainId the chain id
+     */
+    public void setChainId(String chainId) {
+        this.chainId = chainId;
+    }
 
     private void decryptResult(Buffer ct) {
         /* TODO implement decryptResult function
@@ -295,10 +313,6 @@ public class TransactionContext {
 
     public boolean isDevMode() {
         return chain.isDevMode();
-    }
-
-    public String getChainID() {
-        return getChain().getName();
     }
 
 

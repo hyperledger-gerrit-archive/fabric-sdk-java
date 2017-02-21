@@ -48,7 +48,8 @@ public class TransactionRequest {
     protected Type chaincodeLanguage = Type.GO_LANG;
     // The timeout for a single proposal request to endorser in milliseconds
     protected long proposalWaitTime = config.getProposalWaitTime();
-
+    // The id of the chain
+    private String chainId;
 
     public String getChaincodePath() {
         return null == chaincodePath ? "" : chaincodePath;
@@ -157,5 +158,13 @@ public class TransactionRequest {
      */
     public void setProposalWaitTime(long proposalWaitTime) {
         this.proposalWaitTime = proposalWaitTime;
+    }
+
+    public String getChainId() {
+        return chainId;
+    }
+
+    public void setChainId(String chainId) {
+        this.chainId = chainId;
     }
 }

@@ -251,6 +251,8 @@ public class End2endIT {
                     // Query Proposal
                     //
 
+                    BlockchainInfo blockchainInfo = chain.queryBlockchainInfo();
+                    Assert.assertNotNull(blockchainInfo);
 
                     out("Now query chain code for the value of b.");
 
@@ -298,7 +300,6 @@ public class End2endIT {
                 return null;
             }).get(120, TimeUnit.SECONDS);
             out("That's all folks!");
-
 
         } catch (Exception e) {
             out("Caught an exception");
