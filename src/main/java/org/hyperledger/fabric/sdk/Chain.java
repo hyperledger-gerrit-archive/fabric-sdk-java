@@ -47,6 +47,7 @@ import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
 import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.common.Ledger;
 import org.hyperledger.fabric.protos.common.Policies.Policy;
 import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.protos.orderer.Ab;
@@ -64,6 +65,7 @@ import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
+import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
@@ -838,7 +840,6 @@ public class Chain {
         instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
         instantiateProposalbuilder.chaincodEndorsementPolicy(instantiateProposalRequest.getChaincodeEndorsementPolicy());
 
-
         FabricProposal.Proposal instantiateProposal = instantiateProposalbuilder.build();
         SignedProposal signedProposal = getSignedProposal(instantiateProposal);
 
@@ -906,6 +907,37 @@ public class Chain {
         return signedProposal.build();
     }
 
+    public Collection<BlockchainInfo> queryBlockchainInfo() throws Exception {
+        if (peers.isEmpty()) {
+            throw new IllegalStateException("No peers in the chain");
+        }
+        ArrayList<BlockchainInfo> responses = new ArrayList<>(peers.size());
+        for (Peer peer : peers) {
+            responses.add(queryBlockchainInfo(peer));
+        }
+        return responses;
+    }
+
+    public BlockchainInfo queryBlockchainInfo(Peer peer) throws Exception {
+        if (peer == null) {
+            throw new InvalidArgumentException("Input argument peer can not be null");
+        }
+
+        QueryQsccChaincodeRequest queryQsccChaincodeRequest = new QueryQsccChaincodeRequest();
+        queryQsccChaincodeRequest.setFcn("GetChainInfo");
+        queryQsccChaincodeRequest.setArgs(new String[]{this.name});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(queryQsccChaincodeRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() != 200) {
+            throw new PeerException("Unable to query block chain info : " + proposalResponse.getMessage());
+        }
+
+        Ledger.BlockchainInfo blockchainInfo = Ledger.BlockchainInfo.parseFrom(proposalResponse.getPayload());
+        return new BlockchainInfo(blockchainInfo.getHeight(), blockchainInfo.getCurrentBlockHash().toByteArray(),
+                blockchainInfo.getPreviousBlockHash().toByteArray());
+    }
 
     public Collection<ProposalResponse> sendInvokeProposal(InvokeProposalRequest invokeProposalRequest, Collection<Peer> peers) throws Exception {
 
