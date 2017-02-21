@@ -46,6 +46,8 @@ import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.common.Common.BlockData;
+import org.hyperledger.fabric.protos.common.Common.BlockMetadata;
+import org.hyperledger.fabric.protos.common.Common.BlockMetadataIndex;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
@@ -1143,10 +1145,13 @@ public class Chain {
 
 
             BlockData data = block.getData();
+            int blockDataIndex = -1 ;
 
             for (ByteString db : data.getDataList()) {
 
                 try {
+                    blockDataIndex++;
+
                     Envelope env = Envelope.parseFrom(db);
 
 
@@ -1173,7 +1178,7 @@ public class Chain {
 
                     for (TL l : txL) {
                         try {
-                            l.fire(env);
+                            l.fire(new CommittedTransaction(txID, block, env, blockDataIndex));
                         } catch (Throwable e) {
                             logger.error(e); //Don't let one register stop rest.
                         }
@@ -1220,7 +1225,7 @@ public class Chain {
             }
         }
 
-        public void fire(Envelope envelope) {
+        public void fire(CommittedTransaction committedTransaction) {
 
             if (fired.getAndSet(true)) {
                 return;
@@ -1236,8 +1241,12 @@ public class Chain {
                 return;
             }
 
-            es.execute(() -> future.complete(envelope));
+            Envelope envelope = committedTransaction.getEnvelope();
+            if (committedTransaction.isInvalid()) {
+                logger.error("Transaction " + committedTransaction.getTxID() + " is invalid");
+            }
 
+            es.execute(() -> future.complete(envelope));
         }
 
         //KEEP THIS FOR NOW in case in the future we decide we want it.
