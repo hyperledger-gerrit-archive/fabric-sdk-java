@@ -46,6 +46,8 @@ import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.common.Common.BlockData;
+import org.hyperledger.fabric.protos.common.Common.BlockMetadata;
+import org.hyperledger.fabric.protos.common.Common.BlockMetadataIndex;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
@@ -812,7 +814,7 @@ public class Chain {
     // transactions order
 
 
-    public CompletableFuture<Envelope> sendTransaction(Collection<ProposalResponse> proposalResponses, Collection<Orderer> orderers) throws TransactionException {
+    public CompletableFuture<CommittedTransaction> sendTransaction(Collection<ProposalResponse> proposalResponses, Collection<Orderer> orderers) throws TransactionException {
         try {
 
             if (null == proposalResponses) {
@@ -859,7 +861,7 @@ public class Chain {
             Envelope transactionEnvelope = createTransactionEnvelop(transactionPayload);
 
 
-            CompletableFuture<Envelope> sret = registerTxListener(proposalTransactionID);
+            CompletableFuture<CommittedTransaction> sret = registerTxListener(proposalTransactionID);
 
             boolean success = false;
             Exception se = null;
@@ -887,7 +889,7 @@ public class Chain {
                 logger.debug(format("Successful sent to Orderer transaction id: %s", proposalTransactionID));
                 return sret;
             } else {
-                CompletableFuture<Envelope> ret = new CompletableFuture<>();
+                CompletableFuture<CommittedTransaction> ret = new CompletableFuture<>();
                 ret.completeExceptionally(new Exception(format("Failed to place transaction %s on Orderer. Cause: %s", proposalTransactionID, se.getMessage())));
                 return ret;
             }
@@ -1143,10 +1145,13 @@ public class Chain {
 
 
             BlockData data = block.getData();
+            int blockDataIndex = -1 ;
 
             for (ByteString db : data.getDataList()) {
 
                 try {
+                    blockDataIndex++;
+
                     Envelope env = Envelope.parseFrom(db);
 
 
@@ -1173,7 +1178,7 @@ public class Chain {
 
                     for (TL l : txL) {
                         try {
-                            l.fire(env);
+                            l.fire(new CommittedTransaction(txID, block, env, blockDataIndex));
                         } catch (Throwable e) {
                             logger.error(e); //Don't let one register stop rest.
                         }
@@ -1197,12 +1202,12 @@ public class Chain {
     private class TL {
         final String txID;
         final AtomicBoolean fired = new AtomicBoolean(false);
-        final CompletableFuture<Envelope> future;
+        final CompletableFuture<CommittedTransaction> future;
 //        final long createdTime = System.currentTimeMillis();//seconds
 //        final long waitTime;
 
 
-        TL(String txID, CompletableFuture<Envelope> future) {
+        TL(String txID, CompletableFuture<CommittedTransaction> future) {
             this.txID = txID;
             this.future = future;
 //            if (waitTimeSeconds > 0) {
@@ -1220,7 +1225,7 @@ public class Chain {
             }
         }
 
-        public void fire(Envelope envelope) {
+        public void fire(CommittedTransaction committedTransaction) {
 
             if (fired.getAndSet(true)) {
                 return;
@@ -1236,8 +1241,7 @@ public class Chain {
                 return;
             }
 
-            es.execute(() -> future.complete(envelope));
-
+            es.execute(() -> future.complete(committedTransaction));
         }
 
         //KEEP THIS FOR NOW in case in the future we decide we want it.
@@ -1282,9 +1286,9 @@ public class Chain {
      * @return
      */
 
-    public CompletableFuture<Envelope> registerTxListener(String txid) {
+    public CompletableFuture<CommittedTransaction> registerTxListener(String txid) {
 
-        CompletableFuture<Envelope> future = new CompletableFuture<>();
+        CompletableFuture<CommittedTransaction> future = new CompletableFuture<>();
 
         new TL(txid, future);
 
