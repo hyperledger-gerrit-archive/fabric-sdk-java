@@ -19,6 +19,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.orderer.Ab;
+import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 
@@ -104,6 +105,13 @@ public class Orderer {
 
     public static Orderer createNewInstance(String url, String pem) throws InvalidArgumentException {
         return new Orderer(url, pem, null);
+
+    }
+
+    public DeliverResponse[] sendDeliver(Common.Envelope transaction) {
+
+        OrdererClient orderClient = new OrdererClient(new Endpoint(url, pem).getChannelBuilder());
+        return orderClient.sendDeliver(transaction);
 
     }
 

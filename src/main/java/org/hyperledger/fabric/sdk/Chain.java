@@ -50,8 +50,11 @@ import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
 import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.common.Configuration;
 import org.hyperledger.fabric.protos.common.Policies.Policy;
+import org.hyperledger.fabric.protos.orderer.Ab;
 import org.hyperledger.fabric.protos.orderer.Ab.BroadcastResponse;
+import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
 import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
@@ -70,14 +73,17 @@ import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
 import static java.lang.String.format;
+import static org.hyperledger.fabric.protos.common.Common.*;
 import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
 import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvelope;
 import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
 
 
@@ -441,6 +447,277 @@ public class Chain {
         this.initialized = true;
 
         return this;
+
+    }
+
+    private void newChain() throws Exception {
+
+
+//        ChainHeader configItemChainHeader = createChainHeader(HeaderType.CONFIGURATION_ITEM, "transactid", getName(), 0, null);
+//
+//        ConfigurationType orderer_type = ConfigurationType.Orderer;
+//        ConfigurationType policy_type = ConfigurationType.Policy;
+//
+//        long last_modified = 0;
+//        String mod_policy = "DefaultModificationPolicy";
+//        ConsensusType consensusType = ConsensusType.newBuilder()
+//                .setType("solo").build();
+//
+//
+//        ConfigurationEnvelope.Builder cb = ConfigurationEnvelope.newBuilder();
+//
+//
+//        ByteArrayOutputStream hashBytes = new ByteArrayOutputStream();
+//
+//
+//        SignedConfigurationItem consensusTypeItem =
+//                buildSignedConfigurationItem(
+//                        configItemChainHeader,
+//                        orderer_type,
+//                        last_modified,
+//                        mod_policy,
+//                        "ConsensusType",
+//                        consensusType.toByteString()
+//                );
+//
+//        cb.addItems(consensusTypeItem);
+//        hashBytes.write(consensusTypeItem.getConfigurationItem().toByteArray());
+//
+//
+//        BatchSize batchSize = BatchSize.newBuilder().setMaxMessageCount(max_message_count)
+//                .setAbsoluteMaxBytes(10* 1024*1024)
+//                .build();
+//
+//        SignedConfigurationItem batchSizeItem =
+//                buildSignedConfigurationItem(
+//                        configItemChainHeader,
+//                        orderer_type,
+//                        last_modified,
+//                        mod_policy,
+//                        "BatchSize",
+//                        batchSize.toByteString()
+//                );
+//
+//        cb.addItems(batchSizeItem);
+//        hashBytes.write(batchSizeItem.getConfigurationItem().toByteArray());
+//
+//
+//        String chainCreatorPolicyName = "AcceptAllPolicy";
+//
+//
+//        IngressPolicy ingressPolicy = IngressPolicy.newBuilder().setName(chainCreatorPolicyName).build();
+//
+//        SignedConfigurationItem ingressPolicyItem =
+//                buildSignedConfigurationItem(
+//                        configItemChainHeader,
+//                        orderer_type,
+//                        last_modified,
+//                        mod_policy,
+//                        "IngressPolicy",
+//                        ingressPolicy.toByteString()
+//                );
+//
+//        cb.addItems(ingressPolicyItem);
+//        hashBytes.write(ingressPolicyItem.getConfigurationItem().toByteArray());
+//
+//        EgressPolicy egressPolicy = EgressPolicy.newBuilder().setName(chainCreatorPolicyName).build();
+//
+//        SignedConfigurationItem egressPolicyItem =
+//                buildSignedConfigurationItem(
+//                        configItemChainHeader,
+//                        orderer_type,
+//                        last_modified,
+//                        mod_policy,
+//                        "EgressPolicy",
+//                        egressPolicy.toByteString()
+//                );
+//
+//        cb.addItems(egressPolicyItem);
+//        hashBytes.write(egressPolicyItem.getConfigurationItem().toByteArray());
+//
+//
+//        Policy acceptPolicy = buildPolicyEnvelope(0);
+//
+//        SignedConfigurationItem acceptPolicyItem =
+//                buildSignedConfigurationItem(
+//                        configItemChainHeader,
+//                        policy_type,
+//                        last_modified,
+//                        mod_policy,
+//                        chainCreatorPolicyName,
+//                        acceptPolicy.toByteString()
+//                );
+//
+//        cb.addItems(acceptPolicyItem);
+//        hashBytes.write(acceptPolicyItem.getConfigurationItem().toByteArray());
+//
+//
+//        Policy rejectPolicy = buildPolicyEnvelope(1);
+//
+//        SignedConfigurationItem rejectPolicyItem =
+//                buildSignedConfigurationItem(
+//                        configItemChainHeader,
+//                        policy_type,
+//                        last_modified,
+//                        mod_policy,
+//                        "DefaultModificationPolicy",
+//                        rejectPolicy.toByteString()
+//                );
+//
+//        cb.addItems(rejectPolicyItem);
+//        hashBytes.write(rejectPolicyItem.getConfigurationItem().toByteArray());
+//
+//
+//        byte[] allbytes = hashBytes.toByteArray();
+//
+//        byte[] hash = cryptoPrimitives.shake256(allbytes, 512);
+//
+//
+//        CreationPolicy creationPolicy = CreationPolicy.newBuilder()
+//                .setPolicy(chainCreatorPolicyName)
+//                .setDigest(ByteString.copyFrom(hash))
+//                .build();
+//
+//        SignedConfigurationItem createPolicyItem = buildSignedConfigurationItem(
+//                configItemChainHeader,
+//                orderer_type,
+//                last_modified,
+//                mod_policy,
+//                "CreationPolicy",
+//                creationPolicy.toByteString()
+//        );
+//
+//        cb.addItems(0, createPolicyItem); //needs to be first.
+//
+//        ChainHeader chainHeader = ProtoUtils.createChainHeader(HeaderType.CONFIGURATION_TRANSACTION, "3", name, 0, null);
+//
+//
+//        Identities.SerializedIdentity identity = Identities.SerializedIdentity.newBuilder()
+//                .setIdBytes(ByteString.copyFromUtf8(enrollment.getCert()))
+//                .setMspid(enrollment.getMSPID())
+//                .build();
+//
+//        SignatureHeader signatureHeader = SignatureHeader.newBuilder()
+//                .setCreator(identity.toByteString())
+//                .setNonce(getNonce())
+//                .build();
+//
+//        Header header = Header.newBuilder()
+//                .setSignatureHeader(signatureHeader)
+//                .setChainHeader(chainHeader)
+//                .build();
+//
+//        Payload payload = Payload.newBuilder()
+//                .setHeader(header)
+//                .setData(cb.build().toByteString())
+//                .build();
+//        byte[] payload_bytes = payload.toByteArray();
+//
+//        byte[] signature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), payload_bytes);
+//
+//
+//        Envelope envelope = Envelope.newBuilder()
+//                .setSignature(ByteString.copyFrom(signature))
+//                .setPayload(ByteString.copyFrom(payload_bytes))
+//                .build();
+
+        Orderer order = orderers.iterator().next();
+ //TODO       BroadcastResponse trxResult = order.sendTransaction(envelope);
+//        if( 200 != trxResult.getStatusValue()){
+//            throw new RuntimeException("new chain error.");
+//        }
+
+        //======================================================
+        Ab.SeekSpecified seekSpecified = Ab.SeekSpecified.newBuilder()
+                .setNumber(0)
+                .build();
+        Ab.SeekPosition seekPosition = Ab.SeekPosition.newBuilder()
+                .setSpecified(seekSpecified)
+                .build();
+
+        Ab.SeekSpecified seekStopSpecified = Ab.SeekSpecified.newBuilder()
+                .setNumber(0)
+                .build();
+
+        Ab.SeekPosition seekStopPosition = Ab.SeekPosition.newBuilder()
+                .setSpecified(seekStopSpecified)
+                .build();
+
+        Ab.SeekInfo seekInfo = Ab.SeekInfo.newBuilder()
+                .setStart(seekPosition)
+                .setStop(seekStopPosition)
+                .setBehavior(Ab.SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
+                .build();
+
+
+
+
+        ChannelHeader deliverChainHeader = ProtoUtils.createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
+
+
+        SignatureHeader deliverSignatureHeader = SignatureHeader.newBuilder()
+   //TODO             .setCreator(identity.toByteString())
+                .setNonce(getNonce())
+                .build();
+
+        Header deliverHeader = Header.newBuilder()
+                .setSignatureHeader(deliverSignatureHeader.toByteString())
+                .setChannelHeader(deliverChainHeader.toByteString())
+                .build();
+
+        Payload deliverPayload = Payload.newBuilder()
+                .setHeader(deliverHeader)
+                .setData(seekInfo.toByteString())
+                .build();
+
+        byte[] deliverPayload_bytes = deliverPayload.toByteArray();
+
+        byte[] deliver_signature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), deliverPayload_bytes);
+
+        Envelope deliverEnvelope = Envelope.newBuilder()
+                .setSignature(ByteString.copyFrom(deliver_signature))
+                .setPayload(ByteString.copyFrom(deliverPayload_bytes))
+                .build();
+
+        DeliverResponse[] deliver = order.sendDeliver(deliverEnvelope);
+        if(deliver.length != 2){
+            throw new RuntimeException("Bad deliver expected 2 responses and got " + deliver.length);
+        }
+        DeliverResponse status = deliver[0];//status is last
+        if( status.getStatusValue() != 200 ){
+            throw new RuntimeException("Bad deliver expected status 200  got " + status.getStatusValue());
+        }
+        DeliverResponse blockresp = deliver[1];
+        Block block = blockresp.getBlock();
+
+        BlockData blockData = block.getData();
+        BlockHeader blockHeader = block.getHeader();
+        BlockMetadata blockMetadata = block.getMetadata();
+        int datacount = blockData.getDataCount();
+        ByteString data = blockData.getData(0);
+
+        Envelope respEnv = Envelope.parseFrom(data);
+        ByteString respPayload = respEnv.getPayload();
+        Payload payLoad = Payload.parseFrom(respEnv.getPayload());
+       // ByteString payloaddata = payLoad.getData();
+
+
+//TODO
+//        Configuration configurationEnvelope = Configuration.parseFrom(payLoad.getData());
+//        int itemsCount = configurationEnvelope.getItemsCount();
+//        System.out.println("respEnv:" + itemsCount);
+//
+//        ///  Now do join peer proposal....
+//
+//        FabricProposal.Proposal deploy = JoinProposalBuilder.newBuilder()
+//              //  .setChaincodeLanguage(TransactionRequest.Type.GO_LANG)
+//                .build();
+//
+//
+
+
+
+
 
     }
 
@@ -833,18 +1110,18 @@ public class Chain {
 
             List<FabricProposalResponse.Endorsement> ed = new LinkedList<>();
             FabricProposal.Proposal proposal = null;
-            ByteString  proposalResponsePayload = null;
+            ByteString proposalResponsePayload = null;
             String proposalTransactionID = null;
 
 
             for (ProposalResponse sdkProposalResponse : proposalResponses) {
                 ed.add(sdkProposalResponse.getProposalResponse().getEndorsement());
-                if(proposal == null){
+                if (proposal == null) {
                     proposal = sdkProposalResponse.getProposal();
-                    proposalTransactionID =sdkProposalResponse.getTransactionID();
+                    proposalTransactionID = sdkProposalResponse.getTransactionID();
                     proposalResponsePayload = sdkProposalResponse.getProposalResponse().getPayload();
 
-                  }
+                }
             }
 
 
@@ -867,7 +1144,7 @@ public class Chain {
 
                 try {
                     BroadcastResponse resp = orderer.sendTransaction(transactionEnvelope);
-                    if (resp.getStatus() == Common.Status.SUCCESS) {
+                    if (resp.getStatus() == Status.SUCCESS) {
 
                         success = true;
                         break;
@@ -992,7 +1269,7 @@ public class Chain {
         eventTask = () -> {
 
 
-            for (;;) {
+            for (; ; ) {
                 final Event event = chainEventQue.getNextEvent();
                 if (event == null) {
                     continue;

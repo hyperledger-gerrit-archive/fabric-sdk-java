@@ -38,7 +38,7 @@ public class ProtoUtils {
      * @param chaincodeHeaderExtension
      * @return
      */
-    static ChannelHeader createChannelHeader(HeaderType type, String txID, String chainID, long epoch, ChaincodeHeaderExtension chaincodeHeaderExtension) {
+    public static ChannelHeader createChannelHeader(HeaderType type, String txID, String chainID, long epoch, ChaincodeHeaderExtension chaincodeHeaderExtension) {
 
         ChannelHeader.Builder ret = ChannelHeader.newBuilder()
                 .setType(type.getNumber())
@@ -54,7 +54,7 @@ public class ProtoUtils {
 
     }
 
-    static ChaincodeDeploymentSpec createDeploymentSpec(Type ccType, String name, String chaincodePath,
+   public static ChaincodeDeploymentSpec createDeploymentSpec(Type ccType, String name, String chaincodePath,
                                                          String chainCodeVersion, List<String> args,
                                                          byte[] codePackage) {
 
