@@ -25,6 +25,7 @@ import org.hyperledger.fabric.sdk.helper.Config;
 public class TransactionRequest {
 
     private final Config config = Config.getConfig();
+    private boolean noChainID = false;  // calls to QSCC leave the chainID field as a empty string.
 
     // The local path containing the chaincode to deploy in network mode.
     protected String chaincodePath;
@@ -51,6 +52,14 @@ public class TransactionRequest {
     // The timeout for a single proposal request to endorser in milliseconds
     protected long proposalWaitTime = config.getProposalWaitTime();
 
+    /**
+     * Some proposal responses from Fabric are not signed. We default to always verify a ProposalResponse.
+     * Subclasses should override this method if you do not want the response signature to be verified
+     * @return true if proposal response is to be checked for a valid signature
+     */
+    public boolean doVerify() {
+        return true;
+    }
 
     public String getChaincodePath() {
         return null == chaincodePath ? "" : chaincodePath;
