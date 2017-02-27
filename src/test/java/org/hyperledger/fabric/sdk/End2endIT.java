@@ -89,7 +89,10 @@ public class End2endIT {
                 fileStore.delete();
             }
             chain.setKeyValStore(new FileKeyValStore(fileStore.getAbsolutePath()));
-            chain.enroll("admin", "adminpw");
+            User admin = chain.enroll("admin", "adminpw");
+            chain.setRegistrar(admin);;
+            User user1 = chain.register(new RegistrationRequest("user1", "org1.department1"));
+            user1.enroll(user1.getEnrollmentSecret());
 
             chain.initialize();
 
