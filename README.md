@@ -35,7 +35,7 @@ You should use the following commit levels of the Hyperledger projects:
 | Project        | Commit level                               | Date                       |
 |:---------------|:------------------------------------------:|---------------------------:|
 | fabric         | e3fe66ba19c3d77d88431d74d5647d0372496313   | Feb 21 16:50:46 2017 +0000 |
-| fabric-ca      | c4e83c10292d53fa0f1a1688899a594fe4ece26b   | Jan 27 2017 |
+| fabric-ca      | 6dcf507441c19135fee62e2b1f4e6a582f261db6   | Feb 26 14:04:48 2017 -0500 |
  
  50372c16c76fb2bfbafb2f8ffaf085f085b75b1c
  
