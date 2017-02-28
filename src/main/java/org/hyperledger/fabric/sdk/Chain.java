@@ -273,8 +273,9 @@ public class Chain {
      * @param url User services URL of the form: "grpc://host:port" or "grpcs://host:port"
      * @param pem
      * @throws CertificateException
+     * @throws CryptoException
      */
-    public void setMemberServicesUrl(String url, String pem) throws CertificateException, MalformedURLException {
+    public void setMemberServicesUrl(String url, String pem) throws CertificateException, MalformedURLException, CryptoException {
         this.setMemberServices(new MemberServicesFabricCAImpl(url, pem));
     }
 
