@@ -131,7 +131,7 @@ public class SDKUtil {
         File sourceDirectory = new File(src);
         //File destinationArchive = new File(target);
 
-        ByteArrayOutputStream bos = new ByteArrayOutputStream(500000);
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
         String sourcePath = sourceDirectory.getAbsolutePath();
         //	FileOutputStream destinationOutputStream = new FileOutputStream(destinationArchive);
@@ -139,11 +139,12 @@ public class SDKUtil {
         TarArchiveOutputStream archiveOutputStream = new TarArchiveOutputStream(new GzipCompressorOutputStream(new BufferedOutputStream(bos)));
         archiveOutputStream.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
 
+        String[] includeFiles = new String[]{"go", "java", "yaml", "json", "c", "h", "properties"};
         try {
-            Collection<File> childrenFiles = org.apache.commons.io.FileUtils.listFiles(sourceDirectory, null, true);
+            Collection<File> childrenFiles = org.apache.commons.io.FileUtils.listFiles(sourceDirectory, includeFiles, true);
             //		childrenFiles.remove(destinationArchive);
 
-            ArchiveEntry archiveEntry;
+            TarArchiveEntry archiveEntry;
             FileInputStream fileInputStream;
             for (File childFile : childrenFiles) {
                 String childPath = childFile.getAbsolutePath();
@@ -156,6 +157,7 @@ public class SDKUtil {
                 relativePath = FilenameUtils.separatorsToUnix(relativePath);
 
                 archiveEntry = new TarArchiveEntry(childFile, relativePath);
+                archiveEntry.setMode(420); // 644 octal rw-r--r--
                 fileInputStream = new FileInputStream(childFile);
                 archiveOutputStream.putArchiveEntry(archiveEntry);
 
