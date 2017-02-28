@@ -66,6 +66,7 @@ import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
+import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
@@ -93,6 +94,7 @@ import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
  */
 public class Chain {
     private static final Log logger = LogFactory.getLog(Chain.class);
+    private static final Config config = Config.getConfig();
 
     // Name of the chain is only meaningful to the client
     private String name;
@@ -526,6 +528,14 @@ public class Chain {
     private Block getGenesisBlock(Orderer order) throws TransactionException {
         try {
             if (null == genesisBlock) {
+
+                try {
+                    Thread.sleep(config.getGenesisBlockWaitTime());
+                } catch (InterruptedException e) {
+                    TransactionException te = new TransactionException("getGenesisBlock thread Sleep", e);
+                    logger.error(te.getMessage(), te);
+                    throw te;
+                }
 
                 Ab.SeekSpecified seekSpecified = Ab.SeekSpecified.newBuilder()
                         .setNumber(0)
