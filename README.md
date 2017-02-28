@@ -129,8 +129,15 @@ When running the unit tests, you will always need to clean the membership servic
 
 If you get this error, this means your JDK does not capable of handling unlimited strength crypto algorithms. To fix this issue, You will need to download the JCE libraries for your version of JDK. Please follow the instructions <a href="http://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters">here</a> to download and install the JCE for your version of the JDK. 
 
+#Communicating with developers and fellow users.
+ Sign into <a href="https://chat.hyperledger.org/">Hyperledger project's Rocket chat</a>
+ For this you will also need a <a href="https://identity.linuxfoundation.org/">Linux Foundation ID</a>
+
+ Join the <b>fabric-sdk-java</b> channel.
 
 #Reporting Issues
+If your issue is with building Fabric development environment please discuss this on rocket.chat's #fabric-dev-env channel.
+
 To report an issue please use: <a href="http://jira.hyperledger.org/">Hyperledger's JIRA</a>. 
 To login you will need a Linux Foundation ID (LFID) which you get at <a href="https://identity.linuxfoundation.org/">The Linux Foundation</a> 
 if you don't already have one.
@@ -148,8 +155,4 @@ JIRA Fields should be:
 
 Pleases provide as much information that you can with the issue you're experiencing: stack traces  logs.
 
-#Communicating with developers and fellow users.
- Sign into <a href="https://chat.hyperledger.org/">Hyperledger project's Rocket chat</a>
- For this you will also need a <a href="https://identity.linuxfoundation.org/">Linux Foundation ID</a>
 
- Join the <b>fabric-sdk-java</b> channel.
