@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.events.EventHub;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
@@ -33,7 +34,7 @@ public class HFClient {
 
     private static final int DEFAULT_SECURITY_LEVEL = 256;  //TODO make configurable //Right now by default FAB services is using
     private static final String DEFAULT_HASH_ALGORITHM = "SHA2";  //Right now by default FAB services is using SHA2
-    private final CryptoPrimitives cryptoPrimitives = new CryptoPrimitives(DEFAULT_HASH_ALGORITHM, DEFAULT_SECURITY_LEVEL);
+    private final CryptoPrimitives cryptoPrimitives;
 
     static {
 
@@ -61,8 +62,9 @@ public class HFClient {
     // The member services used for this chain
     private MemberServices memberServices;
 
-    private HFClient() {
-
+    private HFClient() throws CryptoException {
+        cryptoPrimitives = new CryptoPrimitives(DEFAULT_HASH_ALGORITHM, DEFAULT_SECURITY_LEVEL);
+        cryptoPrimitives.loadCACerts();
     }
 
     CryptoPrimitives getCryptoPrimitives() {
@@ -97,8 +99,9 @@ public class HFClient {
      * createNewInstance create a new instance of the HFClient
      *
      * @return client
+     * @throws CryptoException
      */
-    public static HFClient createNewInstance() {
+    public static HFClient createNewInstance() throws CryptoException {
         return new HFClient();
     }
 
