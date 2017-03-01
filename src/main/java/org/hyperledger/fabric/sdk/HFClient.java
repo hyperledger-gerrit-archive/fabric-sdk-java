@@ -49,6 +49,7 @@ public class HFClient {
     private static final Log logger = LogFactory.getLog(HFClient.class);
 
     private final Map<String, Chain> chains = new HashMap<>();
+    private User registrant;
 
     public User getUserContext() {
         return userContext;
@@ -345,4 +346,7 @@ public class HFClient {
     }
 
 
+    public void setRegistrant(User registrant) {
+        this.registrant = registrant;
+    }
 }
