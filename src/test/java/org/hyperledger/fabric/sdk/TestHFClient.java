@@ -16,8 +16,12 @@ package org.hyperledger.fabric.sdk;
 
 
 import java.io.File;
+import java.security.PrivateKey;
 
+import org.hyperledger.fabric.sdk.sample_store.SampleStore;
+import org.hyperledger.fabric.sdk.sample_store.SampleUser;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.FCAClient;
 
 public class TestHFClient {
 
@@ -34,14 +38,34 @@ public class TestHFClient {
 
         File tempFile = File.createTempFile("teststore", "properties");
         tempFile.deleteOnExit();
+
+        File sampleStoreFile = new File(System.getProperty("user.home") + "/test.properties");
+        if (sampleStoreFile.exists()) { //For testing start fresh
+            sampleStoreFile.delete();
+        }
+        final SampleStore sampleStore = new SampleStore(sampleStoreFile);
+
+        SampleUser someTestUSER = sampleStore.getMember("someTestUSER");
+
+
+
         HFClient hfclient = HFClient.createNewInstance();
-        User user = new User("admin");
-        user.enrollment = new Enrollment();
-        hfclient.setUserContext(user);
-        tempFile = File.createTempFile("teststore", "properties");
-        hfclient.setKeyValStore(new FileKeyValStore(tempFile));
+
+        someTestUSER.setEnrollment(new Enrollment() {
+            @Override
+            public PrivateKey getKey() {
+                return null;
+            }
+
+            @Override
+            public String getCert() {
+                return null;
+            }
+        });
+        hfclient.setUserContext(someTestUSER);
+
         hfclient.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
-        hfclient.setMemberServices(new MemberServicesFabricCAImpl("http://Nowhere.com", null));
+        hfclient.setMemberServices(new FCAClient("http://Nowhere.com", null));
 
         new TestHFClient(tempFile, hfclient);
 
