@@ -88,9 +88,19 @@ public class End2endIT {
                 fileStore.delete();
             }
             client.setKeyValStore(new FileKeyValStore(fileStore));
-            client.setMemberServices(new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null));
-            User user = client.enroll("admin", "adminpw");
-            client.setUserContext(user);
+            MemberServicesFabricCAImpl ms = new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null);
+            client.setMemberServices(ms);
+          //  User user = client.enroll("admin", "adminpw");
+             User admin = client.enroll("admin", "adminpw");
+            RegistrationRequest rr = new RegistrationRequest("user1", "org1.department1");
+
+            String x = ms.register(rr, admin);
+            User user1 = client.enroll("user1", x);
+
+     //        client.setRegistrant(admin);
+         //   User user1  = client.register(new RegistrationRequest("user1", "org1.department1"));
+
+            client.setUserContext(user1);;
 
 
             ////////////////////////////
