@@ -19,11 +19,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
@@ -91,7 +89,7 @@ import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
 
 
 /**
- * The class representing a chain with which the client SDK interacts.
+ * The class representing a chain/channel with which the client SDK interacts.
  */
 public class Chain {
     private static final Log logger = LogFactory.getLog(Chain.class);
@@ -106,21 +104,6 @@ public class Chain {
     // Security enabled flag
     private boolean securityEnabled = true;
 
-    // A user cache associated with this chain
-    // TODO: Make an LRU to limit size of user cache
-    private final Map<String, User> members = new HashMap<>();
-
-    // The number of tcerts to get in each batch
-    private int tcertBatchSize = 200;
-
-    // The registrar (if any) that registers & enrolls new members/users
-    private User registrar;
-
-    // The member services used for this chain
-    private MemberServices memberServices;
-
-    // The key-val store used for this chain
-    private KeyValStore keyValStore;
 
     // Is in dev mode or network mode
     private boolean devMode = false;
@@ -171,11 +154,10 @@ public class Chain {
     }
 
 
-    public Enrollment getEnrollment() {
-        return enrollment;
+    Enrollment getEnrollment() {
+        return client.getUserContext().getEnrollment();
     }
 
-    private Enrollment enrollment;
 
     /**
      * isInitialized - Has the chain been initialized?
@@ -201,14 +183,9 @@ public class Chain {
         }
         this.name = name;
         this.client = client;
-        keyValStore = client.getKeyValStore();
-        if (null == keyValStore) {
-            throw new InvalidArgumentException(format("Keystore value in chain %s can not be null", name));
-        }
 
-        memberServices = client.getMemberServices();
 
-        if (null == memberServices) {
+        if (null == client.getMemberServices()) {
             throw new InvalidArgumentException(format("MemberServices value in chain %s can not be null", name));
         }
 
@@ -223,10 +200,10 @@ public class Chain {
             throw new InvalidArgumentException(format("User context in chain %s can not be null", name));
         }
 
-        enrollment = user.getEnrollment();
+        //enrollment = user.getEnrollment();
 
-        if (null == enrollment) {
-            throw new InvalidArgumentException(format("User in chain %s is not enrolled.", name));
+        if (null == client.getUserContext().getEnrollment()) {
+            throw new InvalidArgumentException(format("User context %s is not enrolled.", name));
         }
 
     }
@@ -266,7 +243,7 @@ public class Chain {
         return this;
     }
 
-    public  Chain joinPeer(Peer peer) throws ProposalException {
+    public Chain joinPeer(Peer peer) throws ProposalException {
         if (genesisBlock == null && orderers.isEmpty()) {
             ProposalException e = new ProposalException("Chain missing genesis block and no orderers configured");
             logger.error(e.getMessage(), e);
@@ -364,32 +341,6 @@ public class Chain {
         return Collections.unmodifiableCollection(this.peers);
     }
 
-    /**
-     * Get the registrar associated with this chain
-     *
-     * @return The user whose credentials are used to perform registration, or undefined if not set.
-     */
-    public User getRegistrar() {
-        return this.registrar;
-    }
-
-    /**
-     * Set the registrar
-     *
-     * @param registrar The user whose credentials are used to perform registration.
-     */
-    public void setRegistrar(User registrar) {
-        this.registrar = registrar;
-    }
-
-    /**
-     * Get the member service associated this chain.
-     *
-     * @return MemberServices associated with the chain, or undefined if not set.
-     */
-    public MemberServices getMemberServices() {
-        return this.memberServices;
-    }
 
     /**
      * Determine if pre-fetch mode is enabled to prefetch tcerts.
@@ -457,38 +408,8 @@ public class Chain {
         this.invokeWaitTime = waitTime;
     }
 
-    /**
-     * Get the key val store implementation (if any) that is currently associated with this chain.
-     *
-     * @return The current KeyValStore associated with this chain, or undefined if not set.
-     */
-    KeyValStore getKeyValStore() {
-        return this.keyValStore;
-    }
 
-//    /**
-//     * Set the key value store implementation.
-//     */
-//    public void setKeyValStore(KeyValStore keyValStore) {
-//        this.keyValStore = keyValStore;
-//    }
-
-    /**
-     * Get the tcert batch size.
-     */
-    public int getTCertBatchSize() {
-        return this.tcertBatchSize;
-    }
-
-    /**
-     * Set the tcert batch size.
-     */
-    public void setTCertBatchSize(int batchSize) {
-        this.tcertBatchSize = batchSize;
-    }
-
-
-    public Chain initialize() throws InvalidArgumentException, EventHubException { //TODO for multi chain
+    public Chain initialize() throws InvalidArgumentException, EventHubException {
         if (peers.size() == 0) {  // assume this makes no sense.  have no orders seems reasonable if all you do is query.
 
             throw new InvalidArgumentException("Chain needs at least one peer.");
@@ -558,7 +479,7 @@ public class Chain {
                     ChannelHeader deliverChainHeader = ProtoUtils.createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
 
 
-                    String mspid = getEnrollment().getMSPID();
+                    String mspid = client.getUserContext().getMSPID();
                     String cert = getEnrollment().getCert();
 
                     Identities.SerializedIdentity identity = Identities.SerializedIdentity.newBuilder()
@@ -583,7 +504,7 @@ public class Chain {
 
                     byte[] deliverPayload_bytes = deliverPayload.toByteArray();
 
-                    byte[] deliver_signature = cryptoSuite.sign(enrollment.getKey(), deliverPayload_bytes);
+                    byte[] deliver_signature = cryptoSuite.sign(getEnrollment().getKey(), deliverPayload_bytes);
 
                     Envelope deliverEnvelope = Envelope.newBuilder()
                             .setSignature(ByteString.copyFrom(deliver_signature))
@@ -601,7 +522,7 @@ public class Chain {
                             logger.warn(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
                             // keep trying...
                         } else if (status.getStatusValue() != 200) {
-                            throw  new TransactionException(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
+                            throw new TransactionException(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
 
                         } else {
 
@@ -672,123 +593,7 @@ public class Chain {
     }
 
 
-//    private static SignedConfigurationItem buildSignedConfigurationItem(ChannelHeader chainHeader, ConfigurationType type,
-//                                                                        long lastModified, String modificationPolicy,
-//                                                                        String key, ByteString value
-//    ) {
-//        return buildSignedConfigurationItem(chainHeader, type,
-//                lastModified, modificationPolicy,
-//                key, value,
-//                null);
-//
-//    }
-//
-//    private static SignedConfigurationItem buildSignedConfigurationItem(ChannelHeader chainHeader, ConfigurationType type,
-//                                                                        long lastModified, String modificationPolicy,
-//                                                                        String key, ByteString value,
-//                                                                        ConfigurationSignature signatures) {
-//
-//
-//
-//
-//
-//        int configurationItem = Configtx.ConfigItem.newBuilder()
-//
-//                .setHeader(chainHeader)
-//                .setType(type)
-//                .setLastModified(lastModified)
-//                .setModificationPolicy(modificationPolicy)
-//                .setKey(key)
-//                .setValue(value)
-//                .build();
-//
-//        SignedConfigurationItem.Builder signedConfigurationItem = SignedConfigurationItem.newBuilder();
-//        signedConfigurationItem.setConfigurationItem(configurationItem.toByteString());
-//        if (signatures != null) {
-//            signedConfigurationItem.addSignatures(signatures);
-//        }
-//
-//        return signedConfigurationItem.build();
-//    }
 
-//    /**
-//     * Get the user with a given name
-//     *
-//     * @return user
-//     */
-//    public User getMember(String name) {
-//        if (null == keyValStore)
-//            throw new RuntimeException("No key value store was found.  You must first call Chain.setKeyValStore");
-//        if (null == memberServices)
-//            throw new RuntimeException("No user services was found.  You must first call Chain.setMemberServices or Chain.setMemberServicesUrl");
-//
-//        // Try to get the user state from the cache
-//        User user = members.get(name);
-//        if (null != user) return user;
-//
-//        // Create the user and try to restore it's state from the key value store (if found).
-//        user = new User(name, this);
-//        user.restoreState();
-//        return user;
-//
-//    }
-//
-////    /**
-//     * Get a user.
-//     * A user is a specific type of member.
-//     * Another type of member is a peer.
-//     */
-//    User getUser(String name) {
-//        return getMember(name);
-//    }
-//
-
-//    /**
-//     * Register a user or other user type with the chain.
-//     *
-//     * @param registrationRequest Registration information.
-//     * @throws RegistrationException if the registration fails
-//     */
-//    public User register(RegistrationRequest registrationRequest) throws RegistrationException {
-//        User user = getMember(registrationRequest.getEnrollmentID());
-//        user.register(registrationRequest);
-//        return user;
-//    }
-//
-//    /**
-//     * Enroll a user or other identity which has already been registered.
-//     *
-//     * @param name   The name of the user or other member to enroll.
-//     * @param secret The enrollment secret of the user or other member to enroll.
-//     * @throws EnrollmentException
-//     */
-//
-//    public User enroll(String name, String secret) throws EnrollmentException {
-//        User user = getMember(name);
-//        if (!user.isEnrolled()) {
-//            user.enroll(secret);
-//        }
-//        enrollment = user.getEnrollment();
-//
-//        members.put(name, user);
-//
-//        return user;
-//    }
-//
-//    /**
-//     * Register and enroll a user or other member type.
-//     * This assumes that a registrar with sufficient privileges has been set.
-//     *
-//     * @param registrationRequest Registration information.
-//     * @throws RegistrationException
-//     * @throws EnrollmentException
-//     */
-//    public User registerAndEnroll(RegistrationRequest registrationRequest) throws RegistrationException, EnrollmentException {
-//        User user = getMember(registrationRequest.getEnrollmentID());
-//        user.registerAndEnroll(registrationRequest);
-//        return user;
-//    }
-//
 
     public Collection<Orderer> getOrderers() {
         return Collections.unmodifiableCollection(orderers);
@@ -875,6 +680,7 @@ public class Chain {
         installProposalbuilder.chaincodeName(installProposalRequest.getChaincodeName());
         installProposalbuilder.chaincodePath(installProposalRequest.getChaincodePath());
         installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
+        installProposalbuilder.setChaincodeSource(installProposalRequest.getChaincodeSourceLocation());
 
         FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
         SignedProposal signedProposal = getSignedProposal(deploymentProposal);
@@ -885,7 +691,7 @@ public class Chain {
 
 
     private SignedProposal getSignedProposal(FabricProposal.Proposal proposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoSuite.sign(enrollment.getKey(), proposal.toByteArray());
+        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), proposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -896,7 +702,7 @@ public class Chain {
     }
 
     private SignedProposal signTransActionEnvelope(FabricProposal.Proposal deploymentProposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoSuite.sign(enrollment.getKey(), deploymentProposal.toByteArray());
+        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), deploymentProposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -1124,7 +930,7 @@ public class Chain {
         Envelope.Builder ceb = Envelope.newBuilder();
         ceb.setPayload(transactionPayload.toByteString());
 
-        byte[] ecdsaSignature = cryptoSuite.sign(enrollment.getKey(), transactionPayload.toByteArray());
+        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), transactionPayload.toByteArray());
         ceb.setSignature(ByteString.copyFrom(ecdsaSignature));
 
         logger.debug("Done creating transaction ready for orderer");
@@ -1162,8 +968,8 @@ public class Chain {
         private long previous = Long.MIN_VALUE;
         private Throwable eventException;
 
-        public void eventError(Throwable t){
-            eventException =t;
+        public void eventError(Throwable t) {
+            eventException = t;
         }
 
         public boolean addBEvent(Event event) {
@@ -1194,14 +1000,14 @@ public class Chain {
 
         public Event getNextEvent() throws EventHubException {
             Event ret = null;
-            if(eventException != null){
+            if (eventException != null) {
                 throw new EventHubException(eventException);
             }
             try {
                 ret = events.take();
             } catch (InterruptedException e) {
                 logger.warn(e);
-                if(eventException != null){
+                if (eventException != null) {
 
                     EventHubException eve = new EventHubException(eventException);
                     logger.error(eve.getMessage(), eve);
@@ -1209,7 +1015,7 @@ public class Chain {
                 }
             }
 
-            if(eventException != null){
+            if (eventException != null) {
                 throw new EventHubException(eventException);
             }
 
