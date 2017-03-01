@@ -61,7 +61,6 @@ public class TransactionContext {
     private final User user;
     private final Chain chain;
 
-    private final MemberServices memberServices;
     private final String txID ;
     private TCert tcert;
     private List<String> attrs;
@@ -73,7 +72,6 @@ public class TransactionContext {
 
         this.user = user;
         this.chain = chain;
-        this.memberServices = this.chain.getMemberServices();
         this.tcert = tcert;
         //  this.txID = transactionID;
         this.cryptoPrimitives = cryptoPrimitives;
@@ -124,14 +122,6 @@ public class TransactionContext {
         return this.chain;
     }
 
-    /**
-     * Get the user services, or undefined if security is not enabled.
-     *
-     * @return The user services
-     */
-    public MemberServices getMemberServices() {
-        return this.memberServices;
-    }
 
     /**
      * Emit a specific event provided an event listener is already registered.
