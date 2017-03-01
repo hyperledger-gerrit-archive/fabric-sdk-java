@@ -14,13 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import io.netty.util.internal.StringUtil;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.bouncycastle.util.encoders.Hex;
-import org.hyperledger.fabric.sdk.exception.EnrollmentException;
-import org.hyperledger.fabric.sdk.exception.RegistrationException;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -32,12 +25,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.netty.util.internal.StringUtil;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.bouncycastle.util.encoders.Hex;
+import org.hyperledger.fabric.sdk.exception.EnrollmentException;
+import org.hyperledger.fabric.sdk.exception.RegistrationException;
+
 public class User implements Serializable {
     private static final long serialVersionUID = 8077132186383604355L;
 
     private static final Log logger = LogFactory.getLog(User.class);
 
-    private transient Chain chain;
+    //   private transient Chain chain;
     private String name;
     private ArrayList<String> roles;
     private String account;
@@ -50,26 +50,25 @@ public class User implements Serializable {
     private Map<String, TCertGetter> tcertGetterMap;
     private int tcertBatchSize;
 
-    /**
-     * Constructor for a user.
-     *
-     * @param name The user name
-     * @param chain Chain
-     */
-
-    public User(String name, Chain chain) {
-        if (chain == null) {
-            throw new IllegalArgumentException("A valid chain must be provided");
-        }
-
-        this.name = name;
-        this.chain = chain;
-        this.memberServices = chain.getMemberServices();
-        this.keyValStore = chain.getKeyValStore();
-        this.keyValStoreName = toKeyValStoreName(this.name);
-      //  this.tcertBatchSize = chain.getTCertBatchSize();
-        this.tcertGetterMap = new HashMap<>();
-    }
+//    /**
+//     * Constructor for a user.
+//     *
+//     * @param name  The user name
+//     * @param chain Chain
+//     */
+//
+//    public User(String name, Chain chain) {
+//        if (chain == null) {
+//            throw new IllegalArgumentException("A valid chain must be provided");
+//        }
+//
+//        this.name = name;
+//        this.memberServices = chain.getMemberServices();
+//        this.keyValStore = chain.getKeyValStore();
+//        this.keyValStoreName = toKeyValStoreName(this.name);
+//        //  this.tcertBatchSize = chain.getTCertBatchSize();
+//        this.tcertGetterMap = new HashMap<>();
+//    }
 
     public User(String name) {
         this.name = name;
@@ -77,7 +76,6 @@ public class User implements Serializable {
 
     public User(String name, HFClient hfClient) {
         this.name = name;
-        this.chain = chain;
         this.memberServices = hfClient.getMemberServices();
         this.keyValStore = hfClient.getKeyValStore();
         this.keyValStoreName = toKeyValStoreName(this.name);
@@ -103,15 +101,16 @@ public class User implements Serializable {
 //        return this.chain;
 //    }
 //
-    /**
-     * Get the member services.
-     *
-     * @return {MemberServices} The member services.
-     */
 
-    public MemberServices getMemberServices() {
-        return this.memberServices;
-    }
+//    /**
+//     * Get the member services.
+//     *
+//     * @return {MemberServices} The member services.
+//     */
+//
+//    public MemberServices getMemberServices() {
+//        return this.memberServices;
+//    }
 
     /**
      * Get the roles.
@@ -181,14 +180,14 @@ public class User implements Serializable {
 //        }
 //    }
 
-    /**
-     * Set the transaction certificate (tcert) batch size.
-     *
-     * @param batchSize
-     */
-    public void setTCertBatchSize(int batchSize) {
-        this.tcertBatchSize = batchSize;
-    }
+//    /**
+//     * Set the transaction certificate (tcert) batch size.
+//     *
+//     * @param batchSize
+//     */
+//    public void setTCertBatchSize(int batchSize) {
+//        this.tcertBatchSize = batchSize;
+//    }
 
     /**
      * Get the enrollment logger.info.
@@ -205,7 +204,7 @@ public class User implements Serializable {
      * @return {boolean} True if registered; otherwise, false.
      */
     public boolean isRegistered() {
-        return this.isEnrolled() || !StringUtil.isNullOrEmpty(enrollmentSecret);
+        return !StringUtil.isNullOrEmpty(enrollmentSecret);
     }
 
     /**
@@ -217,20 +216,21 @@ public class User implements Serializable {
         return this.enrollment != null;
     }
 
-    /**
-     * Register the member.
-     *
-     * @param registrationRequest the registration request
-     * @throws RegistrationException
-     */
-    public void register(RegistrationRequest registrationRequest) throws RegistrationException {
-        if (!registrationRequest.getEnrollmentID().equals(getName())) {
-            throw new RuntimeException("registration enrollment ID and member name are not equal");
-        }
-
-        this.enrollmentSecret = memberServices.register(registrationRequest, chain.getRegistrar());
-        this.saveState();
-    }
+//    /**
+//     * Register the member.
+//     *
+//     * @param registrationRequest the registration request
+//     * @throws RegistrationException
+//     */
+//    public void register(RegistrationRequest registrationRequest) throws RegistrationException {
+//        if (!registrationRequest.getEnrollmentID().equals(getName())) {
+//            throw new RuntimeException("registration enrollment ID and member name are not equal");
+//        }
+//
+//        this.enrollmentSecret = memberServices.register(registrationRequest, chain.getRegistrar());
+//        this.saveState();
+//    }
+//
 
     /**
      * Enroll the user and return the enrollment results.
@@ -245,21 +245,21 @@ public class User implements Serializable {
         req.setEnrollmentSecret(enrollmentSecret);
         logger.debug(String.format("Enrolling [req=%s]", req));
 
-        this.enrollment = memberServices.enroll(req);
+        enrollment = memberServices.enroll(req);
         this.saveState();
-        return this.enrollment;
+        return enrollment;
     }
 
-    /**
-     * Perform both registration and enrollment.
-     *
-     * @throws RegistrationException
-     * @throws EnrollmentException
-     */
-    public void registerAndEnroll(RegistrationRequest registrationRequest) throws RegistrationException, EnrollmentException {
-        register(registrationRequest);
-        enroll(this.enrollmentSecret);
-    }
+//    /**
+//     * Perform both registration and enrollment.
+//     *
+//     * @throws RegistrationException
+//     * @throws EnrollmentException
+//     */
+//    public void registerAndEnroll(RegistrationRequest registrationRequest) throws RegistrationException, EnrollmentException {
+//        register(registrationRequest);
+//        enroll(this.enrollmentSecret);
+//    }
 
 //    /**
 //     * Get a user certificate.
@@ -269,8 +269,6 @@ public class User implements Serializable {
 //    public void getUserCert(List<String> attrs) {
 //        this.getNextTCert(attrs);
 //    }
-
-
 
 
 //    /**
@@ -362,7 +360,7 @@ public class User implements Serializable {
     }
 
     private String toKeyValStoreName(String name) {
-        return "member." + name;
+        return "user." + name;
     }
 
     public String getname() {

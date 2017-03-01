@@ -171,10 +171,9 @@ public class Chain {
 
 
     public Enrollment getEnrollment() {
-        return enrollment;
+        return client.getUserContext().getEnrollment();
     }
 
-    private Enrollment enrollment;
 
     /**
      * isInitialized - Has the chain been initialized?
@@ -222,10 +221,10 @@ public class Chain {
             throw new InvalidArgumentException(format("User context in chain %s can not be null", name));
         }
 
-        enrollment = user.getEnrollment();
+        //enrollment = user.getEnrollment();
 
-        if (null == enrollment) {
-            throw new InvalidArgumentException(format("User in chain %s is not enrolled.", name));
+        if (null == client.getUserContext().getEnrollment()) {
+            throw new InvalidArgumentException(format("User context %s is not enrolled.", name));
         }
 
     }
@@ -582,7 +581,7 @@ public class Chain {
 
                     byte[] deliverPayload_bytes = deliverPayload.toByteArray();
 
-                    byte[] deliver_signature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), deliverPayload_bytes);
+                    byte[] deliver_signature = cryptoPrimitives.ecdsaSignToBytes(getEnrollment().getKey(), deliverPayload_bytes);
 
                     Envelope deliverEnvelope = Envelope.newBuilder()
                             .setSignature(ByteString.copyFrom(deliver_signature))
@@ -884,7 +883,7 @@ public class Chain {
 
 
     private SignedProposal getSignedProposal(FabricProposal.Proposal proposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), proposal.toByteArray());
+        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSignToBytes(getEnrollment().getKey(), proposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -895,7 +894,7 @@ public class Chain {
     }
 
     private SignedProposal signTransActionEnvelope(FabricProposal.Proposal deploymentProposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), deploymentProposal.toByteArray());
+        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSignToBytes(getEnrollment().getKey(), deploymentProposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -1123,7 +1122,7 @@ public class Chain {
         Envelope.Builder ceb = Envelope.newBuilder();
         ceb.setPayload(transactionPayload.toByteString());
 
-        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), transactionPayload.toByteArray());
+        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSignToBytes(getEnrollment().getKey(), transactionPayload.toByteArray());
         ceb.setSignature(ByteString.copyFrom(ecdsaSignature));
 
         logger.debug("Done creating transaction ready for orderer");
