@@ -95,8 +95,8 @@ public class End2endJavaChaincodeIT {
             client.setKeyValStore(new FileKeyValStore(fileStore));
             client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
             client.setMemberServices(new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null));
-            User user = client.enroll("admin", "adminpw");
-            client.setUserContext(user);
+    //TODO RICK        User user = client.enroll("admin", "adminpw");
+    //TODO RICK        client.setUserContext(user);
 
 
             //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved
