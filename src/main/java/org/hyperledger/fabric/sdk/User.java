@@ -362,7 +362,7 @@ public class User implements Serializable {
     }
 
     private String toKeyValStoreName(String name) {
-        return "member." + name;
+        return "user." + name;
     }
 
     public String getname() {
