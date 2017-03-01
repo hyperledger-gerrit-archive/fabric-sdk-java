@@ -25,23 +25,25 @@ import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeID;
 import org.hyperledger.fabric.sdk.ChainConfiguration;
 import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
-import org.hyperledger.fabric.sdk.FileKeyValStore;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.InstantiateProposalRequest;
 import org.hyperledger.fabric.sdk.InvokeProposalRequest;
-import org.hyperledger.fabric.sdk.MemberServicesFabricCAImpl;
 import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryProposalRequest;
+import org.hyperledger.fabric.sdk.RegistrationRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
-import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.events.EventHub;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
+import org.hyperledger.fabric.sdk.sample_store.SampleUser;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
+import org.hyperledger.fabric_ca.sdk.FCAClient;
+
+import org.hyperledger.fabric.sdk.sample_store.SampleStore;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -98,24 +100,55 @@ public class End2endIT {
 
         try {
 
+            //Create instance of client.
             HFClient client = HFClient.createNewInstance();
 
             ////////////////////////////
             // Setup client
 
-            File fileStore = new File(System.getProperty("user.home") + "/test.properties");
-            if (fileStore.exists()) {
-                fileStore.delete();
-            }
-            client.setKeyValStore(new FileKeyValStore(fileStore));
             client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
-            client.setMemberServices(new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null));
-            User user = client.enroll("admin", "adminpw");
-            client.setUserContext(user);
-
+            FCAClient fabricCA = new FCAClient(FABRIC_CA_SERVICES_LOCATION, null);
+            client.setMemberServices(fabricCA);
 
             ////////////////////////////
-            //Construct the chains
+            //Set up USERS
+
+            //Persistence is not part of SDK. Sample file store is for illustration purposes only!
+            //   MUST be replaced with more robust application implementation  (Database, LDAP)
+            File sampleStoreFile = new File(System.getProperty("user.home") + "/test.properties");
+//            if (sampleStoreFile.exists()) { //For testing start fresh
+//                sampleStoreFile.delete();
+//            }
+            final SampleStore sampleStore = new SampleStore(sampleStoreFile);
+
+            SampleUser admin = sampleStore.getMember("admin");
+            if(!admin.isEnrolled()){  //Preregistered admin only needs to be enrolled with Fabric CA.
+                admin.setEnrollment(fabricCA.enroll(admin.getName(), "adminpw"));
+            }
+
+            //Non admin user needs to be registered and enrolled with Fabric CA
+            SampleUser user1 = sampleStore.getMember("user1");
+
+            if(!user1.isRegistered()){
+
+                RegistrationRequest rr = new RegistrationRequest(user1.getName(), "org1.department1");
+
+                user1.setEnrollmentSecret(fabricCA.register(rr, admin)); //Admin can register other users.
+
+                user1.setMPSID("DEFAULT"); //This is out of band information provided by the user organisation
+                                           // "DEFAULT" is used by test environment.
+            }
+
+            if (!user1.isEnrolled()){
+
+                user1.setEnrollment(fabricCA.enroll(user1.getName(), user1.getEnrollmentSecret()));
+
+            }
+
+            client.setUserContext(user1);
+
+            ////////////////////////////
+            //Construct and run chains
 
             runChain(client, constructChain(FOO_CHAIN_NAME, client), true, 0);
             out("\n");
@@ -124,7 +157,7 @@ public class End2endIT {
             out("That's all folks!");
 
 
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
 
             Assert.fail(e.getMessage());
@@ -167,6 +200,8 @@ public class End2endIT {
 
                 InstallProposalRequest installProposalRequest = client.newInstallProposalRequest();
                 installProposalRequest.setChaincodeID(chainCodeID);
+                ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
+                installProposalRequest.setChaincodeSourceLocation(new File("src/test/fixture"));
 
                 responses = chain.sendInstallProposal(installProposalRequest, peers);
 
@@ -432,6 +467,44 @@ public class End2endIT {
             EventHub eventHub = client.newEventHub(eventHubLoc);
             newChain.addEventHub(eventHub);
         }
+
+
+        return newChain;
+
+    }
+
+
+    private static Chain reconstructChain(String  name, HFClient client) throws Exception {
+        //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved
+        //Construct the chain
+        //
+
+
+
+        Chain newChain = client.newChain(name);
+
+        int i = 0;
+        for (String peerloc : PEER_LOCATIONS) {
+            Peer peer = client.newPeer(peerloc);
+            newChain.addPeer(peer);
+
+            peer.setName("peer_" + i);
+
+
+
+        }
+
+        for (String orderloc : ORDERER_LOCATIONS) {
+            Orderer orderer = client.newOrderer(orderloc);
+            newChain.addOrderer(orderer);
+        }
+
+        for (String eventHubLoc : EVENTHUB_LOCATIONS) {
+            EventHub eventHub = client.newEventHub(eventHubLoc);
+            newChain.addEventHub(eventHub);
+        }
+
+        newChain.initialize();
 
 
         return newChain;

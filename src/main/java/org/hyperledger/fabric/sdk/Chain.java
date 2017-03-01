@@ -19,11 +19,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
@@ -106,18 +104,11 @@ public class Chain {
     // Security enabled flag
     private boolean securityEnabled = true;
 
-    // A user cache associated with this chain
-    // TODO: Make an LRU to limit size of user cache
-    private final Map<String, User> members = new HashMap<>();
+//    // The number of tcerts to get in each batch
+//    private int tcertBatchSize = 200;
 
-    // The number of tcerts to get in each batch
-    private int tcertBatchSize = 200;
-
-    // The registrar (if any) that registers & enrolls new members/users
-    private User registrar;
-
-    // The member services used for this chain
-    private MemberServices memberServices;
+//    // The member services used for this chain
+//    private MemberServices memberServices;
 
     // The key-val store used for this chain
     private KeyValStore keyValStore;
@@ -172,10 +163,9 @@ public class Chain {
 
 
     public Enrollment getEnrollment() {
-        return enrollment;
+        return client.getUserContext().getEnrollment();
     }
 
-    private Enrollment enrollment;
 
     /**
      * isInitialized - Has the chain been initialized?
@@ -201,14 +191,9 @@ public class Chain {
         }
         this.name = name;
         this.client = client;
-        keyValStore = client.getKeyValStore();
-        if (null == keyValStore) {
-            throw new InvalidArgumentException(format("Keystore value in chain %s can not be null", name));
-        }
 
-        memberServices = client.getMemberServices();
 
-        if (null == memberServices) {
+        if (null == client.getMemberServices()) {
             throw new InvalidArgumentException(format("MemberServices value in chain %s can not be null", name));
         }
 
@@ -223,10 +208,10 @@ public class Chain {
             throw new InvalidArgumentException(format("User context in chain %s can not be null", name));
         }
 
-        enrollment = user.getEnrollment();
+        //enrollment = user.getEnrollment();
 
-        if (null == enrollment) {
-            throw new InvalidArgumentException(format("User in chain %s is not enrolled.", name));
+        if (null == client.getUserContext().getEnrollment()) {
+            throw new InvalidArgumentException(format("User context %s is not enrolled.", name));
         }
 
     }
@@ -266,7 +251,7 @@ public class Chain {
         return this;
     }
 
-    public  Chain joinPeer(Peer peer) throws ProposalException {
+    public Chain joinPeer(Peer peer) throws ProposalException {
         if (genesisBlock == null && orderers.isEmpty()) {
             ProposalException e = new ProposalException("Chain missing genesis block and no orderers configured");
             logger.error(e.getMessage(), e);
@@ -364,32 +349,32 @@ public class Chain {
         return Collections.unmodifiableCollection(this.peers);
     }
 
-    /**
-     * Get the registrar associated with this chain
-     *
-     * @return The user whose credentials are used to perform registration, or undefined if not set.
-     */
-    public User getRegistrar() {
-        return this.registrar;
-    }
+//    /**
+//     * Get the registrar associated with this chain
+//     *
+//     * @return The user whose credentials are used to perform registration, or undefined if not set.
+//     */
+//    public User getRegistrar() {
+//        return this.registrar;
+//    }
 
-    /**
-     * Set the registrar
-     *
-     * @param registrar The user whose credentials are used to perform registration.
-     */
-    public void setRegistrar(User registrar) {
-        this.registrar = registrar;
-    }
-
-    /**
-     * Get the member service associated this chain.
-     *
-     * @return MemberServices associated with the chain, or undefined if not set.
-     */
-    public MemberServices getMemberServices() {
-        return this.memberServices;
-    }
+//    /**
+//     * Set the registrar
+//     *
+//     * @param registrar The user whose credentials are used to perform registration.
+//     */
+//    public void setRegistrar(User registrar) {
+//        this.registrar = registrar;
+//    }
+//
+//    /**
+//     * Get the member service associated this chain.
+//     *
+//     * @return MemberServices associated with the chain, or undefined if not set.
+//     */
+//    public MemberServices getMemberServices() {
+//        return this.memberServices;
+//    }
 
     /**
      * Determine if pre-fetch mode is enabled to prefetch tcerts.
@@ -473,19 +458,19 @@ public class Chain {
 //        this.keyValStore = keyValStore;
 //    }
 
-    /**
-     * Get the tcert batch size.
-     */
-    public int getTCertBatchSize() {
-        return this.tcertBatchSize;
-    }
+//    /**
+//     * Get the tcert batch size.
+//     */
+//    public int getTCertBatchSize() {
+//        return this.tcertBatchSize;
+//    }
 
-    /**
-     * Set the tcert batch size.
-     */
-    public void setTCertBatchSize(int batchSize) {
-        this.tcertBatchSize = batchSize;
-    }
+//    /**
+//     * Set the tcert batch size.
+//     */
+//    public void setTCertBatchSize(int batchSize) {
+//        this.tcertBatchSize = batchSize;
+//    }
 
 
     public Chain initialize() throws InvalidArgumentException, EventHubException { //TODO for multi chain
@@ -558,7 +543,7 @@ public class Chain {
                     ChannelHeader deliverChainHeader = ProtoUtils.createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
 
 
-                    String mspid = getEnrollment().getMSPID();
+                    String mspid = client.getUserContext().getMPSID();
                     String cert = getEnrollment().getCert();
 
                     Identities.SerializedIdentity identity = Identities.SerializedIdentity.newBuilder()
@@ -583,7 +568,7 @@ public class Chain {
 
                     byte[] deliverPayload_bytes = deliverPayload.toByteArray();
 
-                    byte[] deliver_signature = cryptoSuite.sign(enrollment.getKey(), deliverPayload_bytes);
+                    byte[] deliver_signature = cryptoSuite.sign(getEnrollment().getKey(), deliverPayload_bytes);
 
                     Envelope deliverEnvelope = Envelope.newBuilder()
                             .setSignature(ByteString.copyFrom(deliver_signature))
@@ -601,7 +586,7 @@ public class Chain {
                             logger.warn(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
                             // keep trying...
                         } else if (status.getStatusValue() != 200) {
-                            throw  new TransactionException(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
+                            throw new TransactionException(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
 
                         } else {
 
@@ -716,7 +701,7 @@ public class Chain {
 //     *
 //     * @return user
 //     */
-//    public User getMember(String name) {
+//    public User getUserContext(String name) {
 //        if (null == keyValStore)
 //            throw new RuntimeException("No key value store was found.  You must first call Chain.setKeyValStore");
 //        if (null == memberServices)
@@ -739,7 +724,7 @@ public class Chain {
 //     * Another type of member is a peer.
 //     */
 //    User getUser(String name) {
-//        return getMember(name);
+//        return getUserContext(name);
 //    }
 //
 
@@ -750,7 +735,7 @@ public class Chain {
 //     * @throws RegistrationException if the registration fails
 //     */
 //    public User register(RegistrationRequest registrationRequest) throws RegistrationException {
-//        User user = getMember(registrationRequest.getEnrollmentID());
+//        User user = getUserContext(registrationRequest.getEnrollmentID());
 //        user.register(registrationRequest);
 //        return user;
 //    }
@@ -764,7 +749,7 @@ public class Chain {
 //     */
 //
 //    public User enroll(String name, String secret) throws EnrollmentException {
-//        User user = getMember(name);
+//        User user = getUserContext(name);
 //        if (!user.isEnrolled()) {
 //            user.enroll(secret);
 //        }
@@ -784,7 +769,7 @@ public class Chain {
 //     * @throws EnrollmentException
 //     */
 //    public User registerAndEnroll(RegistrationRequest registrationRequest) throws RegistrationException, EnrollmentException {
-//        User user = getMember(registrationRequest.getEnrollmentID());
+//        User user = getUserContext(registrationRequest.getEnrollmentID());
 //        user.registerAndEnroll(registrationRequest);
 //        return user;
 //    }
@@ -875,6 +860,7 @@ public class Chain {
         installProposalbuilder.chaincodeName(installProposalRequest.getChaincodeName());
         installProposalbuilder.chaincodePath(installProposalRequest.getChaincodePath());
         installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
+        installProposalbuilder.setChaincodeSource(installProposalRequest.getChaincodeSourceLocation());
 
         FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
         SignedProposal signedProposal = getSignedProposal(deploymentProposal);
@@ -885,7 +871,7 @@ public class Chain {
 
 
     private SignedProposal getSignedProposal(FabricProposal.Proposal proposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoSuite.sign(enrollment.getKey(), proposal.toByteArray());
+        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), proposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -896,7 +882,7 @@ public class Chain {
     }
 
     private SignedProposal signTransActionEnvelope(FabricProposal.Proposal deploymentProposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoSuite.sign(enrollment.getKey(), deploymentProposal.toByteArray());
+        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), deploymentProposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -1124,7 +1110,7 @@ public class Chain {
         Envelope.Builder ceb = Envelope.newBuilder();
         ceb.setPayload(transactionPayload.toByteString());
 
-        byte[] ecdsaSignature = cryptoSuite.sign(enrollment.getKey(), transactionPayload.toByteArray());
+        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), transactionPayload.toByteArray());
         ceb.setSignature(ByteString.copyFrom(ecdsaSignature));
 
         logger.debug("Done creating transaction ready for orderer");
@@ -1162,8 +1148,8 @@ public class Chain {
         private long previous = Long.MIN_VALUE;
         private Throwable eventException;
 
-        public void eventError(Throwable t){
-            eventException =t;
+        public void eventError(Throwable t) {
+            eventException = t;
         }
 
         public boolean addBEvent(Event event) {
@@ -1194,14 +1180,14 @@ public class Chain {
 
         public Event getNextEvent() throws EventHubException {
             Event ret = null;
-            if(eventException != null){
+            if (eventException != null) {
                 throw new EventHubException(eventException);
             }
             try {
                 ret = events.take();
             } catch (InterruptedException e) {
                 logger.warn(e);
-                if(eventException != null){
+                if (eventException != null) {
 
                     EventHubException eve = new EventHubException(eventException);
                     logger.error(eve.getMessage(), eve);
@@ -1209,7 +1195,7 @@ public class Chain {
                 }
             }
 
-            if(eventException != null){
+            if (eventException != null) {
                 throw new EventHubException(eventException);
             }
 
