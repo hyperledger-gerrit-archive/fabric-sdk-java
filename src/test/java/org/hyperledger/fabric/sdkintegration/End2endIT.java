@@ -25,6 +25,8 @@ import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeID;
 import org.hyperledger.fabric.sdk.ChainConfiguration;
 import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
+import org.hyperledger.fabric.sdk.Enrollment;
+import org.hyperledger.fabric.sdk.EnrollmentRequest;
 import org.hyperledger.fabric.sdk.FileKeyValStore;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
@@ -35,6 +37,7 @@ import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryProposalRequest;
+import org.hyperledger.fabric.sdk.RegistrationRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.events.EventHub;
@@ -102,13 +105,37 @@ public class End2endIT {
             // Setup client
 
             File fileStore = new File(System.getProperty("user.home") + "/test.properties");
-            if (fileStore.exists()) {
+            if (fileStore.exists()) { //For testing start fresh
                 fileStore.delete();
             }
             client.setKeyValStore(new FileKeyValStore(fileStore));
-            client.setMemberServices(new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null));
-            User user = client.enroll("admin", "adminpw");
-            client.setUserContext(user);
+            MemberServicesFabricCAImpl fabricCA = new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null);
+            client.setMemberServices(fabricCA);
+            //  User user = client.enroll("admin", "adminpw");
+            EnrollmentRequest er = new EnrollmentRequest();
+            er.setEnrollmentID("admin");
+            er.setEnrollmentSecret("adminpw");
+            Enrollment en = fabricCA.enroll(er);
+            User admin =new User("admin");
+            admin.setEnrollment(en);
+          //  User admin = client.enroll("admin", "adminpw");
+            RegistrationRequest rr = new RegistrationRequest("user1", "org1.department1");
+
+            String x = fabricCA.register(rr, admin);
+
+            er = new EnrollmentRequest();
+            er.setEnrollmentID("user1");
+            er.setEnrollmentSecret(x);
+            en = fabricCA.enroll(er);
+
+            User user1 =new User("user1");
+            user1.setEnrollment(en);
+
+
+            //        client.setRegistrant(admin);
+            //   User user1  = client.register(new RegistrationRequest("user1", "org1.department1"));
+
+            client.setUserContext(user1);
 
 
             ////////////////////////////
@@ -121,7 +148,7 @@ public class End2endIT {
             out("That's all folks!");
 
 
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
 
             Assert.fail(e.getMessage());
