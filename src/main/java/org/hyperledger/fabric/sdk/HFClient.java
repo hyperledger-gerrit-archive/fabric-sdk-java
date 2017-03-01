@@ -47,6 +47,7 @@ public class HFClient {
     private static final Log logger = LogFactory.getLog(HFClient.class);
 
     private final Map<String, Chain> chains = new HashMap<>();
+    private User registrant;
 
     public User getUserContext() {
         return userContext;
@@ -275,17 +276,17 @@ public class HFClient {
 
     private final Map<String, User> members = new HashMap<>();
 
-    /**
-     * Register a user or other user type with the chain.
-     *
-     * @param registrationRequest Registration information.
-     * @throws RegistrationException if the registration fails
-     */
-    public User register(RegistrationRequest registrationRequest) throws RegistrationException {
-        User user = getMember(registrationRequest.getEnrollmentID());
-        user.register(registrationRequest);
-        return user;
-    }
+//    /**
+//     * Register a user or other user type with the chain.
+//     *
+//     * @param registrationRequest Registration information.
+//     * @throws RegistrationException if the registration fails
+//     */
+//    public User register(RegistrationRequest registrationRequest) throws RegistrationException {
+//        User user = getUserContext(registrationRequest.getEnrollmentID());
+//        user.register(registrationRequest);
+//        return user;
+//    }
 
     /**
      * Enroll a user or other identity which has already been registered.
@@ -295,37 +296,37 @@ public class HFClient {
      * @throws EnrollmentException
      */
 
-    public User enroll(String name, String secret) throws EnrollmentException {
-        User user = getMember(name);
-        if (!user.isEnrolled()) {
-            user.enroll(secret);
-        }
+//    public User enroll(String name, String secret) throws EnrollmentException {
+//        User user = getUserContext(name);
+//        if (!user.isEnrolled()) {
+//            user.enroll(secret);
+//        }
+//
+//        members.put(name, user);
+//
+//        return user;
+//    }
 
-        members.put(name, user);
-
-        return user;
-    }
-
-    /**
-     * Register and enroll a user or other member type.
-     * This assumes that a registrar with sufficient privileges has been set.
-     *
-     * @param registrationRequest Registration information.
-     * @throws RegistrationException
-     * @throws EnrollmentException
-     */
-    public User registerAndEnroll(RegistrationRequest registrationRequest) throws RegistrationException, EnrollmentException {
-        User user = getMember(registrationRequest.getEnrollmentID());
-        user.registerAndEnroll(registrationRequest);
-        return user;
-    }
-
+//    /**
+//     * Register and enroll a user or other member type.
+//     * This assumes that a registrar with sufficient privileges has been set.
+//     *
+//     * @param registrationRequest Registration information.
+//     * @throws RegistrationException
+//     * @throws EnrollmentException
+//     */
+//    public User registerAndEnroll(RegistrationRequest registrationRequest) throws RegistrationException, EnrollmentException {
+//        User user = getUserContext(registrationRequest.getEnrollmentID());
+//        user.registerAndEnroll(registrationRequest);
+//        return user;
+//    }
+//
     /**
      * Get the user with a given name
      *
      * @return user
      */
-    public User getMember(String name) {
+    public User getUserContext(String name) {
         if (null == keyValStore)
             throw new RuntimeException("No key value store was found.  You must first call Chain.setKeyValStore");
         if (null == memberServices)
@@ -343,4 +344,11 @@ public class HFClient {
     }
 
 
+//    public void setRegistrant(User registrant) {
+//        this.registrant = registrant;
+//    }
+
+    public User createUserContext(String userName) {
+        return new User(userName);
+    }
 }

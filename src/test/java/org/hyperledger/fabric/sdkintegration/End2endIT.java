@@ -30,11 +30,11 @@ import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.InstantiateProposalRequest;
 import org.hyperledger.fabric.sdk.InvokeProposalRequest;
-import org.hyperledger.fabric.sdk.MemberServicesFabricCAImpl;
 import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryProposalRequest;
+import org.hyperledger.fabric.sdk.RegistrationRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.events.EventHub;
@@ -42,6 +42,7 @@ import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
+import org.hyperledger.fabric_ca.sdk.FCAClient;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -104,14 +105,47 @@ public class End2endIT {
             // Setup client
 
             File fileStore = new File(System.getProperty("user.home") + "/test.properties");
-            if (fileStore.exists()) {
+            if (fileStore.exists()) { //For testing start fresh
                 fileStore.delete();
             }
             client.setKeyValStore(new FileKeyValStore(fileStore));
             client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
-            client.setMemberServices(new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null));
-            User user = client.enroll("admin", "adminpw");
-            client.setUserContext(user);
+            FCAClient fabricCA = new FCAClient(FABRIC_CA_SERVICES_LOCATION, null);
+            client.setMemberServices(fabricCA);
+            //  User user = client.enroll("admin", "adminpw");
+
+            User admin = client.getUserContext("admin");
+            if(null == admin){
+              admin =   client.createUserContext("admin");
+            }
+            if(!admin.isEnrolled()){
+                admin.setEnrollment(fabricCA.enroll(admin.getName(), "adminpw"));
+            }
+
+
+
+            User user1 = client.getUserContext("user1");
+
+            if (null == user1){
+                admin =   client.createUserContext("user1");
+            }
+
+
+            String userSecret = null;
+            if(!user1.isRegistered()){
+
+                RegistrationRequest rr = new RegistrationRequest(user1.getName(), "org1.department1");
+
+                 userSecret  = fabricCA.register(rr, admin);
+
+            }
+            if(! user1.isEnrolled() && userSecret  != null){
+
+                user1.setEnrollment(fabricCA.enroll(user1.getName(), userSecret ));
+
+            }
+
+             client.setUserContext(user1);
 
 
             ////////////////////////////
@@ -124,7 +158,7 @@ public class End2endIT {
             out("That's all folks!");
 
 
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
 
             Assert.fail(e.getMessage());
@@ -167,6 +201,8 @@ public class End2endIT {
 
                 InstallProposalRequest installProposalRequest = client.newInstallProposalRequest();
                 installProposalRequest.setChaincodeID(chainCodeID);
+                ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
+                installProposalRequest.setChaincodeSourceLocation(new File("src/test/fixture"));
 
                 responses = chain.sendInstallProposal(installProposalRequest, peers);
 
@@ -432,6 +468,44 @@ public class End2endIT {
             EventHub eventHub = client.newEventHub(eventHubLoc);
             newChain.addEventHub(eventHub);
         }
+
+
+        return newChain;
+
+    }
+
+
+    private static Chain reconstructChain(String  name, HFClient client) throws Exception {
+        //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved
+        //Construct the chain
+        //
+
+
+
+        Chain newChain = client.newChain(name);
+
+        int i = 0;
+        for (String peerloc : PEER_LOCATIONS) {
+            Peer peer = client.newPeer(peerloc);
+            newChain.addPeer(peer);
+
+            peer.setName("peer_" + i);
+
+
+
+        }
+
+        for (String orderloc : ORDERER_LOCATIONS) {
+            Orderer orderer = client.newOrderer(orderloc);
+            newChain.addOrderer(orderer);
+        }
+
+        for (String eventHubLoc : EVENTHUB_LOCATIONS) {
+            EventHub eventHub = client.newEventHub(eventHubLoc);
+            newChain.addEventHub(eventHub);
+        }
+
+        newChain.initialize();
 
 
         return newChain;

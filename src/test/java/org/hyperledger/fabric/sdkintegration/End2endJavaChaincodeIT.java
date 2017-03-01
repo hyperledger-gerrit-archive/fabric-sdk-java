@@ -27,7 +27,6 @@ import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.InstantiateProposalRequest;
 import org.hyperledger.fabric.sdk.InvokeProposalRequest;
-import org.hyperledger.fabric.sdk.MemberServicesFabricCAImpl;
 import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.ProposalResponse;
@@ -94,9 +93,9 @@ public class End2endJavaChaincodeIT {
             }
             client.setKeyValStore(new FileKeyValStore(fileStore));
             client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
-            client.setMemberServices(new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null));
-            User user = client.enroll("admin", "adminpw");
-            client.setUserContext(user);
+  //TODO  RICK          client.setMemberServices(new FCAClient(FABRIC_CA_SERVICES_LOCATION, null));
+    //TODO RICK        User user = client.enroll("admin", "adminpw");
+    //TODO RICK        client.setUserContext(user);
 
 
             //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved

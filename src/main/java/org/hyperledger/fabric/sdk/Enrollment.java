@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 DTCC, Fujitsu Australia Software Technology - All Rights Reserved.
+ *  Copyright 2016, 2017 DTCC, Fujitsu Australia Software Technology, IBM - All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,38 +19,10 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 
 // Enrollment metadata
-public class Enrollment implements Serializable {
-	private static final long serialVersionUID = 550416591376968096L;
-	private KeyPair key;
-    private String cert;
-    private String chainKey;
-	private String publicKey;
+public interface Enrollment {
 
-	public PrivateKey getKey() {
-		return key.getPrivate();
-	}
-	public void setKey(KeyPair key) {
-		this.key = key;
-	}
-	public String getCert() {
-		return cert;
-	}
+    public PrivateKey getKey() ;
 
-	public String getMSPID() {
-		return "DEFAULT"; //TODO what will this be ?
-	}
+    public String getCert();
 
-	public void setCert(String cert) {
-		this.cert = cert;
-	}
-	public String getChainKey() {
-		return chainKey;
-	}
-	public void setChainKey(String chainKey) {
-		this.chainKey = chainKey;
-	}
-
-    public void setPublicKey(String publicKey) {
-        this.publicKey = publicKey;
-    }
 }

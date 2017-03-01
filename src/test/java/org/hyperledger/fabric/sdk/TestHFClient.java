@@ -16,8 +16,10 @@ package org.hyperledger.fabric.sdk;
 
 
 import java.io.File;
+import java.security.PrivateKey;
 
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.FCAClient;
 
 public class TestHFClient {
 
@@ -36,12 +38,22 @@ public class TestHFClient {
         tempFile.deleteOnExit();
         HFClient hfclient = HFClient.createNewInstance();
         User user = new User("admin");
-        user.enrollment = new Enrollment();
+        user.enrollment = new Enrollment() {
+            @Override
+            public PrivateKey getKey() {
+                return null;
+            }
+
+            @Override
+            public String getCert() {
+                return null;
+            }
+        };
         hfclient.setUserContext(user);
         tempFile = File.createTempFile("teststore", "properties");
         hfclient.setKeyValStore(new FileKeyValStore(tempFile));
         hfclient.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
-        hfclient.setMemberServices(new MemberServicesFabricCAImpl("http://Nowhere.com", null));
+        hfclient.setMemberServices(new FCAClient("http://Nowhere.com", null));
 
         new TestHFClient(tempFile, hfclient);
 
