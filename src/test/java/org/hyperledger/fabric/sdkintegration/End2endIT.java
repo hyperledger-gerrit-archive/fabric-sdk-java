@@ -35,6 +35,7 @@ import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryProposalRequest;
+import org.hyperledger.fabric.sdk.RegistrationRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.events.EventHub;
@@ -105,9 +106,20 @@ public class End2endIT {
                 fileStore.delete();
             }
             client.setKeyValStore(new FileKeyValStore(fileStore));
-            client.setMemberServices(new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null));
-            User user = client.enroll("admin", "adminpw");
-            client.setUserContext(user);
+            MemberServicesFabricCAImpl ms = new MemberServicesFabricCAImpl(FABRIC_CA_SERVICES_LOCATION, null);
+            client.setMemberServices(ms);
+            //  User user = client.enroll("admin", "adminpw");
+            User admin = client.enroll("admin", "adminpw");
+            RegistrationRequest rr = new RegistrationRequest("user1", "org1.department1");
+
+            String x = ms.register(rr, admin);
+            User user1 = client.enroll("user1", x);
+
+            //        client.setRegistrant(admin);
+            //   User user1  = client.register(new RegistrationRequest("user1", "org1.department1"));
+
+            client.setUserContext(user1);
+            ;
 
 
             ////////////////////////////
@@ -123,8 +135,7 @@ public class End2endIT {
             out("That's all folks!");
 
 
-
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
 
             Assert.fail(e.getMessage());
@@ -148,7 +159,7 @@ public class End2endIT {
             Collection<Orderer> orderers = chain.getOrderers();
             final ChainCodeID chainCodeID;
             Collection<ProposalResponse> responses;
-            Collection<ProposalResponse> successful  = new LinkedList<>();
+            Collection<ProposalResponse> successful = new LinkedList<>();
             Collection<ProposalResponse> failed = new LinkedList<>();
 
 
@@ -201,12 +212,12 @@ public class End2endIT {
 
             instantiateProposalRequest.setChaincodeID(chainCodeID);
             instantiateProposalRequest.setFcn("init");
-            instantiateProposalRequest.setArgs(new String[]{"a", "100", "b", ""+(200 + delta)});
+            instantiateProposalRequest.setArgs(new String[]{"a", "100", "b", "" + (200 + delta)});
 
             ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy(new File("src/test/resources/policyBitsAdmin"));
             instantiateProposalRequest.setChaincodeEndorsementPolicy(chaincodeEndorsementPolicy);
 
-            out("Sending instantiateProposalRequest code with a and b set to 100 and %s respectively", ""+(200 + delta) );
+            out("Sending instantiateProposalRequest code with a and b set to 100 and %s respectively", "" + (200 + delta));
 
             responses = chain.sendInstantiationProposal(instantiateProposalRequest, peers);
 
@@ -343,7 +354,7 @@ public class End2endIT {
 
                     out("Query payload of b returned %s", payload);
 
-                    final String expect = "" +(300 + delta);
+                    final String expect = "" + (300 + delta);
 
 
                     Assert.assertEquals(payload, expect);

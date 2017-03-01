@@ -49,6 +49,7 @@ public class HFClient {
     private static final Log logger = LogFactory.getLog(HFClient.class);
 
     private final Map<String, Chain> chains = new HashMap<>();
+    private User registrant;
 
     public User getUserContext() {
         return userContext;
@@ -277,17 +278,17 @@ public class HFClient {
 
     private final Map<String, User> members = new HashMap<>();
 
-    /**
-     * Register a user or other user type with the chain.
-     *
-     * @param registrationRequest Registration information.
-     * @throws RegistrationException if the registration fails
-     */
-    public User register(RegistrationRequest registrationRequest) throws RegistrationException {
-        User user = getMember(registrationRequest.getEnrollmentID());
-        user.register(registrationRequest);
-        return user;
-    }
+//    /**
+//     * Register a user or other user type with the chain.
+//     *
+//     * @param registrationRequest Registration information.
+//     * @throws RegistrationException if the registration fails
+//     */
+//    public User register(RegistrationRequest registrationRequest) throws RegistrationException {
+//        User user = getMember(registrationRequest.getEnrollmentID());
+//        user.register(registrationRequest);
+//        return user;
+//    }
 
     /**
      * Enroll a user or other identity which has already been registered.
@@ -308,20 +309,20 @@ public class HFClient {
         return user;
     }
 
-    /**
-     * Register and enroll a user or other member type.
-     * This assumes that a registrar with sufficient privileges has been set.
-     *
-     * @param registrationRequest Registration information.
-     * @throws RegistrationException
-     * @throws EnrollmentException
-     */
-    public User registerAndEnroll(RegistrationRequest registrationRequest) throws RegistrationException, EnrollmentException {
-        User user = getMember(registrationRequest.getEnrollmentID());
-        user.registerAndEnroll(registrationRequest);
-        return user;
-    }
-
+//    /**
+//     * Register and enroll a user or other member type.
+//     * This assumes that a registrar with sufficient privileges has been set.
+//     *
+//     * @param registrationRequest Registration information.
+//     * @throws RegistrationException
+//     * @throws EnrollmentException
+//     */
+//    public User registerAndEnroll(RegistrationRequest registrationRequest) throws RegistrationException, EnrollmentException {
+//        User user = getMember(registrationRequest.getEnrollmentID());
+//        user.registerAndEnroll(registrationRequest);
+//        return user;
+//    }
+//
     /**
      * Get the user with a given name
      *
@@ -345,4 +346,7 @@ public class HFClient {
     }
 
 
+    public void setRegistrant(User registrant) {
+        this.registrant = registrant;
+    }
 }
