@@ -106,18 +106,11 @@ public class Chain {
     // Security enabled flag
     private boolean securityEnabled = true;
 
-    // A user cache associated with this chain
-    // TODO: Make an LRU to limit size of user cache
-    private final Map<String, User> members = new HashMap<>();
+//    // The number of tcerts to get in each batch
+//    private int tcertBatchSize = 200;
 
-    // The number of tcerts to get in each batch
-    private int tcertBatchSize = 200;
-
-    // The registrar (if any) that registers & enrolls new members/users
-    private User registrar;
-
-    // The member services used for this chain
-    private MemberServices memberServices;
+//    // The member services used for this chain
+//    private MemberServices memberServices;
 
     // The key-val store used for this chain
     private KeyValStore keyValStore;
@@ -172,10 +165,9 @@ public class Chain {
 
 
     public Enrollment getEnrollment() {
-        return enrollment;
+        return client.getUserContext().getEnrollment();
     }
 
-    private Enrollment enrollment;
 
     /**
      * isInitialized - Has the chain been initialized?
@@ -206,9 +198,9 @@ public class Chain {
             throw new InvalidArgumentException(format("Keystore value in chain %s can not be null", name));
         }
 
-        memberServices = client.getMemberServices();
+//        memberServices = client.getMemberServices();
 
-        if (null == memberServices) {
+        if (null == client.getMemberServices()) {
             throw new InvalidArgumentException(format("MemberServices value in chain %s can not be null", name));
         }
 
@@ -223,10 +215,10 @@ public class Chain {
             throw new InvalidArgumentException(format("User context in chain %s can not be null", name));
         }
 
-        enrollment = user.getEnrollment();
+        //enrollment = user.getEnrollment();
 
-        if (null == enrollment) {
-            throw new InvalidArgumentException(format("User in chain %s is not enrolled.", name));
+        if (null == client.getUserContext().getEnrollment()) {
+            throw new InvalidArgumentException(format("User context %s is not enrolled.", name));
         }
 
     }
@@ -364,32 +356,32 @@ public class Chain {
         return Collections.unmodifiableCollection(this.peers);
     }
 
-    /**
-     * Get the registrar associated with this chain
-     *
-     * @return The user whose credentials are used to perform registration, or undefined if not set.
-     */
-    public User getRegistrar() {
-        return this.registrar;
-    }
+//    /**
+//     * Get the registrar associated with this chain
+//     *
+//     * @return The user whose credentials are used to perform registration, or undefined if not set.
+//     */
+//    public User getRegistrar() {
+//        return this.registrar;
+//    }
 
-    /**
-     * Set the registrar
-     *
-     * @param registrar The user whose credentials are used to perform registration.
-     */
-    public void setRegistrar(User registrar) {
-        this.registrar = registrar;
-    }
-
-    /**
-     * Get the member service associated this chain.
-     *
-     * @return MemberServices associated with the chain, or undefined if not set.
-     */
-    public MemberServices getMemberServices() {
-        return this.memberServices;
-    }
+//    /**
+//     * Set the registrar
+//     *
+//     * @param registrar The user whose credentials are used to perform registration.
+//     */
+//    public void setRegistrar(User registrar) {
+//        this.registrar = registrar;
+//    }
+//
+//    /**
+//     * Get the member service associated this chain.
+//     *
+//     * @return MemberServices associated with the chain, or undefined if not set.
+//     */
+//    public MemberServices getMemberServices() {
+//        return this.memberServices;
+//    }
 
     /**
      * Determine if pre-fetch mode is enabled to prefetch tcerts.
@@ -473,19 +465,19 @@ public class Chain {
 //        this.keyValStore = keyValStore;
 //    }
 
-    /**
-     * Get the tcert batch size.
-     */
-    public int getTCertBatchSize() {
-        return this.tcertBatchSize;
-    }
+//    /**
+//     * Get the tcert batch size.
+//     */
+//    public int getTCertBatchSize() {
+//        return this.tcertBatchSize;
+//    }
 
-    /**
-     * Set the tcert batch size.
-     */
-    public void setTCertBatchSize(int batchSize) {
-        this.tcertBatchSize = batchSize;
-    }
+//    /**
+//     * Set the tcert batch size.
+//     */
+//    public void setTCertBatchSize(int batchSize) {
+//        this.tcertBatchSize = batchSize;
+//    }
 
 
     public Chain initialize() throws InvalidArgumentException, EventHubException { //TODO for multi chain
@@ -583,7 +575,7 @@ public class Chain {
 
                     byte[] deliverPayload_bytes = deliverPayload.toByteArray();
 
-                    byte[] deliver_signature = cryptoSuite.sign(enrollment.getKey(), deliverPayload_bytes);
+                    byte[] deliver_signature = cryptoSuite.sign(getEnrollment().getKey(), deliverPayload_bytes);
 
                     Envelope deliverEnvelope = Envelope.newBuilder()
                             .setSignature(ByteString.copyFrom(deliver_signature))
@@ -885,7 +877,7 @@ public class Chain {
 
 
     private SignedProposal getSignedProposal(FabricProposal.Proposal proposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoSuite.sign(enrollment.getKey(), proposal.toByteArray());
+        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), proposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -896,7 +888,7 @@ public class Chain {
     }
 
     private SignedProposal signTransActionEnvelope(FabricProposal.Proposal deploymentProposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoSuite.sign(enrollment.getKey(), deploymentProposal.toByteArray());
+        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), deploymentProposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -1124,7 +1116,7 @@ public class Chain {
         Envelope.Builder ceb = Envelope.newBuilder();
         ceb.setPayload(transactionPayload.toByteString());
 
-        byte[] ecdsaSignature = cryptoSuite.sign(enrollment.getKey(), transactionPayload.toByteArray());
+        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), transactionPayload.toByteArray());
         ceb.setSignature(ByteString.copyFrom(ecdsaSignature));
 
         logger.debug("Done creating transaction ready for orderer");
