@@ -12,24 +12,16 @@
  *  limitations under the License.
  */
 
-package org.hyperledger.fabric.sdk;
+package org.hyperledger.fabric_ca.sdk.exception;
 
-public class EnrollmentRequest {
-    // The enrollment ID
-    private String enrollmentID;
-    // The enrollment secret (a one-time password)
-    private String enrollmentSecret;
+import org.hyperledger.fabric.sdk.exception.*;
 
-	public String getEnrollmentID() {
-		return enrollmentID;
+public class RegistrationException extends org.hyperledger.fabric.sdk.exception.BaseException {
+
+	private static final long serialVersionUID = 1L;
+
+	public RegistrationException(String message, Exception parent) {
+		super(message, parent);
 	}
-	public void setEnrollmentID(String enrollmentID) {
-		this.enrollmentID = enrollmentID;
-	}
-	public String getEnrollmentSecret() {
-		return enrollmentSecret;
-	}
-	public void setEnrollmentSecret(String enrollmentSecret) {
-		this.enrollmentSecret = enrollmentSecret;
-	}
+
 }
