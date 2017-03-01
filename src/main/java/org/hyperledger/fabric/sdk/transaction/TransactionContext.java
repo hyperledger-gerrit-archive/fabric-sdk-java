@@ -63,8 +63,7 @@ public class TransactionContext {
     private final User user;
     private final Chain chain;
 
-    private final MemberServices memberServices;
-    private String txID ;
+    private final String txID ;
     private TCert tcert;
     private List<String> attrs;
     private long proposalWaitTime = config.getProposalWaitTime();
@@ -75,20 +74,21 @@ public class TransactionContext {
 
         this.user = user;
         this.chain = chain;
-        this.memberServices = this.chain.getMemberServices();
         this.tcert = tcert;
         //  this.txID = transactionID;
         this.cryptoPrimitives = cryptoPrimitives;
 
 
          identity = Identities.SerializedIdentity.newBuilder()
-                         .setIdBytes(ByteString.copyFromUtf8(getCreator()))
-                         .setMspid(getMSPID()).build();
+        .setIdBytes(ByteString.copyFromUtf8(getCreator()))
+        .setMspid(getMSPID()).build();
+        
 
-         ByteString no = getNonce();
-         ByteString comp = no.concat(identity.toByteString());
-         byte[] txh = cryptoPrimitives.hash(comp.toByteArray());
-         txID = new String( Hex.encodeHex(txh));
+        ByteString no = getNonce();
+        ByteString comp = no.concat(identity.toByteString());
+        byte[] txh = cryptoPrimitives.hash(comp.toByteArray());
+    //    txID = Hex.encodeHexString(txh);
+        txID = new String( Hex.encodeHex(txh));
 
     }
 
@@ -122,14 +122,6 @@ public class TransactionContext {
         return this.chain;
     }
 
-    /**
-     * Get the user services, or undefined if security is not enabled.
-     *
-     * @return The user services
-     */
-    public MemberServices getMemberServices() {
-        return this.memberServices;
-    }
 
     /**
      * Emit a specific event provided an event listener is already registered.
@@ -268,11 +260,11 @@ public class TransactionContext {
 
 
     String getMSPID() {
-        return chain.getEnrollment().getMSPID();
+        return user.getMPSID();
     }
 
     String getCreator() {
-        return chain.getEnrollment().getCert();
+        return getUser().getEnrollment().getCert();
 
     }
 

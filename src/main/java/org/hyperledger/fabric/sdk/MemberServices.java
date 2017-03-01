@@ -41,16 +41,19 @@ public interface MemberServices {
 
     /**
      * Enroll the user and return an opaque user object
-     * @param req Enrollment request with the following fields: name, enrollmentSecret
+     * @param userName Name of usr to enroll
+     * @param secret enrollmentSecret
      *
      * @return enrollment details
      */
-    Enrollment enroll(EnrollmentRequest req) throws EnrollmentException;
+    Enrollment enroll(String userName, String secret) throws EnrollmentException;
 
     /**
      * Get an array of transaction certificates (tcerts).
      * @param req A GetTCertBatchRequest
      */
     void getTCertBatch(GetTCertBatchRequest req) throws GetTCertBatchException;
+
+
 
 }
