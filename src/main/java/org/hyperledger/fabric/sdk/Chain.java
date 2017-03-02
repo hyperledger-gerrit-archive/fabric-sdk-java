@@ -68,7 +68,7 @@ import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
-import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
+import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
@@ -133,7 +133,7 @@ public class Chain {
     private int invokeWaitTime = 5;
 
     // The crypto primitives object
-    private CryptoPrimitives cryptoPrimitives;
+    private CryptoSuite cryptoPrimitives;
     private final Collection<Orderer> orderers = new LinkedList<>();
     HFClient client;
     private boolean initialized = false;
@@ -211,7 +211,7 @@ public class Chain {
             throw new InvalidArgumentException(format("MemberServices value in chain %s can not be null", name));
         }
 
-        cryptoPrimitives = client.getCryptoPrimitives();
+        cryptoPrimitives = client.getCryptoSuite();
 
         if (null == cryptoPrimitives) {
             throw new InvalidArgumentException(format("CryptoPrimitives value in chain %s can not be null", name));
@@ -582,7 +582,7 @@ public class Chain {
 
                     byte[] deliverPayload_bytes = deliverPayload.toByteArray();
 
-                    byte[] deliver_signature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), deliverPayload_bytes);
+                    byte[] deliver_signature = cryptoPrimitives.sign(enrollment.getKey(), deliverPayload_bytes);
 
                     Envelope deliverEnvelope = Envelope.newBuilder()
                             .setSignature(ByteString.copyFrom(deliver_signature))
@@ -884,7 +884,7 @@ public class Chain {
 
 
     private SignedProposal getSignedProposal(FabricProposal.Proposal proposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), proposal.toByteArray());
+        byte[] ecdsaSignature = cryptoPrimitives.sign(enrollment.getKey(), proposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -895,7 +895,7 @@ public class Chain {
     }
 
     private SignedProposal signTransActionEnvelope(FabricProposal.Proposal deploymentProposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), deploymentProposal.toByteArray());
+        byte[] ecdsaSignature = cryptoPrimitives.sign(enrollment.getKey(), deploymentProposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
 
@@ -1123,7 +1123,7 @@ public class Chain {
         Envelope.Builder ceb = Envelope.newBuilder();
         ceb.setPayload(transactionPayload.toByteString());
 
-        byte[] ecdsaSignature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), transactionPayload.toByteArray());
+        byte[] ecdsaSignature = cryptoPrimitives.sign(enrollment.getKey(), transactionPayload.toByteArray());
         ceb.setSignature(ByteString.copyFrom(ecdsaSignature));
 
         logger.debug("Done creating transaction ready for orderer");
