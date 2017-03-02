@@ -28,13 +28,11 @@ import org.hyperledger.fabric.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
-import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
+import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
 public class HFClient {
 
-    private static final int DEFAULT_SECURITY_LEVEL = 256;  //TODO make configurable //Right now by default FAB services is using
-    private static final String DEFAULT_HASH_ALGORITHM = "SHA2";  //Right now by default FAB services is using SHA2
-    private CryptoPrimitives cryptoPrimitives;
+    private CryptoSuite cryptoPrimitives;
 
     static {
 
@@ -66,13 +64,13 @@ public class HFClient {
 
     }
 
-    CryptoPrimitives getCryptoPrimitives() {
+    public CryptoSuite getCryptoSuite() {
         return cryptoPrimitives;
     }
 
-//    public void setCryptoPrimitives(CryptoPrimitives cryptoPrimitives) {
-//        this.cryptoPrimitives = cryptoPrimitives;
-//    }
+    public void setCryptoSuite(CryptoSuite cryptoSuite) {
+        this.cryptoPrimitives = cryptoSuite;
+    }
 
 
     /**
@@ -190,8 +188,7 @@ public class HFClient {
      */
     public void setMemberServices(MemberServices memberServices) throws CryptoException {
         this.memberServices = memberServices;
-        this.cryptoPrimitives = new CryptoPrimitives(DEFAULT_HASH_ALGORITHM, DEFAULT_SECURITY_LEVEL);
-        cryptoPrimitives.loadCACerts();
+        this.memberServices.setCryptoSuite(this.cryptoPrimitives);
     }
 
 

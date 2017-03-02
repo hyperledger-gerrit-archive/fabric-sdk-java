@@ -50,6 +50,8 @@ import java.security.spec.EncodedKeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Optional;
+import java.util.Properties;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -96,40 +98,34 @@ import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.io.pem.PemObject;
+
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
-import org.hyperledger.fabric.sdk.helper.SDKUtil;
 
 import io.netty.util.internal.StringUtil;
 
-public class CryptoPrimitives {
+public class CryptoPrimitives implements CryptoSuite {
     private final Config config = Config.getConfig();
 
-    private String hashAlgorithm = config.getHashAlgorithm();
-    private int securityLevel = config.getSecurityLevel();
     private String curveName;
     private CertificateFactory cf;
-    private static final String SECURITY_PROVIDER = BouncyCastleProvider.PROVIDER_NAME;
-    private static final String ASYMMETRIC_KEY_TYPE = "EC";
-    private static final String KEY_AGREEMENT_ALGORITHM = "ECDH";
-    private static final String SYMMETRIC_KEY_TYPE = "AES";
-    private static final int SYMMETRIC_KEY_BYTE_COUNT = 32;
-    private static final String SYMMETRIC_ALGORITHM = "AES/CFB/NoPadding";
-    private static final int MAC_KEY_BYTE_COUNT = 32;
-
-    // TODO most of these config values should come from genesis block or config
-    // file
-    private static final String CERTIFICATE_FORMAT = "X.509";
-    private static final String DEFAULT_SIGNATURE_ALGORITHM = "SHA256withECDSA";
+    private final String SECURITY_PROVIDER = BouncyCastleProvider.PROVIDER_NAME;
+    private String hashAlgorithm = config.getHashAlgorithm();
+    private int securityLevel = config.getSecurityLevel();
+    private String ASYMMETRIC_KEY_TYPE = config.getAsymmetricKeyType();
+    private String KEY_AGREEMENT_ALGORITHM = config.getKeyAgreementAlgorithm();
+    private String SYMMETRIC_KEY_TYPE = config.getSymmetricKeyType();
+    private int SYMMETRIC_KEY_BYTE_COUNT = config.getSymmetricKeyByteCount();
+    private String SYMMETRIC_ALGORITHM = config.getSymmetricAlgorithm();
+    private int MAC_KEY_BYTE_COUNT = config.getMACKeyByteCount();
+    private String CERTIFICATE_FORMAT = config.getCertificateFormat();
+    private String DEFAULT_SIGNATURE_ALGORITHM = config.getSignatureAlgorithm();
 
     private static final Log logger = LogFactory.getLog(CryptoPrimitives.class);
 
-    public CryptoPrimitives(String hashAlgorithm, int securityLevel) throws CryptoException {
-        this.hashAlgorithm = hashAlgorithm;
-        this.securityLevel = securityLevel;
+    public CryptoPrimitives() {
         Security.addProvider(new BouncyCastleProvider());
-        init();
     }
 
     private String signatureAlgorithm ;
@@ -165,8 +161,10 @@ public class CryptoPrimitives {
      * @param signature signature value as a byte array.
      * @param pemCertificate the X509 certificate to be used for verification
      * @return
+     * @throws CryptoException
      */
-    public boolean verify(byte[] plainText, byte[] signature, byte[] pemCertificate) {
+    @Override
+    public boolean verify(byte[] plainText, byte[] signature, byte[] pemCertificate) throws CryptoException {
         boolean isVerified = false;
 
         if (plainText == null || signature == null || pemCertificate == null)
@@ -200,12 +198,15 @@ public class CryptoPrimitives {
                 }
             }
         } catch (InvalidKeyException | CertificateException e) {
-            logger.error("Cannot verify signature. Error is: " + e.getMessage() + "\r\nCertificate (PEM, hex): "
+            CryptoException ex = new CryptoException("Cannot verify signature. Error is: "
+                            + e.getMessage() + "\r\nCertificate: "
                             + DatatypeConverter.printHexBinary(pemCertificate),e);
-            isVerified = false;
+            logger.error(ex.getMessage(), ex);
+            throw ex;
         } catch (NoSuchAlgorithmException | SignatureException e) {
-            logger.error("Cannot verify. Signature algorithm is invalid. Error is: " + e.getMessage(),e);
-            isVerified = false;
+            CryptoException ex = new CryptoException("Cannot verify. Signature algorithm is invalid. Error is: " + e.getMessage(),e);
+            logger.error(ex.getMessage(), ex) ;
+            throw ex;
         }
 
         return isVerified;
@@ -295,6 +296,12 @@ public class CryptoPrimitives {
         } catch (KeyStoreException e) {
             throw new CryptoException("Unable to add CA certificate to trust store. Error: "+ e.getMessage(), e);
         }
+    }
+
+    @Override
+    public void loadCACertificates(Collection<Certificate> CACertificates) throws CryptoException {
+        // TODO fix up when we can get the official list of CA certs
+        loadCACerts();
     }
 
     /**
@@ -390,7 +397,12 @@ public class CryptoPrimitives {
         this.hashAlgorithm = algorithm;
     }
 
-    public KeyPair ecdsaKeyGen() throws CryptoException {
+    @Override
+    public KeyPair keyGen() throws CryptoException {
+        return ecdsaKeyGen();
+    }
+
+    private KeyPair ecdsaKeyGen() throws CryptoException {
         return generateKey("ECDSA", this.curveName);
     }
 
@@ -485,7 +497,7 @@ public class CryptoPrimitives {
 
     public byte[][] ecdsaSign(PrivateKey privateKey, byte[] data) throws CryptoException {
         try {
-            byte[] encoded = SDKUtil.hash(data, getHashDigest());
+            byte[] encoded = hash(data);
             X9ECParameters params = SECNamedCurves.getByName(this.curveName);
             ECDomainParameters ecParams = new ECDomainParameters(params.getCurve(), params.getG(), params.getN(),
                             params.getH());
@@ -509,11 +521,10 @@ public class CryptoPrimitives {
      * @return
      * @throws CryptoException
      */
-
     public byte[] ecdsaSignToBytes(PrivateKey privateKey, byte[] data) throws CryptoException {
         try {
             byte[] encoded = data;
-            encoded = SDKUtil.hash(data, getHashDigest());
+            encoded = hash(data);
 
             // char[] hexenncoded = Hex.encodeHex(encoded);
             // encoded = new String(hexenncoded).getBytes();
@@ -547,6 +558,12 @@ public class CryptoPrimitives {
 
     }
 
+    @Override
+    public byte[] sign(PrivateKey key, byte[] data) throws CryptoException {
+        return ecdsaSignToBytes(key, data);
+    }
+    /*
+     *  code for signing using JCA/JSSE methods only .  Still needed ?
     public byte[] sign(PrivateKey key, byte[] data) throws CryptoException {
         byte[] signature;
 
@@ -567,7 +584,8 @@ public class CryptoPrimitives {
             throw new CryptoException("Could not sign the message.", e);
         }
 
-    } // sign
+    }
+    */
 
     private BigInteger[] preventMalleability(BigInteger[] sigs, BigInteger curve_n) {
         BigInteger cmpVal = curve_n.divide(BigInteger.valueOf(2l));
@@ -637,6 +655,7 @@ public class CryptoPrimitives {
         }
     }
 
+    @Override
     public byte[] hash(byte[] input) {
         Digest digest = getHashDigest();
         byte[] retValue = new byte[digest.getDigestSize()];
@@ -645,7 +664,8 @@ public class CryptoPrimitives {
         return retValue;
     }
 
-    private void init() throws CryptoException {
+    @Override
+    public void init() throws CryptoException {
         if (securityLevel != 256 && securityLevel != 384) {
             throw new RuntimeException("Illegal level: " + securityLevel + " must be either 256 or 384");
         }
@@ -671,6 +691,8 @@ public class CryptoPrimitives {
             logger.error(ex.getMessage(), ex);
             throw ex;
         }
+
+        loadCACerts();  // TODO fix this when we have the process for loading the real Fabric Peer CA certs
 
     }
 
@@ -710,6 +732,47 @@ public class CryptoPrimitives {
 
         return out;
 
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#setProperties(java.util.Properties)
+     */
+    @Override
+    public void setProperties(Properties properties) {
+        if (properties != null) {
+        hashAlgorithm = Optional.ofNullable(properties.getProperty(Config.HASH_ALGORITHM)).orElse(hashAlgorithm);
+        String secLevel = Optional.ofNullable(properties.getProperty(Config.SECURITY_LEVEL)).orElse(Integer.toString(securityLevel));
+        securityLevel = Integer.parseInt(secLevel);
+        ASYMMETRIC_KEY_TYPE = Optional.ofNullable(properties.getProperty(Config.ASYMMETRIC_KEY_TYPE)).orElse(ASYMMETRIC_KEY_TYPE);
+        KEY_AGREEMENT_ALGORITHM = Optional.ofNullable(properties.getProperty(Config.KEY_AGREEMENT_ALGORITHM)).orElse(KEY_AGREEMENT_ALGORITHM);
+        SYMMETRIC_KEY_TYPE = Optional.ofNullable(properties.getProperty(Config.SYMMETRIC_KEY_TYPE)).orElse(SYMMETRIC_KEY_TYPE);
+        String skbc = Optional.ofNullable(properties.getProperty(Config.SYMMETRIC_KEY_BYTE_COUNT)).orElse(Integer.toString(SYMMETRIC_KEY_BYTE_COUNT));
+        SYMMETRIC_KEY_BYTE_COUNT = Integer.parseInt(skbc);
+        SYMMETRIC_ALGORITHM = Optional.ofNullable(properties.getProperty(Config.SYMMETRIC_ALGORITHM)).orElse(SYMMETRIC_ALGORITHM);
+        String mkbc = Optional.ofNullable(properties.getProperty(Config.MAC_KEY_BYTE_COUNT)).orElse(Integer.toString(MAC_KEY_BYTE_COUNT));
+        MAC_KEY_BYTE_COUNT = Integer.parseInt(mkbc);
+        CERTIFICATE_FORMAT = Optional.ofNullable(properties.getProperty(Config.CERTIFICATE_FORMAT)).orElse(CERTIFICATE_FORMAT);
+        DEFAULT_SIGNATURE_ALGORITHM = Optional.ofNullable(properties.getProperty(Config.SIGNATURE_ALGORITHM)).orElse(DEFAULT_SIGNATURE_ALGORITHM);
+        }
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#getProperties()
+     */
+    @Override
+    public Properties getProperties() {
+        Properties properties = new Properties();
+        properties.setProperty(Config.HASH_ALGORITHM, hashAlgorithm);
+        properties.setProperty(Config.SECURITY_LEVEL, Integer.toString(securityLevel));
+        properties.setProperty(Config.ASYMMETRIC_KEY_TYPE, ASYMMETRIC_KEY_TYPE);
+        properties.setProperty(Config.KEY_AGREEMENT_ALGORITHM, KEY_AGREEMENT_ALGORITHM);
+        properties.setProperty(Config.SYMMETRIC_KEY_TYPE, SYMMETRIC_KEY_TYPE);
+        properties.setProperty(Config.SYMMETRIC_KEY_BYTE_COUNT, Integer.toString(SYMMETRIC_KEY_BYTE_COUNT));
+        properties.setProperty(Config.SYMMETRIC_ALGORITHM, SYMMETRIC_ALGORITHM);
+        properties.setProperty(Config.MAC_KEY_BYTE_COUNT, Integer.toString(MAC_KEY_BYTE_COUNT));
+        properties.setProperty(Config.CERTIFICATE_FORMAT, CERTIFICATE_FORMAT);
+        properties.setProperty(Config.SIGNATURE_ALGORITHM, DEFAULT_SIGNATURE_ALGORITHM);
+        return properties ;
     }
 
 }
