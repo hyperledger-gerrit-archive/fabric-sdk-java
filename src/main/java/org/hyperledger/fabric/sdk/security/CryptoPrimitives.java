@@ -50,6 +50,7 @@ import java.security.spec.EncodedKeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Properties;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -103,7 +104,7 @@ import org.hyperledger.fabric.sdk.helper.SDKUtil;
 
 import io.netty.util.internal.StringUtil;
 
-public class CryptoPrimitives {
+public class CryptoPrimitives implements CryptoSuite {
     private final Config config = Config.getConfig();
 
     private String hashAlgorithm = config.getHashAlgorithm();
@@ -125,11 +126,8 @@ public class CryptoPrimitives {
 
     private static final Log logger = LogFactory.getLog(CryptoPrimitives.class);
 
-    public CryptoPrimitives(String hashAlgorithm, int securityLevel) throws CryptoException {
-        this.hashAlgorithm = hashAlgorithm;
-        this.securityLevel = securityLevel;
+    public CryptoPrimitives() {
         Security.addProvider(new BouncyCastleProvider());
-        init();
     }
 
     private String signatureAlgorithm ;
@@ -165,8 +163,10 @@ public class CryptoPrimitives {
      * @param signature signature value as a byte array.
      * @param pemCertificate the X509 certificate to be used for verification
      * @return
+     * @throws CryptoException
      */
-    public boolean verify(byte[] plainText, byte[] signature, byte[] pemCertificate) {
+    @Override
+    public boolean verify(byte[] plainText, byte[] signature, byte[] pemCertificate) throws CryptoException {
         boolean isVerified = false;
 
         if (plainText == null || signature == null || pemCertificate == null)
@@ -200,12 +200,15 @@ public class CryptoPrimitives {
                 }
             }
         } catch (InvalidKeyException | CertificateException e) {
-            logger.error("Cannot verify signature. Error is: " + e.getMessage() + "\r\nCertificate (PEM, hex): "
+            CryptoException ex = new CryptoException("Cannot verify signature. Error is: "
+                            + e.getMessage() + "\r\nCertificate: "
                             + DatatypeConverter.printHexBinary(pemCertificate),e);
-            isVerified = false;
+            logger.error(ex.getMessage(), ex);
+            throw ex;
         } catch (NoSuchAlgorithmException | SignatureException e) {
-            logger.error("Cannot verify. Signature algorithm is invalid. Error is: " + e.getMessage(),e);
-            isVerified = false;
+            CryptoException ex = new CryptoException("Cannot verify. Signature algorithm is invalid. Error is: " + e.getMessage(),e);
+            logger.error(ex.getMessage(), ex) ;
+            throw ex;
         }
 
         return isVerified;
@@ -295,6 +298,12 @@ public class CryptoPrimitives {
         } catch (KeyStoreException e) {
             throw new CryptoException("Unable to add CA certificate to trust store. Error: "+ e.getMessage(), e);
         }
+    }
+
+    @Override
+    public void loadCACertificates(Collection<Certificate> CACertificates) throws CryptoException {
+        // TODO fix up when we can get the official list of CA certs
+        loadCACerts();
     }
 
     /**
@@ -390,7 +399,12 @@ public class CryptoPrimitives {
         this.hashAlgorithm = algorithm;
     }
 
-    public KeyPair ecdsaKeyGen() throws CryptoException {
+    @Override
+    public KeyPair keyGen() throws CryptoException {
+        return ecdsaKeyGen();
+    }
+
+    private KeyPair ecdsaKeyGen() throws CryptoException {
         return generateKey("ECDSA", this.curveName);
     }
 
@@ -509,7 +523,6 @@ public class CryptoPrimitives {
      * @return
      * @throws CryptoException
      */
-
     public byte[] ecdsaSignToBytes(PrivateKey privateKey, byte[] data) throws CryptoException {
         try {
             byte[] encoded = data;
@@ -547,6 +560,12 @@ public class CryptoPrimitives {
 
     }
 
+    @Override
+    public byte[] sign(PrivateKey key, byte[] data) throws CryptoException {
+        return ecdsaSignToBytes(key, data);
+    }
+    /*
+     *  code for signing using JCA/JSSE methods only .  Still needed ?
     public byte[] sign(PrivateKey key, byte[] data) throws CryptoException {
         byte[] signature;
 
@@ -567,7 +586,8 @@ public class CryptoPrimitives {
             throw new CryptoException("Could not sign the message.", e);
         }
 
-    } // sign
+    }
+    */
 
     private BigInteger[] preventMalleability(BigInteger[] sigs, BigInteger curve_n) {
         BigInteger cmpVal = curve_n.divide(BigInteger.valueOf(2l));
@@ -637,6 +657,7 @@ public class CryptoPrimitives {
         }
     }
 
+    @Override
     public byte[] hash(byte[] input) {
         Digest digest = getHashDigest();
         byte[] retValue = new byte[digest.getDigestSize()];
@@ -645,7 +666,8 @@ public class CryptoPrimitives {
         return retValue;
     }
 
-    private void init() throws CryptoException {
+    @Override
+    public void init() throws CryptoException {
         if (securityLevel != 256 && securityLevel != 384) {
             throw new RuntimeException("Illegal level: " + securityLevel + " must be either 256 or 384");
         }
@@ -671,6 +693,8 @@ public class CryptoPrimitives {
             logger.error(ex.getMessage(), ex);
             throw ex;
         }
+
+        loadCACerts();  // TODO fix this when we have the process for loading the real Fabric Peer CA certs
 
     }
 
@@ -710,6 +734,78 @@ public class CryptoPrimitives {
 
         return out;
 
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#setSigningProperties(java.util.Properties)
+     */
+    @Override
+    public void setSigningProperties(Properties properties) {
+        // TODO Auto-generated method stub
+
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#getSigningProperties()
+     */
+    @Override
+    public Properties getSigningProperties() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#setVerifyProperties(java.util.Properties)
+     */
+    @Override
+    public void setVerifyProperties(Properties verifyProperties) {
+        // TODO Auto-generated method stub
+
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#getVerifyProperties()
+     */
+    @Override
+    public Properties getVerifyProperties() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#setHashProperties(java.util.Properties)
+     */
+    @Override
+    public void setHashProperties(Properties hashProperties) {
+        // TODO Auto-generated method stub
+
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#getHashProperties()
+     */
+    @Override
+    public Properties getHashProperties() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#setKeyGenProperties(java.util.Properties)
+     */
+    @Override
+    public void setKeyGenProperties(Properties properties) {
+        // TODO Auto-generated method stub
+
+    }
+
+    /* (non-Javadoc)
+     * @see org.hyperledger.fabric.sdk.security.CryptoSuite#getKeyGenProperties()
+     */
+    @Override
+    public Properties getKeyGenProperties() {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }
