@@ -58,10 +58,9 @@ Follow the instructions <a href="https://github.com/hyperledger/fabric/blob/mast
 ssh into vagrant,
 * go to $GOPATH/src/github.com/hyperledger/fabric
   * run `make docker` to create the docker images for peer and orderer
-* go to 4GOPATH/src/github/hyperledger/fabric-cop
+* go to $GOPATH/src/github/hyperledger/fabric-ca
   * currently, you want to run fabric-ca with TLS disabled which is the default for commit aa5fb82 mentioned above.
-  * if you do need to turn off TLS, edit the COP server configuration file at _/hyperledger/fabric-ca/images/fabric-ca/config/server-config.json_
-  * run `make docker` to create the docker image for COP
+  * run `make docker` to create the docker image for Fabric_ca
 
 On your native system where you have the sdk installed you need to copy the docker compose file that starts the services to the directory mapped
  to vagrant On your native system from the sdk directory:
