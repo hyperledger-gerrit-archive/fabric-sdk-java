@@ -60,10 +60,11 @@ public class End2endIT {
     static final String CHAIN_CODE_VERSION = "1.0";
 
 
-    static final String TEST_CHAIN_NAME = "testchainid";
+  ///  static final String TEST_CHAIN_NAME = "testchainid";
     static final String FOO_CHAIN_NAME = "foo";
-    static final String CHAIN_NAME = FOO_CHAIN_NAME;
-    //static final String CHAIN_NAME = TEST_CHAIN_NAME;
+    static final String BAR_CHAIN_NAME = "bar";
+
+
 
     final static Collection<String> PEER_LOCATIONS = Arrays.asList("grpc://localhost:7051");
 
@@ -112,16 +113,12 @@ public class End2endIT {
 
             ////////////////////////////
             //Construct the chains
-            //
 
-            runChain(client, constructChain(client), true, 0);// Run test chai
-
-
+            runChain(client, constructFooChain(FOO_CHAIN_NAME, client), true, 0);
             out("\n");
-            runChain(client, constructFooChain(client), false, 100);//run a newly constructed foo chain with different b value!
+            runChain(client, constructFooChain(BAR_CHAIN_NAME, client), false, 100);//run a newly constructed foo chain with different b value!
 
             out("That's all folks!");
-
 
 
         }catch (Exception e){
@@ -383,34 +380,8 @@ public class End2endIT {
     }
 
 
-    private static Chain constructChain(HFClient client) throws Exception {
-        //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved
-        //Construct the chain
-        //
 
-        Chain newChain = client.newChain(TEST_CHAIN_NAME);
-
-        for (String peerloc : PEER_LOCATIONS) {
-            Peer peer = client.newPeer(peerloc);
-            peer.setName("peer1");
-            newChain.addPeer(peer);
-        }
-
-        for (String orderloc : ORDERER_LOCATIONS) {
-            Orderer orderer = client.newOrderer(orderloc);
-            newChain.addOrderer(orderer);
-        }
-
-        for (String eventHubLoc : EVENTHUB_LOCATIONS) {
-            EventHub eventHub = client.newEventHub(eventHubLoc);
-            newChain.addEventHub(eventHub);
-        }
-
-        return newChain;
-
-    }
-
-    private static Chain constructFooChain(HFClient client) throws Exception {
+    private static Chain constructFooChain(String  name, HFClient client) throws Exception {
         //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved
         //Construct the chain
         //
@@ -428,9 +399,9 @@ public class End2endIT {
         Orderer anOrderer = orderers.iterator().next();
         orderers.remove(anOrderer);
 
-        ChainConfiguration chainConfiguration = new ChainConfiguration(new File("src/test/fixture/foo.configtx"));
+        ChainConfiguration chainConfiguration = new ChainConfiguration(new File("src/test/fixture/" + name+ ".configtx"));
 
-        Chain newChain = client.newChain(FOO_CHAIN_NAME, anOrderer, chainConfiguration);
+        Chain newChain = client.newChain(name, anOrderer, chainConfiguration);
 
         int i = 0;
         for (String peerloc : PEER_LOCATIONS) {

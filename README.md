@@ -34,7 +34,7 @@ You should use the following commit levels of the Hyperledger projects:
 
 | Project        | Commit level                               | Date                       |
 |:---------------|:------------------------------------------:|---------------------------:|
-| fabric         | 39da6d5f263913668567112399c1708e3f87efc3   | Mar 1 17:08:05 2017 +0000 |
+| fabric         | 5f4b99a894826f0e8f2ea1ddcfe27099da5e7760   | Feb 27 20:11:28 2017 -0500 |
 | fabric-ca      | c9fb04e0f795589485915883fcbca3ae2fc0aaad   | Feb 27 21:36:23 2017 +0000 |
 
  You can clone these projects by going to the [Hyperledger repository](https://gerrit.hyperledger.org/r/#/admin/projects/).
@@ -126,8 +126,11 @@ For testing purposes, there are 2 policy files in the _src/test/resources_ direc
 ### Chain creation
 A chain code configuration file (src/test/fixture/foo.configtx)is needed when creating a new Chain. This is created with Hyperledger Fabric configtxgen tool.
 
-For the sample in the End2endIT.java the command run was <code>configtxgen -outputCreateChannelTx foo.configtx -profile SampleSingleMSPSolo -channelID foo<code>
-
+For the sample in the End2endIT.java the command run was
+ 
+ `build/bin/configtxgen -outputCreateChannelTx foo.configtx -profile SampleSingleMSPSolo -channelID foo`
+ 
+ If `build/bin/configtxgen` tool is not present  run `make configtxgen`
 
 
 #Basic Troubleshooting
