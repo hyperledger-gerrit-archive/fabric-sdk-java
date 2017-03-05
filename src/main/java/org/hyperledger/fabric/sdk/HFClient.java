@@ -142,7 +142,9 @@ public class HFClient {
      */
 
     public Peer newPeer(String grpcURL) throws InvalidArgumentException {
-        return Peer.createNewInstance(grpcURL, null);
+        Peer newPeer = Peer.createNewInstance(grpcURL, null);
+        newPeer.setCryptoSuite(cryptoPrimitives); // TODO cannot assume that all peers will use the default crypto settings
+        return newPeer;
     }
 
     /**
@@ -154,8 +156,10 @@ public class HFClient {
      */
 
     public Peer newPeer(String grpcURL, String pem) throws InvalidArgumentException {
-        return Peer.createNewInstance(grpcURL, pem);
-    }
+        Peer newPeer = Peer.createNewInstance(grpcURL, pem);
+        newPeer.setCryptoSuite(cryptoPrimitives); // TODO cannot assume that all peers will use the default crypto settings
+        return newPeer;
+        }
 
 
     /**

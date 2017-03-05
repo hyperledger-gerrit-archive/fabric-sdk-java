@@ -17,9 +17,12 @@ package org.hyperledger.fabric.sdk;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.exception.NoValidPeerException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
+import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 
@@ -31,6 +34,8 @@ public class Peer {
     private final EndorserClient endorserClent;
     private String name = null;
     private String url;
+
+    private CryptoSuite cryptoPrimitives;
 
     public String getName() {
         return name;
@@ -196,5 +201,38 @@ public class Peer {
         return new Peer(name, pem);
     }
 
+    /**
+     * Sets the CryptoSuite instance to be used by this Peer to verify messages from the Fabric peer
+     * @param cryptoSuite
+     */
+    public void setCryptoSuite(CryptoSuite cryptoSuite) {
+        this.cryptoPrimitives = cryptoSuite;
+    }
+
+    /**
+     * @return the CryptoSuite instance this peer uses to verify messages from the Fabric peer
+     */
+    public CryptoSuite getCryptoSuite() {
+        return this.cryptoPrimitives;
+    }
+
+    /**
+     * Verifies whether the given signature came from the Fabric Peer represented by this Peer instance
+     *
+     * @param plainText the original text
+     * @param signature the signature from the message
+     * @param certificate the certificate from the message
+     * @return true if the signature is verified and the certificate has a valid chain of trust
+     * @throws CryptoException
+     * @throws PeerException
+     */
+    public boolean verify(byte[] plainText, byte[] signature, byte[] certificate) throws CryptoException, PeerException {
+        if (this.cryptoPrimitives == null) {
+            String ex = "Peer " + getName() + " unable to verify message signature. Missing CryptoSuite";
+            logger.error(ex);
+            throw new PeerException(ex);
+    }
+        return this.cryptoPrimitives.verify(plainText, signature, certificate);
+    }
 
 } // end Peer

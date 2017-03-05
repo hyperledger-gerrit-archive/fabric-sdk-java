@@ -1019,7 +1019,7 @@ public class Chain {
             proposalResponse.setPeer(peerFuturePair.peer);
 
             if (fabricResponse != null && transactionContext.getVerify()) {
-                proposalResponse.verify(cryptoPrimitives);
+                proposalResponse.verify();
             }
 
             proposalResponses.add(proposalResponse);

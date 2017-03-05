@@ -11,8 +11,8 @@ import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
-import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
 public class ProposalResponse extends ChainCodeResponse {
 
@@ -42,7 +42,7 @@ public class ProposalResponse extends ChainCodeResponse {
      *
      * @return true/false depending on result of signature verification
      */
-    public boolean verify(CryptoSuite crypto) {
+    public boolean verify() throws InvalidProtocolBufferException, CryptoException, PeerException {
 
         if (isVerified()) // check if this proposalResponse was already verified
             // by client code
@@ -61,11 +61,17 @@ public class ProposalResponse extends ChainCodeResponse {
                     + DatatypeConverter.printHexBinary(endorsement.getEndorser().toByteArray()));
             logger.debug("plainText bytes in hex: " + DatatypeConverter.printHexBinary(plainText.toByteArray()));
 
-            this.isVerified = crypto.verify(plainText.toByteArray(), sig.toByteArray(),
+            if (this.peer == null)
+                throw new PeerException("Unable to verify proposalResponse. ProposalResponse does not have a peer associated with it.");
+            this.isVerified = this.peer.verify(plainText.toByteArray(), sig.toByteArray(),
                     endorser.getIdBytes().toByteArray());
         } catch (InvalidProtocolBufferException | CryptoException e) {
-            logger.error("verify: Cannot retrieve peer identity from ProposalResponse. Error is: " + e.getMessage(), e);
-            this.isVerified = false;
+            logger.error("Unable to verify signature of ProposalResponse from peer " + this.peer.getName() + ". Error is: " + e.getMessage(), e);
+            throw e;
+        }
+        catch (PeerException e1) {
+            logger.error("Unable to verify signature of proposalResponse as message is not associated with a peer.");
+            throw e1;
         }
 
         return this.isVerified;
