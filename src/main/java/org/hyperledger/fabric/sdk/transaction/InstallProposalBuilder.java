@@ -14,15 +14,15 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createDeploymentSpec;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.common.io.Files;
-import com.google.protobuf.ByteString;
-import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeDeploymentSpec;
@@ -33,7 +33,10 @@ import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 
-import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createDeploymentSpec;
+import com.google.common.io.Files;
+import com.google.protobuf.ByteString;
+
+import io.netty.util.internal.StringUtil;
 
 
 public class InstallProposalBuilder extends ProposalBuilder {
@@ -117,53 +120,40 @@ public class InstallProposalBuilder extends ProposalBuilder {
             throw new IllegalArgumentException("[NetMode] Missing chaincodePath in DeployRequest");
         }
 
-        String rootDir = "";
-        String chaincodeDir = "";
+        final Type ccType;
+        final String projectSourceDir;
+        final String targetPathPrefix;
 
-
-        Type ccType = Type.GOLANG;
-
-        String projDir = null;
-        String pathPrefix = null;
-
-        if (chaincodeLanguage == TransactionRequest.Type.GO_LANG) {
-            // Determine the user's $GOPATH
-            if (chaincodeSource == null) {
-                chaincodeSource = System.getenv("GOPATH");
+        switch (this.chaincodeLanguage) {
+        case GO_LANG:
+            ccType = Type.GOLANG;
+            if (this.chaincodeSource == null) {
+                this.chaincodeSource = System.getenv("GOPATH");
+                logger.info(String.format("Using GOPATH :%s", this.chaincodeSource));
             }
-            String goPath = System.getenv("GOPATH");
-            logger.info(String.format("Using GOPATH :%s", goPath));
-            if (StringUtil.isNullOrEmpty(chaincodeSource)) {
+            if (StringUtil.isNullOrEmpty(this.chaincodeSource)) {
                 throw new IllegalArgumentException("[NetMode] chaincodeSource or set GOPATH");
             }
-
-            logger.debug("chaincodeSource " + chaincodeSource);
-
-            // Compose the path to the chaincode project directory
-            // rootDir = SDKUtil.combinePaths(chaincodeSource, "src");
-            //    chaincodeDir = chaincodePath;
-            projDir = SDKUtil.combinePaths(chaincodeSource, "src", chaincodePath);
-            pathPrefix = SDKUtil.combinePaths("src", chaincodePath);
-            //   filterpath = FilenameUtils.separatorsToUnix(SDKUtil.combinePaths("src", chaincodePath)) + "/";
-
-
-        } else {
+            logger.debug("chaincodeSource " + this.chaincodeSource);
+            projectSourceDir = SDKUtil.combinePaths(this.chaincodeSource, "src", this.chaincodePath);
+            targetPathPrefix = SDKUtil.combinePaths("src", this.chaincodePath);
+            break;
+        case JAVA:
             ccType = Type.JAVA;
-
-            if (StringUtil.isNullOrEmpty(chaincodeSource)) {
-                throw new IllegalArgumentException("[NetMode] chaincodeSource ");
+            targetPathPrefix = "src";
+            if(this.chaincodeSource == null) {
+                this.chaincodeSource = System.getProperty("WORKSPACE_LOC");
             }
-
-            // Compose the path to the chaincode project directory
-            File ccFile = new File(chaincodeSource);
-            rootDir = ccFile.getParent();
-            chaincodeDir = ccFile.getName();
-
-            projDir = SDKUtil.combinePaths(rootDir, chaincodeDir);
+            if(StringUtil.isNullOrEmpty(this.chaincodeSource)) {
+                this.chaincodeSource = Paths.get("").toAbsolutePath().toString();
+            }
+            logger.info(String.format("Looking for Java chaincode in %s", this.chaincodeSource));
+            projectSourceDir = Paths.get(this.chaincodeSource, this.chaincodePath).toAbsolutePath().toString();
+        default:
+            throw new AssertionError("Unexpected chaincode language: " + this.chaincodeLanguage);
         }
-
-
-        logger.debug("projDir: " + projDir);
+        
+        logger.debug("Project source directory: " + projectSourceDir);
 
         String dockerFilePath = null;
 
@@ -176,14 +166,14 @@ public class InstallProposalBuilder extends ProposalBuilder {
                 dockerFileContents = String.format(dockerFileContents, chaincodeName);
 
                 // Create a Docker file with dockerFileContents
-                dockerFilePath = SDKUtil.combinePaths(projDir, "Dockerfile");
+                dockerFilePath = SDKUtil.combinePaths(projectSourceDir, "Dockerfile");
                 Files.write(dockerFileContents.getBytes(), new File(dockerFilePath));
 
                 logger.debug(String.format("Created Dockerfile at [%s]", dockerFilePath));
             }
 
 
-            byte[] data = SDKUtil.generateTarGz(projDir, pathPrefix);
+            byte[] data = SDKUtil.generateTarGz(projectSourceDir, targetPathPrefix);
 
 
             depspec = createDeploymentSpec(ccType,
