@@ -249,6 +249,7 @@ public class End2endAndBackAgainIT {
 
                     UpgradeProposalRequest upgradeProposalRequest = client.newUpgradeProposalRequest();
                     upgradeProposalRequest.setChaincodeID(chainCodeID_11);
+                    upgradeProposalRequest.setProposalWaitTime(60000);
                     upgradeProposalRequest.setFcn("init");
                     upgradeProposalRequest.setArgs(new String[] {});// no arguments don't change the ledger see chaincode.
 
