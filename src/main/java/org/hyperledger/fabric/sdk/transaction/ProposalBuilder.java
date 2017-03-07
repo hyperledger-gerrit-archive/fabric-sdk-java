@@ -119,7 +119,7 @@ public class ProposalBuilder {
                 .setChaincodeId(chaincodeID).build();
 
         Common.ChannelHeader chainHeader = createChannelHeader(HeaderType.ENDORSER_TRANSACTION,
-                context.getTxID(), chainID, context.getEpoch(), chaincodeHeaderExtension);
+                context.getTxID(), chainID, context.getEpoch(), context.getFabricTimestamp(), chaincodeHeaderExtension);
 
         if (isDebugLevel) {
             Identities.SerializedIdentity identity = context.getIdentity();
