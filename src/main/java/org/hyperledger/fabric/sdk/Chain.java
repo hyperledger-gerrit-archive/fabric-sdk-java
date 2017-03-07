@@ -37,9 +37,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.xml.bind.DatatypeConverter;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.StatusRuntimeException;
+
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.Block;
@@ -58,6 +62,8 @@ import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse.ProposalResponsePayload;
+import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Response;
+import org.hyperledger.fabric.protos.peer.FabricTransaction.ProcessedTransaction;
 import org.hyperledger.fabric.protos.peer.PeerEvents.Event.EventCase;
 import org.hyperledger.fabric.sdk.BlockEvent.TransactionEvent;
 import org.hyperledger.fabric.sdk.events.BlockListener;
@@ -909,6 +915,96 @@ public class Chain {
     }
 
     /**
+     * query a peer in this channel for a Block by the block hash
+     * @param blockNumber the hash of the Block in the chain
+     * @return the {@link BlockInfo} with the given block Hash
+     * @throws InvalidArgumentException
+     * @throws PeerException
+     * @throws ProposalException
+     * @throws CryptoException
+     * @throws InvalidProtocolBufferException
+     */
+    public BlockInfo queryBlockByHash(Peer peer, byte[] blockHash) throws InvalidArgumentException, CryptoException, ProposalException, PeerException, InvalidProtocolBufferException {
+        if (peer == null) {
+            throw new InvalidArgumentException("Must give a peer to send request to.");
+        }
+
+        QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+        querySCCRequest.setFcn(QuerySCCRequest.GETBLOCKBYHASH);
+        querySCCRequest.setArgs(new String[]{name});
+        querySCCRequest.setArgBytes(new byte[][]{blockHash});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() != 200)
+            throw new PeerException("Unable to query block by hash " + Hex.encodeHexString(blockHash) + "\n    for " + name + " from peer "
+                                    + peer.getName() + " with message : " + proposalResponse.getMessage());
+
+        return new BlockInfo(Block.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload()));
+    }
+
+    /**
+     * query a peer in this channel for a Block by the blockNumber
+     * @param peer the peer to send the request to
+     * @param blockNumber index of the Block in the chain
+     * @return the {@link BlockInfo} with the given blockNumber
+     * @throws InvalidArgumentException
+     * @throws PeerException
+     * @throws ProposalException
+     * @throws CryptoException
+     * @throws InvalidProtocolBufferException
+     */
+    public BlockInfo queryBlockByNumber(Peer peer, long blockNumber) throws InvalidArgumentException, CryptoException, ProposalException, PeerException, InvalidProtocolBufferException {
+        if (peer == null) {
+            throw new InvalidArgumentException("Must give a peer to send request to.");
+        }
+
+        QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+        querySCCRequest.setFcn(QuerySCCRequest.GETBLOCKBYNUMBER);
+        querySCCRequest.setArgs(new String[]{name, Long.toUnsignedString(blockNumber)});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() != 200)
+            throw new PeerException("Unable to query block by number " + blockNumber + " for " + name + " from peer " + peer.getName() + " with message : " + proposalResponse.getMessage());
+
+        return new BlockInfo(Block.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload()));
+    }
+
+    /**
+     * query a peer in this channel for a Block by a TransactionID contained in the block
+     * @param peer the peer to send the request to
+     * @param txID the transactionID to query on
+     * @return the {@link BlockInfo} for the Block containing the transaction
+     * @throws InvalidArgumentException
+     * @throws PeerException
+     * @throws ProposalException
+     * @throws CryptoException
+     * @throws InvalidProtocolBufferException
+     * @throws Exception
+     */
+    public BlockInfo queryBlockByTransactionID(Peer peer, String txID) throws InvalidArgumentException, CryptoException, ProposalException, PeerException, InvalidProtocolBufferException {
+        if (peer == null) {
+            throw new InvalidArgumentException("Must give a peer to send request to.");
+        }
+
+        QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+        querySCCRequest.setFcn(QuerySCCRequest.GETBLOCKBYTXID);
+        querySCCRequest.setArgs(new String[]{name, txID});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() != 200)
+            throw new PeerException("Unable to query block by TxID " + txID + "\n      for " + name + " from peer "
+                                    + peer.getName() + " with message : " + proposalResponse.getMessage());
+
+        return new BlockInfo(Block.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload()));
+    }
+
+    /**
      * query for chain information
      * @param peer The peer to send the request to
      * @return a {@link BlockchainInfo} object containing the chain info requested
@@ -938,15 +1034,43 @@ public class Chain {
         return new BlockchainInfo(blockchainInfo);
     }
 
+    /**
+     * Query for a Fabric Transaction given its transactionID
+     * @param txID the ID of the transaction
+     * @param peer the peer to send the request to
+     * @return a {@link TransactionInfo}
+     * @throws ProposalException
+     * @throws InvalidArgumentException
+     * @throws PeerException
+     * @throws InvalidProtocolBufferException
+     * @throws CryptoException
+     */
+    public TransactionInfo queryTransactionByID(Peer peer, String txID) throws ProposalException, InvalidArgumentException, PeerException, InvalidProtocolBufferException, CryptoException {
+        if (peer == null) {
+            throw new InvalidArgumentException("Must give a peer to send request to.");
+        }
+
+        QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+        querySCCRequest.setFcn(QuerySCCRequest.GETTRANSACTIONBYID);
+        querySCCRequest.setArgs(new String[]{name, txID});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() != 200) {
+            throw new PeerException("Unable to query transaction info for ID " + txID + "\n       from peer " + peer.getName() + " with message : " + proposalResponse.getMessage());
+        }
+
+        TransactionInfo transactionInfo = new TransactionInfo(txID, ProcessedTransaction.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload()));
+
+        return transactionInfo;
+    }
+
     public Collection<ProposalResponse> sendInvokeProposal(InvokeProposalRequest invokeProposalRequest, Collection<Peer> peers) throws Exception {
-
-
         return sendProposal(invokeProposalRequest, peers);
     }
 
-
     public Collection<ProposalResponse> sendQueryProposal(QueryProposalRequest queryProposalRequest, Collection<Peer> peers) throws Exception {
-
         return sendProposal(queryProposalRequest, peers);
     }
 
