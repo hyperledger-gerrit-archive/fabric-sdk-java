@@ -43,15 +43,24 @@ import io.grpc.StatusRuntimeException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.Block;
+import org.hyperledger.fabric.protos.common.Common.BlockMetadata;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
+import org.hyperledger.fabric.protos.common.Common.LastConfig;
+import org.hyperledger.fabric.protos.common.Common.Metadata;
 import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.common.Configtx.ConfigEnvelope;
+import org.hyperledger.fabric.protos.common.Configtx.ConfigGroup;
 import org.hyperledger.fabric.protos.common.Policies.Policy;
 import org.hyperledger.fabric.protos.msp.Identities;
+import org.hyperledger.fabric.protos.msp.Mspconfig;
 import org.hyperledger.fabric.protos.orderer.Ab;
 import org.hyperledger.fabric.protos.orderer.Ab.BroadcastResponse;
 import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
+import org.hyperledger.fabric.protos.orderer.Ab.SeekInfo;
+import org.hyperledger.fabric.protos.orderer.Ab.SeekPosition;
+import org.hyperledger.fabric.protos.orderer.Ab.SeekSpecified;
 import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
@@ -74,7 +83,6 @@ import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
-import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
@@ -82,12 +90,14 @@ import static java.lang.String.format;
 import static org.hyperledger.fabric.protos.common.Common.HeaderType;
 import static org.hyperledger.fabric.protos.common.Common.SignatureHeader;
 import static org.hyperledger.fabric.protos.common.Common.Status;
+import static org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
 import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
 import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvelope;
 import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
 
 
 /**
@@ -266,7 +276,7 @@ public class Chain {
         return this;
     }
 
-    public  Chain joinPeer(Peer peer) throws ProposalException {
+    public Chain joinPeer(Peer peer) throws ProposalException {
         if (genesisBlock == null && orderers.isEmpty()) {
             ProposalException e = new ProposalException("Chain missing genesis block and no orderers configured");
             logger.error(e.getMessage(), e);
@@ -488,7 +498,7 @@ public class Chain {
     }
 
 
-    public Chain initialize() throws InvalidArgumentException, EventHubException { //TODO for multi chain
+    public Chain initialize() throws InvalidArgumentException, EventHubException, TransactionException { //TODO for multi chain
         if (peers.size() == 0) {  // assume this makes no sense.  have no orders seems reasonable if all you do is query.
 
             throw new InvalidArgumentException("Chain needs at least one peer.");
@@ -507,6 +517,8 @@ public class Chain {
 
             throw new InvalidArgumentException("Chain initialized on HFClient with no user context.");
         }
+
+        mspData();
 
         runEventQue();
 
@@ -534,28 +546,28 @@ public class Chain {
 
                 do {
 
-                    Ab.SeekSpecified seekSpecified = Ab.SeekSpecified.newBuilder()
+                    SeekSpecified seekSpecified = SeekSpecified.newBuilder()
                             .setNumber(0)
                             .build();
-                    Ab.SeekPosition seekPosition = Ab.SeekPosition.newBuilder()
+                    SeekPosition seekPosition = SeekPosition.newBuilder()
                             .setSpecified(seekSpecified)
                             .build();
 
-                    Ab.SeekSpecified seekStopSpecified = Ab.SeekSpecified.newBuilder()
+                    SeekSpecified seekStopSpecified = SeekSpecified.newBuilder()
                             .setNumber(0)
                             .build();
 
-                    Ab.SeekPosition seekStopPosition = Ab.SeekPosition.newBuilder()
+                    SeekPosition seekStopPosition = SeekPosition.newBuilder()
                             .setSpecified(seekStopSpecified)
                             .build();
 
-                    Ab.SeekInfo seekInfo = Ab.SeekInfo.newBuilder()
+                    SeekInfo seekInfo = SeekInfo.newBuilder()
                             .setStart(seekPosition)
                             .setStop(seekStopPosition)
-                            .setBehavior(Ab.SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
+                            .setBehavior(SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
                             .build();
 
-                    ChannelHeader deliverChainHeader = ProtoUtils.createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
+                    ChannelHeader deliverChainHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
 
 
                     String mspid = getEnrollment().getMSPID();
@@ -601,7 +613,7 @@ public class Chain {
                             logger.warn(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
                             // keep trying...
                         } else if (status.getStatusValue() != 200) {
-                            throw  new TransactionException(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
+                            throw new TransactionException(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
 
                         } else {
 
@@ -651,6 +663,262 @@ public class Chain {
 
         }
         return genesisBlock;
+    }
+
+    static final String TOP = "\0".intern();
+
+    Map<String, MSP> msps = new HashMap();
+
+    class MSP{
+        final  String name;
+        final Mspconfig.MSPConfig mspConfig;
+
+        MSP(String name, Mspconfig.MSPConfig mspConfig){
+            this.name = name;
+            this.mspConfig = mspConfig;
+
+             msps.computeIfAbsent( name, key  ->{
+                     logger.trace(format("Found MSP for %s  : %s", key, "" + mspConfig));
+               return  this;}
+             );
+
+        }
+
+    }
+
+
+    private void mspData() throws TransactionException {
+
+        try {
+
+            final Block configBlock = getConfigurationBlock();
+
+            logger.trace(format("Got config block getting MSP data"));
+
+            Envelope envelope = Envelope.parseFrom(configBlock.getData().getData(0));
+            Payload payload = Payload.parseFrom(envelope.getPayload());
+            ConfigEnvelope configEnvelope = ConfigEnvelope.parseFrom(payload.getData());
+            ConfigGroup channelGroup = configEnvelope.getConfig().getChannelGroup();
+            traverseConfigGroups(TOP, channelGroup);
+
+
+        } catch (TransactionException e) {
+            logger.error(e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new TransactionException(e);
+        }
+
+    }
+
+    private void traverseConfigGroups(String name, ConfigGroup configGroup) throws InvalidProtocolBufferException {
+
+        ConfigValue mspv = configGroup.getValuesMap().get("MSP");
+        if (null != mspv) {
+            new MSP(name, Mspconfig.MSPConfig.parseFrom(mspv.getValue()));
+
+        }
+
+        for (Map.Entry<String, ConfigGroup> gm : configGroup.getGroupsMap().entrySet()) {
+            traverseConfigGroups(gm.getKey().intern(), gm.getValue());
+        }
+    }
+
+
+    private Block getConfigurationBlock() throws TransactionException {
+
+        logger.trace(format("getConfigurationBlock for chain %s", name));
+
+        try {
+            if (orderers.isEmpty()) {
+                throw new TransactionException(format("No orderers for chain %s", name));
+            }
+            Orderer orderer = orderers.iterator().next();
+
+
+            Block latestBlock = getLatestBlock(orderer);
+
+            BlockMetadata blockMetadata = latestBlock.getMetadata();
+
+            Metadata metaData = Metadata.parseFrom(blockMetadata.getMetadata(1));
+
+            LastConfig lastConfig = LastConfig.parseFrom(metaData.getValue());
+
+            long lastConfigIndex = lastConfig.getIndex();
+
+            logger.trace(format("Last config index is %d", lastConfigIndex));
+
+            ///................................................................................
+
+            TransactionContext txContext = getTransactionContext();
+
+            SeekSpecified seekSpecified = SeekSpecified.newBuilder().setNumber(lastConfigIndex).build();
+
+            SeekPosition seekPosition = SeekPosition.newBuilder()
+                    .setSpecified(seekSpecified)
+                    .setNewest(Ab.SeekNewest.getDefaultInstance())
+                    .build();
+
+
+            SeekInfo seekInfo = SeekInfo.newBuilder()
+                    .setStart(seekPosition)
+                    .setStop(seekPosition)
+                    .setBehavior(SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
+                    .build();
+
+            ChannelHeader seekInfoHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO,
+                    txContext.getTxID(), name, txContext.getEpoch(), null);
+
+            SignatureHeader signatureHeader = SignatureHeader.newBuilder()
+                    .setCreator(txContext.getIdentity().toByteString())
+                    .setNonce(txContext.getNonce())
+                    .build();
+
+            Header seekHeader = Header.newBuilder()
+                    .setSignatureHeader(signatureHeader.toByteString())
+                    .setChannelHeader(seekInfoHeader.toByteString())
+                    .build();
+
+            Payload seekPayload = Payload.newBuilder()
+                    .setHeader(seekHeader)
+                    .setData(seekInfo.toByteString())
+                    .build();
+
+            Envelope envelope = Envelope.newBuilder().setSignature(txContext.signByteString(seekPayload.toByteArray()))
+                    .setPayload(seekPayload.toByteString())
+                    .build();
+
+            DeliverResponse[] deliver = orderer.sendDeliver(envelope);
+
+            Block configBlock;
+            if (deliver.length < 1) {
+                throw new TransactionException(format("newest block for channel %s fetch bad deliver missing status block only got blocks:%d", name, deliver.length));
+
+            } else {
+
+                DeliverResponse status = deliver[0];
+                if (status.getStatusValue() != 200) {
+                    throw new TransactionException(format("Bad newest block expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
+                } else {
+                    if (deliver.length < 2) {
+                        throw new TransactionException(format("newest block for channel %s fetch bad deliver missing genesis block only got %d:", name, deliver.length));
+                    } else {
+
+                        DeliverResponse blockresp = deliver[1];
+                        configBlock = blockresp.getBlock();
+
+                        int dataCount = configBlock.getData().getDataCount();
+                        if (dataCount < 1) {
+                            throw new TransactionException(format("Bad config block data count %d", dataCount));
+                        }
+                        //Little extra parsing but make sure this really is a config block for this chain.
+                        Envelope envelopeRet = Envelope.parseFrom(configBlock.getData().getData(0));
+                        Payload payload = Payload.parseFrom(envelopeRet.getPayload());
+                        ChannelHeader channelHeader = ChannelHeader.parseFrom(payload.getHeader().getChannelHeader());
+                        if (channelHeader.getType() != HeaderType.CONFIG.getNumber()) {
+                            throw new TransactionException(format("Bad last configuation block type %d, expected %d",
+                                    channelHeader.getType(), HeaderType.CONFIG.getNumber()));
+                        }
+
+                        if (!name.equals(channelHeader.getChannelId())) {
+                            throw new TransactionException(format("Bad last configuation block channel id %s, expected %s",
+                                    channelHeader.getChannelId(), name));
+                        }
+                    }
+                }
+            }
+
+            if (configBlock == null) {
+                throw new TransactionException(format("newest block for channel %s fetch bad deliver returned null:", name));
+            }
+
+            //getChannelConfig -  config block number ::%s  -- numberof tx :: %s', block.header.number, block.data.data.length)
+
+            logger.trace(format("Received latest config block for channel %s, block no:%d, transaction count:",
+                    name, configBlock.getHeader().getNumber(), configBlock.getData().getDataCount()));
+
+            return configBlock;
+
+
+        } catch (TransactionException e) {
+            logger.error(e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new TransactionException(e);
+        }
+
+    }
+
+    private Block getLatestBlock(Orderer orderer) throws CryptoException, TransactionException {
+
+
+        logger.trace(format("getConfigurationBlock for chain %s", name));
+
+        SeekPosition seekPosition = SeekPosition.newBuilder()
+                .setNewest(Ab.SeekNewest.getDefaultInstance())
+                .build();
+
+        TransactionContext txContext = getTransactionContext();
+
+
+        SeekInfo seekInfo = SeekInfo.newBuilder()
+                .setStart(seekPosition)
+                .setStop(seekPosition)
+                .setBehavior(SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
+                .build();
+
+        ChannelHeader seekInfoHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO,
+                txContext.getTxID(), name, txContext.getEpoch(), null);
+
+        SignatureHeader signatureHeader = SignatureHeader.newBuilder()
+                .setCreator(txContext.getIdentity().toByteString())
+                .setNonce(txContext.getNonce())
+                .build();
+
+        Header seekHeader = Header.newBuilder()
+                .setSignatureHeader(signatureHeader.toByteString())
+                .setChannelHeader(seekInfoHeader.toByteString())
+                .build();
+
+        Payload seekPayload = Payload.newBuilder()
+                .setHeader(seekHeader)
+                .setData(seekInfo.toByteString())
+                .build();
+
+        Envelope envelope = Envelope.newBuilder().setSignature(txContext.signByteString(seekPayload.toByteArray()))
+                .setPayload(seekPayload.toByteString())
+                .build();
+
+        DeliverResponse[] deliver = orderer.sendDeliver(envelope);
+
+        Block latestBlock;
+        if (deliver.length < 1) {
+            throw new TransactionException(format("newest block for channel %s fetch bad deliver missing status block only got blocks:%d", name, deliver.length));
+
+        } else {
+
+            DeliverResponse status = deliver[0];
+            if (status.getStatusValue() != 200) {
+                throw new TransactionException(format("Bad newest block expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
+            } else {
+                if (deliver.length < 2) {
+                    throw new TransactionException(format("newest block for channel %s fetch bad deliver missing genesis block only got %d:", name, deliver.length));
+                } else {
+
+                    DeliverResponse blockresp = deliver[1];
+                    latestBlock = blockresp.getBlock();
+                }
+            }
+        }
+
+        if (latestBlock == null) {
+            throw new TransactionException(format("newest block for channel %s fetch bad deliver returned null:", name));
+        }
+
+        logger.trace(format("Received latest  block for channel %s, block no:%d", name, latestBlock.getHeader().getNumber()));
+        return latestBlock;
     }
 
 
@@ -1162,8 +1430,8 @@ public class Chain {
         private long previous = Long.MIN_VALUE;
         private Throwable eventException;
 
-        public void eventError(Throwable t){
-            eventException =t;
+        public void eventError(Throwable t) {
+            eventException = t;
         }
 
         public boolean addBEvent(Event event) {
@@ -1194,14 +1462,14 @@ public class Chain {
 
         public Event getNextEvent() throws EventHubException {
             Event ret = null;
-            if(eventException != null){
+            if (eventException != null) {
                 throw new EventHubException(eventException);
             }
             try {
                 ret = events.take();
             } catch (InterruptedException e) {
                 logger.warn(e);
-                if(eventException != null){
+                if (eventException != null) {
 
                     EventHubException eve = new EventHubException(eventException);
                     logger.error(eve.getMessage(), eve);
@@ -1209,7 +1477,7 @@ public class Chain {
                 }
             }
 
-            if(eventException != null){
+            if (eventException != null) {
                 throw new EventHubException(eventException);
             }
 
