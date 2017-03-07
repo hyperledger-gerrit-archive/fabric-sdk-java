@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Hex;
+import org.hyperledger.fabric.protos.ledger.rwset.Rwset.TxReadWriteSet;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
@@ -50,6 +51,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.BlockInfo.EnvelopeType.TRANSACTION_ENVELOPE_INFO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -412,6 +414,41 @@ public class End2endIT {
             assertEquals(channelInfo.getHeight() - 1, returnedBlock.getBlockNumber());
             assertEquals(chainPreviousHash, previousHash);
 
+            // Dig deeper into the Block.
+            out("returnedBlock has %d envelopes", returnedBlock.getEnvelopCount());
+            int i = 0;
+            for (BlockInfo.EnvelopeInfo envelopeInfo : returnedBlock.getEnvelopeInfos()) {
+                ++i;
+
+                out("  Transaction number %d has transaction id: %s", i, envelopeInfo.getTxId());
+                out("  Transaction number %d has channel id: %s", i, envelopeInfo.getChannelId());
+                out("  Transaction number %d has channel epoch: %d", i, envelopeInfo.getEpoch());
+                out("  Transaction number %d has transaction timestamp: %tB %<te,  %<tY  %<tT %<Tp", i, envelopeInfo.getTimestamp());
+
+                if (envelopeInfo.getType() == TRANSACTION_ENVELOPE_INFO) {
+                    BlockInfo.TansactionEnvelopeInfo tansactionEnvelopeInfo = (BlockInfo.TansactionEnvelopeInfo) envelopeInfo;
+
+                    out("  Transaction number %d has %d actions", i, tansactionEnvelopeInfo.getTransactionActionInfoCount());
+
+                    int j = 0;
+                    for (BlockInfo.TansactionEnvelopeInfo.TransactionActionInfo transactionActionInfo : tansactionEnvelopeInfo.getTransactionActionInfos()) {
+                        ++j;
+                        out("   Transaction action %d has %d endorsements", j, transactionActionInfo.getEndorsementsCount());
+                        for (int n = 0; n < transactionActionInfo.getEndorsementsCount(); ++n) {
+                            BlockInfo.EndorserInfo endorserInfo = transactionActionInfo.getEndorsementInfo(n);
+                            out("Endorser %d signature: %s", n, Hex.encodeHexString(endorserInfo.getSignature()));
+                            out("Endorser %d endorser: %s", n, new String(endorserInfo.getEndorser(), "UTF-8"));
+                        }
+
+                        TxReadWriteSet rwset = transactionActionInfo.getTxReadWriteSet();
+                        out("read write set %s", rwset + "");
+
+                    }
+
+                }
+
+            }
+
             // Query by block hash. Using latest block's previous hash so should return block number 1
             byte[] hashQuery = returnedBlock.getPreviousHash();
             returnedBlock = chain.queryBlockByHash(queryPeer, hashQuery);
@@ -425,7 +462,7 @@ public class End2endIT {
 
             // query transaction by ID
             TransactionInfo txInfo = chain.queryTransactionByID(queryPeer, testTxID);
-            out("QueryTransactionByID returned TransactionInfo: txID " + txInfo.getTransactionID()
+            out("QueryTransactionByID returned TansactionEnvelopeInfo: txID " + txInfo.getTransactionID()
                     + "\n     validation code " + txInfo.getValidationCode().getNumber());
             /*
              * TODO printing out too many error messages right now

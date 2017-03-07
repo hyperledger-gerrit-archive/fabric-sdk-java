@@ -108,6 +108,7 @@ import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.getCurrentFabricTimestamp;
 
 /**
  * The class representing a chain/channel with which the client SDK interacts.
@@ -609,7 +610,8 @@ public class Chain {
                             .setBehavior(SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
                             .build();
 
-                    ChannelHeader deliverChainHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
+                    ChannelHeader deliverChainHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4",
+                            name, 0, getCurrentFabricTimestamp(), null);
 
                     String mspid = client.getUserContext().getMSPID();
                     String cert = getEnrollment().getCert();
@@ -895,11 +897,49 @@ public class Chain {
 
             logger.trace(format("Last config index is %d", lastConfigIndex));
 
-            ///................................................................................
+            Block configBlock = getBlockByNumber(lastConfigIndex);
+
+            //Little extra parsing but make sure this really is a config block for this chain.
+            Envelope envelopeRet = Envelope.parseFrom(configBlock.getData().getData(0));
+            Payload payload = Payload.parseFrom(envelopeRet.getPayload());
+            ChannelHeader channelHeader = ChannelHeader.parseFrom(payload.getHeader().getChannelHeader());
+            if (channelHeader.getType() != HeaderType.CONFIG.getNumber()) {
+                throw new TransactionException(format("Bad last configuation block type %d, expected %d",
+                        channelHeader.getType(), HeaderType.CONFIG.getNumber()));
+            }
+
+            if (!name.equals(channelHeader.getChannelId())) {
+                throw new TransactionException(format("Bad last configuation block channel id %s, expected %s",
+                        channelHeader.getChannelId(), name));
+            }
+
+            return configBlock;
+
+        } catch (TransactionException e) {
+            logger.error(e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new TransactionException(e);
+        }
+
+    }
+
+    private Block getBlockByNumber(final long number) throws TransactionException {
+
+        logger.trace(format("getConfigurationBlock for chain %s", name));
+
+        try {
+            if (orderers.isEmpty()) {
+                throw new TransactionException(format("No orderers for chain %s", name));
+            }
+            Orderer orderer = orderers.iterator().next();
+
+            logger.trace(format("Last config index is %d", number));
 
             TransactionContext txContext = getTransactionContext();
 
-            SeekSpecified seekSpecified = SeekSpecified.newBuilder().setNumber(lastConfigIndex).build();
+            SeekSpecified seekSpecified = SeekSpecified.newBuilder().setNumber(number).build();
 
             SeekPosition seekPosition = SeekPosition.newBuilder()
                     .setSpecified(seekSpecified)
@@ -912,7 +952,7 @@ public class Chain {
                     .build();
 
             ChannelHeader seekInfoHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO,
-                    txContext.getTxID(), name, txContext.getEpoch(), null);
+                    txContext.getTxID(), name, txContext.getEpoch(), getCurrentFabricTimestamp(), null);
 
             SignatureHeader signatureHeader = SignatureHeader.newBuilder()
                     .setCreator(txContext.getIdentity().toByteString())
@@ -956,19 +996,6 @@ public class Chain {
                         if (dataCount < 1) {
                             throw new TransactionException(format("Bad config block data count %d", dataCount));
                         }
-                        //Little extra parsing but make sure this really is a config block for this chain.
-                        Envelope envelopeRet = Envelope.parseFrom(configBlock.getData().getData(0));
-                        Payload payload = Payload.parseFrom(envelopeRet.getPayload());
-                        ChannelHeader channelHeader = ChannelHeader.parseFrom(payload.getHeader().getChannelHeader());
-                        if (channelHeader.getType() != HeaderType.CONFIG.getNumber()) {
-                            throw new TransactionException(format("Bad last configuation block type %d, expected %d",
-                                    channelHeader.getType(), HeaderType.CONFIG.getNumber()));
-                        }
-
-                        if (!name.equals(channelHeader.getChannelId())) {
-                            throw new TransactionException(format("Bad last configuation block channel id %s, expected %s",
-                                    channelHeader.getChannelId(), name));
-                        }
                     }
                 }
             }
@@ -1011,7 +1038,7 @@ public class Chain {
                 .build();
 
         ChannelHeader seekInfoHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO,
-                txContext.getTxID(), name, txContext.getEpoch(), null);
+                txContext.getTxID(), name, txContext.getEpoch(), getCurrentFabricTimestamp(), null);
 
         SignatureHeader signatureHeader = SignatureHeader.newBuilder()
                 .setCreator(txContext.getIdentity().toByteString())
