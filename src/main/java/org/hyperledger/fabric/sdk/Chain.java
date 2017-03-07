@@ -108,6 +108,7 @@ import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.getCurrentFabricTimestamp;
 
 /**
  * The class representing a chain/channel with which the client SDK interacts.
@@ -500,6 +501,8 @@ public class Chain {
 
     public Chain initialize() throws InvalidArgumentException, TransactionException {
 
+        logger.debug(format("Chain %s initialize shutdown %b", name, shutdown));
+
         if (shutdown) {
             throw new InvalidArgumentException(format("Chain %s has been shutdown.", name));
         }
@@ -529,17 +532,25 @@ public class Chain {
             loadCACertificates();  // put all MSP certs into cryptoSuite
 
             startEventQue(); //Run the event for event messages from event hubs.
+            logger.debug(format("Eventque started %s", "" +eventQueueThread));
 
             for (EventHub eh : eventHubs) { //Connect all event hubs
                 eh.connect(getTransactionContext());
             }
 
+            logger.debug(format("%d eventhubs initialized", getEventHubs().size()));
+
             registerTransactionListenerProcessor(); //Manage transactions.
+            logger.debug(format("Chain %s registerTransactionListenerProcessor completed", name));
 
             this.initialized = true;
 
+
+            logger.debug(format("Chain %s initialized", name));
+
             return this;
         } catch (TransactionException e) {
+            logger.error(e.getMessage(), e);
             throw e;
 
         } catch (Exception e) {
@@ -558,6 +569,7 @@ public class Chain {
      * @throws CryptoException
      */
     private void loadCACertificates() throws InvalidArgumentException, CryptoException {
+        logger.debug(format("Chain %s loadCACertificates", name));
         if (cryptoSuite == null) {
             throw new InvalidArgumentException("Unable to load CA certificates. Channel " + name + " does not have a CryptoSuite.");
         }
@@ -578,6 +590,7 @@ public class Chain {
             }
             // not adding admin certs. Admin certs should be signed by the CA
         }
+        logger.debug(format("Chain %s loadCACertificates completed ", name));
     }
 
     private Block getGenesisBlock(Orderer order) throws TransactionException {
@@ -609,7 +622,8 @@ public class Chain {
                             .setBehavior(SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
                             .build();
 
-                    ChannelHeader deliverChainHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
+                    ChannelHeader deliverChainHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4",
+                            name, 0, getCurrentFabricTimestamp(), null);
 
                     String mspid = client.getUserContext().getMSPID();
                     String cert = getEnrollment().getCert();
@@ -810,7 +824,7 @@ public class Chain {
 
             final Block configBlock = getConfigurationBlock();
 
-            logger.trace("Got config block getting MSP data and anchorPeers data");
+            logger.debug(format("Chain %s Got config block getting MSP data and anchorPeers data", name));
 
             Envelope envelope = Envelope.parseFrom(configBlock.getData().getData(0));
             Payload payload = Payload.parseFrom(envelope.getPayload());
@@ -875,7 +889,7 @@ public class Chain {
 
     private Block getConfigurationBlock() throws TransactionException {
 
-        logger.trace(format("getConfigurationBlock for chain %s", name));
+        logger.debug(format("getConfigurationBlock for chain %s", name));
 
         try {
             if (orderers.isEmpty()) {
@@ -893,13 +907,57 @@ public class Chain {
 
             long lastConfigIndex = lastConfig.getIndex();
 
-            logger.trace(format("Last config index is %d", lastConfigIndex));
+            logger.debug(format("Last config index is %d", lastConfigIndex));
 
-            ///................................................................................
+            Block configBlock = getBlockByNumber(lastConfigIndex);
+
+            //Little extra parsing but make sure this really is a config block for this chain.
+            Envelope envelopeRet = Envelope.parseFrom(configBlock.getData().getData(0));
+            Payload payload = Payload.parseFrom(envelopeRet.getPayload());
+            ChannelHeader channelHeader = ChannelHeader.parseFrom(payload.getHeader().getChannelHeader());
+            if (channelHeader.getType() != HeaderType.CONFIG.getNumber()) {
+                throw new TransactionException(format("Bad last configuation block type %d, expected %d",
+                        channelHeader.getType(), HeaderType.CONFIG.getNumber()));
+            }
+
+            if (!name.equals(channelHeader.getChannelId())) {
+                throw new TransactionException(format("Bad last configuation block channel id %s, expected %s",
+                        channelHeader.getChannelId(), name));
+            }
+
+            logger.trace(format("Chain %s getConfigurationBlock retraceturned %s", name, "" + configBlock));
+            if(!logger.isTraceEnabled()){
+                logger.debug(format("Chain %s getConfigurationBlock returned", name));
+            }
+
+
+            return configBlock;
+
+        } catch (TransactionException e) {
+            logger.error(e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new TransactionException(e);
+        }
+
+    }
+
+    private Block getBlockByNumber(final long number) throws TransactionException {
+
+        logger.trace(format("getConfigurationBlock for chain %s", name));
+
+        try {
+            if (orderers.isEmpty()) {
+                throw new TransactionException(format("No orderers for chain %s", name));
+            }
+            Orderer orderer = orderers.iterator().next();
+
+            logger.trace(format("Last config index is %d", number));
 
             TransactionContext txContext = getTransactionContext();
 
-            SeekSpecified seekSpecified = SeekSpecified.newBuilder().setNumber(lastConfigIndex).build();
+            SeekSpecified seekSpecified = SeekSpecified.newBuilder().setNumber(number).build();
 
             SeekPosition seekPosition = SeekPosition.newBuilder()
                     .setSpecified(seekSpecified)
@@ -912,7 +970,7 @@ public class Chain {
                     .build();
 
             ChannelHeader seekInfoHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO,
-                    txContext.getTxID(), name, txContext.getEpoch(), null);
+                    txContext.getTxID(), name, txContext.getEpoch(), getCurrentFabricTimestamp(), null);
 
             SignatureHeader signatureHeader = SignatureHeader.newBuilder()
                     .setCreator(txContext.getIdentity().toByteString())
@@ -956,19 +1014,6 @@ public class Chain {
                         if (dataCount < 1) {
                             throw new TransactionException(format("Bad config block data count %d", dataCount));
                         }
-                        //Little extra parsing but make sure this really is a config block for this chain.
-                        Envelope envelopeRet = Envelope.parseFrom(configBlock.getData().getData(0));
-                        Payload payload = Payload.parseFrom(envelopeRet.getPayload());
-                        ChannelHeader channelHeader = ChannelHeader.parseFrom(payload.getHeader().getChannelHeader());
-                        if (channelHeader.getType() != HeaderType.CONFIG.getNumber()) {
-                            throw new TransactionException(format("Bad last configuation block type %d, expected %d",
-                                    channelHeader.getType(), HeaderType.CONFIG.getNumber()));
-                        }
-
-                        if (!name.equals(channelHeader.getChannelId())) {
-                            throw new TransactionException(format("Bad last configuation block channel id %s, expected %s",
-                                    channelHeader.getChannelId(), name));
-                        }
                     }
                 }
             }
@@ -996,7 +1041,7 @@ public class Chain {
 
     private Block getLatestBlock(Orderer orderer) throws CryptoException, TransactionException {
 
-        logger.trace(format("getConfigurationBlock for chain %s", name));
+        logger.debug(format("getConfigurationBlock for chain %s", name));
 
         SeekPosition seekPosition = SeekPosition.newBuilder()
                 .setNewest(Ab.SeekNewest.getDefaultInstance())
@@ -1011,7 +1056,7 @@ public class Chain {
                 .build();
 
         ChannelHeader seekInfoHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO,
-                txContext.getTxID(), name, txContext.getEpoch(), null);
+                txContext.getTxID(), name, txContext.getEpoch(), getCurrentFabricTimestamp(), null);
 
         SignatureHeader signatureHeader = SignatureHeader.newBuilder()
                 .setCreator(txContext.getIdentity().toByteString())
@@ -1041,6 +1086,7 @@ public class Chain {
         } else {
 
             DeliverResponse status = deliver[0];
+            logger.debug(format("Chain %s getLatestBlock returned status %s", name, status.getStatusValue()));
             if (status.getStatusValue() != 200) {
                 throw new TransactionException(format("Bad newest block expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
             } else {
@@ -2393,7 +2439,9 @@ public class Chain {
 
         BL(BlockListener listener) {
 
+
             handle = SDKUtil.generateUUID();
+            logger.debug(format("Chain %s blockListener %s starting", name, handle));
 
             this.listener = listener;
             synchronized (blockListeners) {
@@ -2414,6 +2462,7 @@ public class Chain {
      */
 
     private String registerTransactionListenerProcessor() throws InvalidArgumentException {
+        logger.debug(format("Chain %s registerTransactionListenerProcessor starting", name));
 
         // Transaction listener is internal Block listener for transactions
 
