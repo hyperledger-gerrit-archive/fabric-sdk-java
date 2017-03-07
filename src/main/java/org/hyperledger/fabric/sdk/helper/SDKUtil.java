@@ -24,6 +24,8 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
@@ -317,9 +319,9 @@ public class SDKUtil {
     }
 
     /**
-     * @deprecated
      * @param url
      * @return
+     * @deprecated
      */
     public static boolean nullOrEmptyString(String url) {
         return url == null || url.isEmpty();
@@ -327,6 +329,7 @@ public class SDKUtil {
 
     /**
      * Check if string is null or empty
+     *
      * @param url
      * @return
      */
@@ -335,14 +338,6 @@ public class SDKUtil {
         return url == null || url.isEmpty();
     }
 
-
-
-
-    public static ByteString getNonce() {
-        //TODO right now the server does not care need to figure out
-        return ByteString.copyFromUtf8(generateUUID());
-
-    }
 
     /**
      * Makes logging strings which can be long or with unprintable characters be logged and trimmed.
@@ -363,28 +358,103 @@ public class SDKUtil {
 
     }
 
+    private static final int NONONCE_LENGTH = 24;
 
-    public static String toHexString(ByteString byteString){
+//    static {
+//        String test = System.getProperty("os.name").toLowerCase();
+//        logger.debug(String.format("OS is: %s,  urandom is there %b",test, new File("/dev/urandom").exists()));
+//
+//        if (!System.getProperty("os.name").toLowerCase().contains("window") && new File("/dev/urandom").exists()){
+//
+//            logger.debug("setting srandom");
+//
+//            System.setProperty("securerandom.source", "/dev/urandom");
+//
+//        }
+//    }
+
+    private final static SecureRandom random = new SecureRandom();
+
+    public static byte[] generateNonce() {
+
+        byte[] values = new byte[NONONCE_LENGTH];
+        random.nextBytes(values);
+
+        return values;
+    }
+
+
+    public static byte[] generateNonceBAD() {
+        try {
+
+            logger.debug("rick blocking generating generateNonce  a");
+
+            SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
+
+            logger.debug("rick blocking generating generateNonce  d");
+
+            int seedByteCount = 10;
+
+            sr = SecureRandom.getInstance("SHA1PRNG");
+
+            logger.debug("rick blocking generating generateNonce  f");
+
+            sr.setSeed(sr.generateSeed(seedByteCount));
+
+            logger.debug("rick blocking generating generateNonce  h");
+
+            byte[] s1 = sr.generateSeed(NONONCE_LENGTH);
+
+            logger.debug("rick blocking generating generateNonce  l");
+
+            SecureRandom sr2 = SecureRandom.getInstance("SHA1PRNG");
+
+            logger.debug("rick blocking generating generateNonce  n");
+
+            sr2.setSeed(sr.generateSeed(seedByteCount));
+
+            logger.debug("rick blocking generating generateNonce  p");
+
+            byte[] s2 = sr2.generateSeed(NONONCE_LENGTH);
+
+            logger.debug("rick blocking generating generateNonce  r");
+
+            byte[] ret = new byte[NONONCE_LENGTH];
+            for (int i = 0; i < NONONCE_LENGTH; ++i) {
+                ret[i] = (byte) (s1[i] ^ s2[i]);
+            }
+
+            logger.debug("rick blocking generating generateNonce  s");
+
+            return ret;
+        } catch (NoSuchAlgorithmException e) {
+            logger.error(e);
+        } finally {
+            logger.debug("rick blocking generating generateNonce  z");
+        }
+
+        logger.debug("rick blocking generating generateNonce  t");
+
+        return generateUUID().getBytes();//back up should not happend
+    }
+
+    public static String toHexString(ByteString byteString) {
         assert (byteString != null);
-        if(byteString == null)
-        {
+        if (byteString == null) {
             return null;
         }
 
-       return encodeHexString( byteString.toByteArray());
-
+        return encodeHexString(byteString.toByteArray());
 
     }
 
-    public static String toHexString(byte[] bytes){
+    public static String toHexString(byte[] bytes) {
         assert (bytes != null);
-        if(bytes == null)
-        {
+        if (bytes == null) {
             return null;
         }
 
-        return encodeHexString( bytes);
-
+        return encodeHexString(bytes);
 
     }
 
