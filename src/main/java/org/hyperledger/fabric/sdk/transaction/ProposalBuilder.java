@@ -106,8 +106,9 @@ public class ProposalBuilder {
 
 
     public FabricProposal.Proposal build() throws ProposalException {
-        if (request != null && request.noChainID())
+        if (request != null && request.noChainID()) {
             chainID = "";
+        }
         return createFabricProposal(chainID, chaincodeID);
     }
 
@@ -119,7 +120,7 @@ public class ProposalBuilder {
                 .setChaincodeId(chaincodeID).build();
 
         Common.ChannelHeader chainHeader = createChannelHeader(HeaderType.ENDORSER_TRANSACTION,
-                context.getTxID(), chainID, context.getEpoch(), chaincodeHeaderExtension);
+                context.getTxID(), chainID, context.getEpoch(), context.getFabricTimestamp(), chaincodeHeaderExtension);
 
         if (isDebugLevel) {
             Identities.SerializedIdentity identity = context.getIdentity();
@@ -170,18 +171,20 @@ public class ProposalBuilder {
             // if argList is empty and we have a Request, build the chaincodeInput args array from the Request args and argbytes lists
             allArgs.add(ByteString.copyFrom(request.getFcn(), UTF_8));
             List<String> args = request.getArgs();
-            if (args != null && args.size() > 0)
+            if (args != null && args.size() > 0) {
                 for (String arg : args) {
                     allArgs.add(ByteString.copyFrom(arg.getBytes(UTF_8)));
                 }
+            }
             // TODO currently assume that chaincodeInput args are strings followed by byte[].
             // Either agree with Fabric folks that this will always be the case or modify all Builders to expect
             // a List of Objects and determine if each list item is a string or a byte array
             List<byte[]> argBytes = request.getArgBytes();
-            if (argBytes != null && argBytes.size() > 0)
+            if (argBytes != null && argBytes.size() > 0) {
                 for (byte[] arg : argBytes) {
                     allArgs.add(ByteString.copyFrom(arg));
                 }
+            }
         }
         if (isDebugLevel) {
 
