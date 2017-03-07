@@ -42,10 +42,14 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.StatusRuntimeException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.common.Common.Block;
+import org.hyperledger.fabric.protos.common.Common.BlockMetadata;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
+import org.hyperledger.fabric.protos.common.Common.LastConfig;
+import org.hyperledger.fabric.protos.common.Common.Metadata;
 import org.hyperledger.fabric.protos.common.Common.Payload;
 import org.hyperledger.fabric.protos.common.Policies.Policy;
 import org.hyperledger.fabric.protos.msp.Identities;
@@ -74,7 +78,6 @@ import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
-import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
@@ -88,6 +91,7 @@ import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
 
 
 /**
@@ -266,7 +270,7 @@ public class Chain {
         return this;
     }
 
-    public  Chain joinPeer(Peer peer) throws ProposalException {
+    public Chain joinPeer(Peer peer) throws ProposalException {
         if (genesisBlock == null && orderers.isEmpty()) {
             ProposalException e = new ProposalException("Chain missing genesis block and no orderers configured");
             logger.error(e.getMessage(), e);
@@ -555,7 +559,7 @@ public class Chain {
                             .setBehavior(Ab.SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
                             .build();
 
-                    ChannelHeader deliverChainHeader = ProtoUtils.createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
+                    ChannelHeader deliverChainHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
 
 
                     String mspid = getEnrollment().getMSPID();
@@ -601,7 +605,7 @@ public class Chain {
                             logger.warn(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
                             // keep trying...
                         } else if (status.getStatusValue() != 200) {
-                            throw  new TransactionException(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
+                            throw new TransactionException(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
 
                         } else {
 
@@ -651,6 +655,113 @@ public class Chain {
 
         }
         return genesisBlock;
+    }
+
+
+    public void getConfigurationBlock() throws TransactionException {
+
+        logger.trace(format("getConfigurationBlock for chain %s", name));
+
+ //       if(1==1) return;
+
+        TransactionContext txContext = getTransactionContext();
+        try {
+            if (orderers.isEmpty()) {
+                throw new TransactionException(format("No orderers for chain %s", name));
+            }
+            Orderer orderer = orderers.iterator().next();
+
+            Ab.SeekPosition seekPosition = Ab.SeekPosition.newBuilder()
+                    .setNewest(Ab.SeekNewest.getDefaultInstance())
+                    .build();
+
+//            Ab.SeekPosition seekPositionStop = Ab.SeekPosition.newBuilder()
+//                    .setNewest(Ab.SeekNewest.newBuilder().build())
+//                    .build();
+
+            Ab.SeekInfo seekInfo = Ab.SeekInfo.newBuilder()
+                    .setStart(seekPosition)
+                    .setStop(seekPosition)
+                    .setBehavior(Ab.SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
+                    .build();
+
+            ChannelHeader seekInfoHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO,
+                    txContext.getTxID(), name, txContext.getEpoch(), null);
+
+            SignatureHeader signatureHeader = SignatureHeader.newBuilder()
+                    .setCreator(txContext.getIdentity().toByteString())
+                    .setNonce(txContext.getNonce())
+                    .build();
+
+            Header seekHeader = Header.newBuilder()
+                    .setSignatureHeader(signatureHeader.toByteString())
+                    .setChannelHeader(seekInfoHeader.toByteString())
+                    .build();
+
+            Payload seekPayload = Payload.newBuilder()
+                    .setHeader(seekHeader)
+                    .setData(seekInfo.toByteString())
+                    .build();
+
+            Envelope envelope = Envelope.newBuilder().setSignature(txContext.signByteString(seekPayload.toByteArray()))
+                    .setPayload(seekPayload.toByteString())
+                    .build();
+
+            DeliverResponse[] deliver = orderer.sendDeliver(envelope);
+
+            Block newestBlock;
+            if (deliver.length < 1) {
+                throw new TransactionException(format("newest block for channel %s fetch bad deliver missing status block only got blocks:%d", name, deliver.length));
+
+            } else {
+
+                DeliverResponse status = deliver[0];
+                if (status.getStatusValue() != 200) {
+                    throw new TransactionException(format("Bad newest block expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
+                } else {
+                    if (deliver.length < 2) {
+                        throw new TransactionException(format("newest block for channel %s fetch bad deliver missing genesis block only got %d:", name, deliver.length));
+                    } else {
+
+                        DeliverResponse blockresp = deliver[1];
+                        newestBlock = blockresp.getBlock();
+                    }
+                }
+            }
+
+            if (newestBlock == null) {
+                throw new TransactionException(format("newest block for channel %s fetch bad deliver returned null:", name));
+            }
+
+            logger.trace(format("Received latest block for channel %s, block no:%d", name, newestBlock.getHeader().getNumber()));
+
+            BlockMetadata blockMetadata = newestBlock.getMetadata();
+
+            Metadata metaData = Metadata.parseFrom(blockMetadata.getMetadata(1));
+
+            LastConfig lastConfig = LastConfig.parseFrom(metaData.getValue());
+
+            long lastConfigIndex = lastConfig.getIndex();
+
+            logger.trace(format("Last config index is %l", lastConfigIndex));
+
+
+
+
+
+
+
+        } catch (TransactionException e) {
+            logger.error(e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new TransactionException(e);
+        }
+
+
+
+
     }
 
 
@@ -1162,8 +1273,8 @@ public class Chain {
         private long previous = Long.MIN_VALUE;
         private Throwable eventException;
 
-        public void eventError(Throwable t){
-            eventException =t;
+        public void eventError(Throwable t) {
+            eventException = t;
         }
 
         public boolean addBEvent(Event event) {
@@ -1194,14 +1305,14 @@ public class Chain {
 
         public Event getNextEvent() throws EventHubException {
             Event ret = null;
-            if(eventException != null){
+            if (eventException != null) {
                 throw new EventHubException(eventException);
             }
             try {
                 ret = events.take();
             } catch (InterruptedException e) {
                 logger.warn(e);
-                if(eventException != null){
+                if (eventException != null) {
 
                     EventHubException eve = new EventHubException(eventException);
                     logger.error(eve.getMessage(), eve);
@@ -1209,7 +1320,7 @@ public class Chain {
                 }
             }
 
-            if(eventException != null){
+            if (eventException != null) {
                 throw new EventHubException(eventException);
             }
 
