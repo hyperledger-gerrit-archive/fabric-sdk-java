@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Hex;
+import org.hyperledger.fabric.protos.ledger.rwset.Rwset.TxReadWriteSet;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
@@ -185,6 +186,7 @@ public class End2endIT {
     void runChain(HFClient client, Chain chain, boolean installChainCode, SampleOrg sampleOrg, int delta) {
 
         try {
+
 
             final String chainName = chain.getName();
             out("Running Chain %s", chainName);
@@ -411,6 +413,37 @@ public class End2endIT {
                     + " \n previous_hash " + previousHash);
             assertEquals(channelInfo.getHeight() - 1, returnedBlock.getBlockNumber());
             assertEquals(chainPreviousHash, previousHash);
+
+            // Dig deeper into the Block.
+            out("returnedBlock has %d transactions", returnedBlock.getTransactionCount());
+            int i = 0;
+            for (BlockInfo.TransactionInfo transactionInfo : returnedBlock.getTransactionInfos()) {
+                ++i;
+
+                out("  Transaction number %d has transaction id: %s", i, transactionInfo.getTxId());
+                out("  Transaction number %d has channel id: %s", i, transactionInfo.getChannelId());
+                out("  Transaction number %d has channel epoch: %d", i, transactionInfo.getEpoch());
+                out("  Transaction number %d has transaction timestamp: %tB %<te,  %<tY  %<tT %<Tp", i, transactionInfo.getTimestamp());
+
+
+                out("  Transaction number %d has %d actions", i, transactionInfo.getTransactionActionInfoCount());
+
+                int j = 0;
+                for (BlockInfo.TransactionInfo.TransactionActionInfo transactionActionInfo : transactionInfo.getTransactionActionInfos()) {
+                    ++j;
+                    out("   Transaction action %d has %d endorsements", j, transactionActionInfo.getEndorsementsCount());
+                    for (int n = 0; n < transactionActionInfo.getEndorsementsCount(); ++n) {
+                        BlockInfo.EndorserInfo endorserInfo = transactionActionInfo.getEndorsementInfo(n);
+                        out("Endorser %d signature: %s", n, Hex.encodeHexString(endorserInfo.getSignature()));
+                        out("Endorser %d endorser: %s", n, new String(endorserInfo.getEndorser(), "UTF-8"));
+                    }
+
+                    TxReadWriteSet rwset = transactionActionInfo.getTxReadWriteSet();
+                    out("read write set %s", rwset + "");
+
+                }
+
+            }
 
             // Query by block hash. Using latest block's previous hash so should return block number 1
             byte[] hashQuery = returnedBlock.getPreviousHash();
