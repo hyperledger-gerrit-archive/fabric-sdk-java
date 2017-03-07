@@ -18,7 +18,7 @@ import org.hyperledger.fabric.protos.peer.FabricTransaction.ProcessedTransaction
 import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
 
 /**
- * TransactionInfo contains the data from a {@link ProcessedTransaction} message
+ * EnvelopeInfo contains the data from a {@link ProcessedTransaction} message
  *
  */
 public class TransactionInfo {

@@ -15,7 +15,6 @@
 package org.hyperledger.fabric.sdk.transaction;
 
 import java.nio.Buffer;
-import java.time.Instant;
 import java.util.List;
 
 import com.google.protobuf.ByteString;
@@ -37,7 +36,6 @@ import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
-
 /**
  * A transaction context emits events 'submitted', 'complete', and 'error'.
  * Each transaction context uses exactly one tcert.
@@ -46,8 +44,7 @@ public class TransactionContext {
     private static final Config config = Config.getConfig();
     private static final Log logger = LogFactory.getLog(TransactionContext.class);
     //TODO right now the server does not care need to figure out
-    private final ByteString nonce = ByteString.copyFromUtf8(SDKUtil.generateUUID());
-
+    private final ByteString nonce = ByteString.copyFrom(SDKUtil.generateNonce());
 
     private boolean verify = true;
 
@@ -67,7 +64,6 @@ public class TransactionContext {
 
     public TransactionContext(Chain chain, User user, CryptoSuite cryptoPrimitives) {
 
-
         this.user = user;
         this.chain = chain;
         //TODO clean up when public classes are interfaces.
@@ -76,11 +72,9 @@ public class TransactionContext {
         //  this.txID = transactionID;
         this.cryptoPrimitives = cryptoPrimitives;
 
-
         identity = Identities.SerializedIdentity.newBuilder()
                 .setIdBytes(ByteString.copyFromUtf8(getCreator()))
                 .setMspid(getMSPID()).build();
-
 
         ByteString no = getNonce();
         ByteString comp = no.concat(identity.toByteString());
@@ -96,11 +90,9 @@ public class TransactionContext {
 
     }
 
-
     public long getEpoch() {
         return 0;
     }
-
 
     /**
      * Get the user with which this transaction context is associated.
@@ -120,7 +112,6 @@ public class TransactionContext {
         return this.chain;
     }
 
-
     /**
      * Emit a specific event provided an event listener is already registered.
      */
@@ -137,7 +128,6 @@ public class TransactionContext {
        }, 0);
 */
     }
-
 
     /**
      * Get the attribute names associated
@@ -171,7 +161,6 @@ public class TransactionContext {
         this.proposalWaitTime = proposalWaitTime;
     }
 
-
     private void decryptResult(Buffer ct) {
         /* TODO implement decryptResult function
         let key = new Buffer(
@@ -187,14 +176,10 @@ public class TransactionContext {
 
     Timestamp currentTimeStamp = null;
 
-
     public Timestamp getFabricTimestamp() {
         if (currentTimeStamp == null) {
 
-
-            Timestamp.Builder ts = Timestamp.newBuilder();
-            ts.setSeconds(Instant.now().toEpochMilli());
-            currentTimeStamp = ts.build();
+            currentTimeStamp = ProtoUtils.getCurrentFabricTimestamp();
         }
         return currentTimeStamp;
     }
@@ -234,7 +219,6 @@ public class TransactionContext {
 
         }
 
-
         @Override
         public ASN1Primitive toASN1Primitive() {
 
@@ -247,7 +231,6 @@ public class TransactionContext {
         }
     }
 
-
     String getMSPID() {
         return user.getMSPID();
     }
@@ -256,7 +239,6 @@ public class TransactionContext {
         return getUser().getEnrollment().getCert();
 
     }
-
 
     public boolean isDevMode() {
         return chain.isDevMode();
@@ -270,7 +252,6 @@ public class TransactionContext {
         return txID;
     }
 
-
     public byte[] sign(byte[] b) throws CryptoException {
         return cryptoPrimitives.sign(getUser().getEnrollment().getKey(), b);
     }
@@ -278,6 +259,5 @@ public class TransactionContext {
     public ByteString signByteString(byte[] b) throws CryptoException {
         return ByteString.copyFrom(sign(b));
     }
-
 
 }  // end TransactionContext
