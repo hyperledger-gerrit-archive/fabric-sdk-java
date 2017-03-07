@@ -344,4 +344,33 @@ public class SDKUtil {
 
     }
 
+    private static final int NONONCE_LENGTH = 32;
+
+    public static byte[] generateNonce() {
+//        try {
+//
+//            SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
+//
+//            int seedByteCount = 10;
+//
+//            sr = SecureRandom.getInstance("SHA1PRNG");
+//            sr.setSeed(sr.generateSeed(seedByteCount));
+//            byte[] s1 = sr.generateSeed(NONONCE_LENGTH);
+//            SecureRandom sr2 = SecureRandom.getInstance("SHA1PRNG");
+//            sr2.setSeed(sr.generateSeed(seedByteCount));
+//            byte[] s2 = sr2.generateSeed(NONONCE_LENGTH);
+//
+//            byte[] ret = new byte[NONONCE_LENGTH];
+//            for (int i = 0; i < NONONCE_LENGTH; ++i) {
+//                ret[i] = (byte) (s1[i] ^ s2[i]);
+//            }
+//
+//            return ret;
+//        } catch (NoSuchAlgorithmException e) {
+//            logger.error(e);
+//        }
+//
+        return generateUUID().getBytes();//back up should not happend
+    }
+
 }
