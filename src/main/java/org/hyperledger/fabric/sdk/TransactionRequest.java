@@ -53,6 +53,9 @@ public class TransactionRequest {
     protected String fcn;
     // The arguments to pass to the chaincode invocation
     protected ArrayList<String> args;
+    // arguments to be passed as byte[] to the chaincode invocation
+    // TODO for now assume that it's always args followed by argBytes in the chaincodeSpec. Need to firm up the protobufs with Fabric folks
+    protected ArrayList<byte[]> argBytes;
     // Optionally provide a user certificate which can be used by chaincode to perform access control
     private Certificate userCert;
     // Chaincode language
@@ -162,6 +165,20 @@ public class TransactionRequest {
         return this;
     }
 
+    public ArrayList<byte[]> getArgBytes() {
+        return argBytes;
+    }
+
+    public TransactionRequest setArgBytes(byte[][] argsBytes) {
+        this.argBytes = new ArrayList<byte[]>(Arrays.asList(argsBytes));
+        return this;
+    }
+
+    public TransactionRequest setArgBytes(ArrayList<byte[]> argBytes) {
+        this.argBytes = argBytes;
+        return this;
+    }
+
     public Certificate getUserCert() {
         return userCert;
     }
@@ -234,9 +251,14 @@ public class TransactionRequest {
 
         List<ByteString> argList = new ArrayList<>();
         argList.add(ByteString.copyFrom(getFcn(), StandardCharsets.UTF_8));
-        for (String arg : getArgs()) {
-            argList.add(ByteString.copyFrom(arg.getBytes()));
-        }
+        if (args != null && args.size()>0)
+            for (String arg : args) {
+                argList.add(ByteString.copyFrom(arg.getBytes()));
+            }
+        if (argBytes != null && argBytes.size()>0)
+            for (byte[] arg : argBytes) {
+                argList.add(ByteString.copyFrom(arg));
+            }
 
         proposalBuilder.args(argList);
         proposalBuilder.chaincodeID(getChaincodeID().getFabricChainCodeID());

@@ -20,11 +20,9 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
 
-import javax.xml.bind.DatatypeConverter;
-
-import org.bouncycastle.util.encoders.Hex;
-
+import org.apache.commons.codec.binary.Hex;
 import org.hyperledger.fabric.sdk.BlockEvent;
+import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
 import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeID;
@@ -41,6 +39,7 @@ import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryProposalRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
+import org.hyperledger.fabric.sdk.TransactionInfo;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.events.EventHub;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
@@ -71,7 +70,7 @@ public class End2endIT {
     static final String FOO_CHAIN_NAME = "foo";
     static final String BAR_CHAIN_NAME = "bar";
 
-
+    String testTxID = null ;  // save the CC invoke TxID and use in queries
 
     final static Collection<String> PEER_LOCATIONS = Arrays.asList(testConfig.getIntegrationTestsPeers().split(","));
 
@@ -140,7 +139,10 @@ public class End2endIT {
 
 
     void runChain(HFClient client, Chain chain, boolean installChainCode, int delta) {
+
+
         try {
+
             final String chainName = chain.getName();
             out("Running Chain %s", chainName);
             chain.setInvokeWaitTime(testConfig.getInvokeWaitTime());
@@ -194,7 +196,6 @@ public class End2endIT {
                     ProposalResponse first = failed.iterator().next();
                     fail("Not enough endorsers for install :" + successful.size() + ".  " + first.getMessage());
                 }
-                ProposalResponse firstInstallProposalResponse = successful.iterator().next();
             }
             //  final ChainCodeID chainCodeID = firstInstallProposalResponse.getChainCodeID();
             // Note install chain code does not require transaction no need to
@@ -323,6 +324,8 @@ public class End2endIT {
 
                     assertTrue(transactionEvent.isValid()); // must be valid to be here.
                     out("Finished invoke transaction with transaction id %s", transactionEvent.getTransactionID());
+                    testTxID = transactionEvent.getTransactionID();
+
 
                     ////////////////////////////
                     // Query Proposal
@@ -361,17 +364,8 @@ public class End2endIT {
                     String expect = "" +(300 + delta);
                     assertEquals(payload, expect);
 
-                    // Channel queries
-                    Peer peer = chain.getPeers().iterator().next() ;
-                    BlockchainInfo channelInfo = chain.queryBlockchainInfo(peer);
-
-
-                    out("Channel info for : " + chainName);
-                    out("Channel height: " + channelInfo.getHeight());
-                    out("Channel current block hash: " + DatatypeConverter.printHexBinary(channelInfo.getCurrentBlockHash()));
-                    out("Channel previous block hash: " + DatatypeConverter.printHexBinary(channelInfo.getPreviousBlockHash()));
-
                     return null;
+
                 } catch (Exception e) {
                     out("Caught exception while running query");
                     e.printStackTrace();
@@ -385,13 +379,62 @@ public class End2endIT {
                 if (e instanceof TransactionEventException) {
                     BlockEvent.TransactionEvent te = ((TransactionEventException) e).getTransactionEvent();
                     if (te != null) {
-
                         fail(format("Transaction with txid %s failed. %s", te.getTransactionID(), e.getMessage()));
                     }
                 }
                 fail(format("Transaction  failed  %s", e.getMessage()));
+
                 return null;
             }).get(120, TimeUnit.SECONDS);
+
+
+            // Channel queries
+            Peer peer = chain.getPeers().iterator().next() ;
+
+            BlockchainInfo channelInfo = chain.queryBlockchainInfo(peer);
+            out("Channel info for : " + chainName);
+            out("Channel height: " + channelInfo.getHeight());
+            String chainCurrentHash = Hex.encodeHexString(channelInfo.getCurrentBlockHash());
+            String chainPreviousHash = Hex.encodeHexString(channelInfo.getPreviousBlockHash());
+            out("Channel current block hash: " + chainCurrentHash);
+            out("Channel previous block hash: " + chainPreviousHash);
+
+            // Query by block number. Should return latest block, i.e. block number 2
+            BlockInfo returnedBlock = chain.queryBlockByNumber(peer, channelInfo.getHeight()-1);
+            String previousHash = Hex.encodeHexString(returnedBlock.getPreviousHash());
+            out("queryBlockByNumber returned correct block with blockNumber " + returnedBlock.getBlockNumber()
+                            + " \n previous_hash " + previousHash);
+            assertEquals(channelInfo.getHeight()-1, returnedBlock.getBlockNumber());
+            assertEquals(chainPreviousHash, previousHash);
+
+            // Query by block hash. Using latest block's previous hash so should return block number 1
+            byte[] hashQuery = returnedBlock.getPreviousHash();
+            returnedBlock = chain.queryBlockByHash(peer, hashQuery);
+            out("queryBlockByHash returned block with blockNumber " + returnedBlock.getBlockNumber());
+            assertEquals(channelInfo.getHeight()-2, returnedBlock.getBlockNumber());
+
+            // Query block by TxID. Since it's the last TxID, should be block 2
+            returnedBlock = chain.queryBlockByTransactionID(peer, testTxID);
+            out("queryBlockByTxID returned block with blockNumber " + returnedBlock.getBlockNumber());
+            assertEquals(channelInfo.getHeight()-1, returnedBlock.getBlockNumber());
+
+            // query transaction by ID
+            TransactionInfo txInfo = chain.queryTransactionByID(peer, testTxID);
+            out("QueryTransactionByID returned TransactionInfo: txID " + txInfo.getTransactionID()
+                                + "\n     validation code " + txInfo.getValidationCode().getNumber());
+            /*
+             * TODO printing out too many error messages right now
+            boolean shouldNotFail = true;
+            try {
+                txInfo = chain.queryTransactionByID("fake", peer);
+            } catch (Exception ee) {
+                shouldNotFail = false;
+            }
+            if (shouldNotFail) {
+                fail("Should have failed on queryTransactionByID using fake txID");
+            }
+            */
+
             out("Running for Chain %s done", chainName);
 
 
