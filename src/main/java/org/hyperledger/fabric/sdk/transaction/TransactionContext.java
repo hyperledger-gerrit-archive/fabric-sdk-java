@@ -15,12 +15,10 @@
 package org.hyperledger.fabric.sdk.transaction;
 
 import java.nio.Buffer;
-import java.time.Instant;
 import java.util.List;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.bouncycastle.asn1.ASN1Encodable;
@@ -45,7 +43,7 @@ public class TransactionContext {
     private static final Config config = Config.getConfig();
     private static final Log logger = LogFactory.getLog(TransactionContext.class);
     //TODO right now the server does not care need to figure out
-    private final ByteString nonce = ByteString.copyFromUtf8(SDKUtil.generateUUID());
+    private final ByteString nonce = ByteString.copyFrom(SDKUtil.generateNonce());
 
     private boolean verify = true;
 
@@ -64,6 +62,7 @@ public class TransactionContext {
     private final Identities.SerializedIdentity identity;
 
     public TransactionContext(Chain chain, User user, CryptoSuite cryptoPrimitives) {
+        logger.debug(String.format("rick blocking in TransactionContext chain: %s, user: %s", ""+ chain, ""+user));
 
         this.user = user;
         this.chain = chain;
@@ -73,13 +72,23 @@ public class TransactionContext {
         //  this.txID = transactionID;
         this.cryptoPrimitives = cryptoPrimitives;
 
+        logger.debug("rick aa");
+
+
         identity = ProtoUtils.createSerializedIdentity(getUser());
 
+        logger.debug("rick cc");
+
         ByteString no = getNonce();
+
+        logger.debug(String.format("rick ee %s", no.toStringUtf8()));
         ByteString comp = no.concat(identity.toByteString());
+        logger.debug(String.format("rick ff  %s", comp.toStringUtf8()));
         byte[] txh = cryptoPrimitives.hash(comp.toByteArray());
+
+        logger.debug(String.format("rick ff  %s", SDKUtil.toHexString(txh)));
         //    txID = Hex.encodeHexString(txh);
-        txID = new String(Hex.encodeHex(txh));
+        txID = new String(SDKUtil.toHexString(txh));
 
     }
 
@@ -178,9 +187,9 @@ public class TransactionContext {
     public Timestamp getFabricTimestamp() {
         if (currentTimeStamp == null) {
 
-            Timestamp.Builder ts = Timestamp.newBuilder();
-            ts.setSeconds(Instant.now().toEpochMilli());
-            currentTimeStamp = ts.build();
+
+
+            currentTimeStamp = ProtoUtils.getCurrentFabricTimestamp();
         }
         return currentTimeStamp;
     }
@@ -253,7 +262,8 @@ public class TransactionContext {
         return txID;
     }
 
-    byte[] sign(byte[] b) throws CryptoException {
+
+     byte[] sign(byte[] b) throws CryptoException {
         return cryptoPrimitives.sign(getUser().getEnrollment().getKey(), b);
     }
 

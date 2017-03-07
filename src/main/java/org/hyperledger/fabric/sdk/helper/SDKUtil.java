@@ -24,6 +24,8 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
@@ -361,6 +363,66 @@ public class SDKUtil {
 
         return ret;
 
+    }
+
+    private static final int NONONCE_LENGTH = 24;
+
+    public static byte[] generateNonce() {
+        try {
+
+            System.setProperty("securerandom.source", "/dev/urandom");
+
+            logger.debug("rick blocking generating generateNonce  a");
+
+            SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
+
+            logger.debug("rick blocking generating generateNonce  d");
+
+            int seedByteCount = 10;
+
+            sr = SecureRandom.getInstance("SHA1PRNG");
+
+            logger.debug("rick blocking generating generateNonce  f");
+
+            sr.setSeed(sr.generateSeed(seedByteCount));
+
+            logger.debug("rick blocking generating generateNonce  h");
+
+            byte[] s1 = sr.generateSeed(NONONCE_LENGTH);
+
+            logger.debug("rick blocking generating generateNonce  l");
+
+            SecureRandom sr2 = SecureRandom.getInstance("SHA1PRNG");
+
+            logger.debug("rick blocking generating generateNonce  n");
+
+
+            sr2.setSeed(sr.generateSeed(seedByteCount));
+
+            logger.debug("rick blocking generating generateNonce  p");
+
+            byte[] s2 = sr2.generateSeed(NONONCE_LENGTH);
+
+
+            logger.debug("rick blocking generating generateNonce  r");
+
+            byte[] ret = new byte[NONONCE_LENGTH];
+            for (int i = 0; i < NONONCE_LENGTH; ++i) {
+                ret[i] = (byte) (s1[i] ^ s2[i]);
+            }
+
+            logger.debug("rick blocking generating generateNonce  s");
+
+            return ret;
+        } catch (NoSuchAlgorithmException e) {
+            logger.error(e);
+        }finally {
+            logger.debug("rick blocking generating generateNonce  z");
+        }
+
+        logger.debug("rick blocking generating generateNonce  t");
+
+        return generateUUID().getBytes();//back up should not happend
     }
 
 
