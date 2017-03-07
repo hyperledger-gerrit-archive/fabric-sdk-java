@@ -50,6 +50,7 @@ public class Config {
     public static final String CERTIFICATE_FORMAT = "org.hyperledger.fabric.sdk.crypto.certificate_format";
     public static final String SIGNATURE_ALGORITHM = "org.hyperledger.fabric.sdk.crypto.default_signature_algorithm";
     public static final String MAX_LOG_STRING_LENGTH = "org.hyperledger.fabric.sdk.log.stringlengthmax";
+    public static final String EXTRALOGLEVEL = "org.hyperledger.fabric.sdk.log.extraloglevel";
 
     private static Config config;
     private final static Properties sdkProperties = new Properties();
@@ -85,9 +86,10 @@ public class Config {
             // TODO remove this once we have implemented MSP and get the peer certs from the channel
             defaultProperty(CACERTS, "/genesisblock/peercacert.pem");
 
-            defaultProperty(PROPOSAL_WAIT_TIME, "12000");
+            defaultProperty(PROPOSAL_WAIT_TIME, "40000");
             defaultProperty(GENESISBLOCK_WAIT_TIME, "5000");
             defaultProperty(MAX_LOG_STRING_LENGTH, "64");
+            defaultProperty(EXTRALOGLEVEL, "0");
 
         }
 
@@ -136,7 +138,6 @@ public class Config {
     }
 
     static private void defaultProperty(String key, String value) {
-
 
         String ret = System.getProperty(key);
         if (ret != null) {
@@ -192,6 +193,7 @@ public class Config {
 
     /**
      * getGenesisBlockWaiTime time to wait for genesis block
+     *
      * @return
      */
     public long getGenesisBlockWaitTime() {
@@ -232,6 +234,17 @@ public class Config {
 
     public int maxLogStringLength() {
         return Integer.parseInt(getProperty(MAX_LOG_STRING_LENGTH));
+    }
+
+    public int extraLogLevel = -1;
+
+    public boolean extraLogLevel(int val) {
+        if (extraLogLevel == -1) {
+            extraLogLevel = Integer.parseInt(getProperty(EXTRALOGLEVEL));
+        }
+
+        return val < extraLogLevel;
+
     }
 
 }
