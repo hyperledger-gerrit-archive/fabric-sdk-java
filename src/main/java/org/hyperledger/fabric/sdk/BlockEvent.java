@@ -17,8 +17,10 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.common.Common.BlockData;
 import org.hyperledger.fabric.protos.common.Common.BlockMetadata;
@@ -27,6 +29,9 @@ import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
 import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.peer.FabricProposal;
+import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.protos.peer.FabricTransaction;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.Transaction;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
 
@@ -142,7 +147,7 @@ public class BlockEvent {
         private final String txID;
 
         /**
-         * constructs a TransactionEvent by parsing the given Envelope
+         * constructs a TransactionEvent by parsing the given Envelopei
          *
          * @param index the position of this Transaction in the Block
          * @param txEnvelope the Envelope that wraps the Transaction payload in the Block
@@ -154,6 +159,48 @@ public class BlockEvent {
             this.txEnvelope = txEnvelope;
             Payload payload = Payload.parseFrom(txEnvelope.getPayload());
             Header plh = payload.getHeader();
+
+
+            
+         //   ByteString bdb = payload.getData();
+//            String ho = Hex.encodeHexString(bdb.toByteArray());
+//            System.out.println(ho);
+
+            Transaction tx = Transaction.parseFrom(payload.getData());
+            List<FabricTransaction.TransactionAction> al = tx.getActionsList();
+            for(FabricTransaction.TransactionAction ta : al){
+
+       //         FabricTransaction.ChaincodeActionPayload tap = ta.getHeader();
+
+                FabricTransaction.ChaincodeActionPayload tap = FabricTransaction.ChaincodeActionPayload.parseFrom(ta.getPayload());//<<<
+                FabricTransaction.ChaincodeEndorsedAction cae = tap.getAction();
+              // FabricProposalResponse.ProposalResponsePayload cpr = FabricProposalResponse.ProposalResponsePayload.parseFrom(cae.getProposalResponsePayload());
+                FabricProposalResponse.ProposalResponsePayload cpr = FabricProposalResponse.ProposalResponsePayload.parseFrom(cae.getProposalResponsePayload());
+                FabricProposal.ChaincodeAction ca = FabricProposal.ChaincodeAction.parseFrom(cpr.getExtension());
+                FabricProposalResponse.Response rsp = ca.getResponse();
+                System.out.println(String .format(" resp message= %s,  status=%d", new String(rsp.getPayload().toByteArray()), rsp.getStatus()));
+
+                ByteString rwset = ca.getResults();  ///<<<<<<<<<<<<<<
+
+                byte[] ba = rwset.toByteArray();
+
+
+                //cae.getProposalResponsePayload();r
+                System.out.println("rwset:'"  +  Hex.encodeHexString(rwset.toByteArray() )+ "'");
+
+                
+            }
+            
+
+           
+//
+//            FabricProposal.Proposal sp = FabricProposal.Proposal.parseFrom(bdb);
+//            Header ph = Header.parseFrom(sp.getHeader());
+//
+//            ChannelHeader pch = ChannelHeader.parseFrom(ph.getChannelHeader());
+
+
+
             ChannelHeader channelHeader = ChannelHeader.parseFrom(plh.getChannelHeader());
             txID = channelHeader.getTxId();
         }
