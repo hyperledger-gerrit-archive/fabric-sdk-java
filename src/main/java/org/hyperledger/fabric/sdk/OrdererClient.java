@@ -162,7 +162,7 @@ class OrdererClient {
             public void onNext(DeliverResponse resp) {
 
                 // logger.info("Got Broadcast response: " + resp);
-                logger.debug("resp status value: " + resp.getStatusValue() + ", resp: " + resp.getStatus() + ", type case" + resp.getTypeCase());
+                logger.debug("resp status value: " + resp.getStatusValue() + ", resp: " + resp.getStatus() + ", type case: " + resp.getTypeCase());
 
                 if (done) {
                     return;
