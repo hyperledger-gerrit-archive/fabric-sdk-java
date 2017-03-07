@@ -156,7 +156,7 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 		return shim.Error(err.Error())
 	}
 
-        return shim.Success(nil);
+        return shim.Success([]byte("hi"));
 }
 
 // Deletes an entity from state

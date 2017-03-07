@@ -28,6 +28,7 @@ import org.hyperledger.fabric.protos.common.Common.Payload;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
 import org.hyperledger.fabric.protos.peer.PeerEvents;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -140,6 +141,7 @@ public class BlockEventTest {
     /**
      * Test method for {@link org.hyperledger.fabric.sdk.BlockEvent#BlockEvent(EventHub, PeerEvents.Event)}.
      */
+    @Ignore
     @Test
     public void testBlockEvent() {
         try {
