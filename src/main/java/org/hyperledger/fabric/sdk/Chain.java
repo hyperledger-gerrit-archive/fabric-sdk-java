@@ -37,9 +37,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.xml.bind.DatatypeConverter;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.StatusRuntimeException;
+
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.Block;
@@ -909,6 +913,91 @@ public class Chain {
     }
 
     /**
+     * query all peers in this channel for a Block by the block hash
+     * @param blockHash the hash of the block in the chain
+     * @return the Block with the given block hash
+     * @throws Exception
+     */
+    public Collection<Block> queryBlockByHash(byte[] blockHash) throws Exception {
+        if (peers.isEmpty())
+            throw new InvalidArgumentException("This channel " + this.getName() + "does not have any peers associated with it.");
+
+        ArrayList<Block> responses = new ArrayList<>(peers.size());
+        for (Peer peer : peers) {
+            responses.add(queryBlockByHash(peer, blockHash));
+        }
+        return responses;
+    }
+
+    /**
+     * query a peer in this channel for a Block by the block hash
+     * @param blockNumber the hash of the Block in the chain
+     * @return the Block with the given block Hash
+     * @throws Exception
+     */
+    public Block queryBlockByHash(Peer peer, byte[] blockHash) throws Exception {
+        if (peer == null) {
+            throw new InvalidArgumentException("Must give a peer to send request to.");
+        }
+
+        QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+        querySCCRequest.setFcn(QuerySCCRequest.GETBLOCKBYHASH);
+        querySCCRequest.setArgs(new String[]{this.name, new String(blockHash)});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() != 200)
+            throw new PeerException("Unable to query block chain info from peer " + peer.getName() + " with message : " + proposalResponse.getMessage());
+
+        Block returnedBlock = Block.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload());
+
+        return returnedBlock;
+    }
+    /**
+     * query all peers in this channel for a Block by the blockNumber
+     * @param blockNumber index of the Block in the chain
+     * @return the Block with the given blockNumber
+     * @throws Exception
+     */
+    public Collection<Block> queryBlockByNumber(long blockNumber) throws Exception {
+        if (peers.isEmpty())
+            throw new InvalidArgumentException("This channel " + this.getName() + "does not have any peers associated with it.");
+
+        ArrayList<Block> responses = new ArrayList<>(peers.size());
+        for (Peer peer : peers) {
+            responses.add(queryBlockByNumber(peer, blockNumber));
+        }
+        return responses;
+    }
+
+    /**
+     * query a peer in this channel for a Block by the blockNumber
+     * @param blockNumber index of the Block in the chain
+     * @return the Block with the given blockNumber
+     * @throws Exception
+     */
+    public Block queryBlockByNumber(Peer peer, long blockNumber) throws Exception {
+        if (peer == null) {
+            throw new InvalidArgumentException("Must give a peer to send request to.");
+        }
+
+        QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+        querySCCRequest.setFcn(QuerySCCRequest.GETBLOCKBYNUMBER);
+        querySCCRequest.setArgs(new String[]{this.name, Long.toUnsignedString(blockNumber)});
+
+        Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
+        ProposalResponse proposalResponse = proposalResponses.iterator().next();
+
+        if (proposalResponse.getStatus().getStatus() != 200)
+            throw new PeerException("Unable to query block chain info from peer " + peer.getName() + " with message : " + proposalResponse.getMessage());
+
+        Block returnedBlock = Block.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload());
+
+        return returnedBlock;
+    }
+
+    /**
      * query all peers in this channel for chain info
      * @return a {@Collection} of {@link BlockchainInfo} objects, each containing the chain info requested
      * @throws Exception
@@ -996,6 +1085,8 @@ public class Chain {
         argList.add(ByteString.copyFrom(queryProposalRequest.getFcn(), StandardCharsets.UTF_8));
         for (String arg : queryProposalRequest.getArgs()) {
             argList.add(ByteString.copyFrom(arg.getBytes()));
+            if (queryProposalRequest instanceof QuerySCCRequest )
+                System.out.println("++++++++++++++++++++++ added cc arg : " + DatatypeConverter.printHexBinary(ByteString.copyFrom(arg.getBytes()).toByteArray()));
         }
 
         proposalBuilder.args(argList);

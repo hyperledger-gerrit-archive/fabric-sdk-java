@@ -22,8 +22,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.DatatypeConverter;
 
-import org.apache.commons.codec.binary.Hex;
-import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
 import org.hyperledger.fabric.sdk.Chain;
@@ -49,6 +47,7 @@ import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -57,7 +56,7 @@ import static java.lang.String.format;
 /**
  * Test end to end scenario
  */
-public class End2endIT {
+public class TestQsccIT {
 
     static final TestConfig testConfig = TestConfig.getConfig();
 
@@ -66,15 +65,9 @@ public class End2endIT {
     static final String CHAIN_CODE_PATH = "github.com/example_cc";
     static final String CHAIN_CODE_VERSION = "1.0";
 
-
-  ///  static final String TEST_CHAIN_NAME = "testchainid";
-    static final String FOO_CHAIN_NAME = "foo";
-    static final String BAR_CHAIN_NAME = "bar";
-
-
+    static final String TEST_CHAIN_NAME = "a really long unique name guaranteed not to conflict with anything";
 
     final static Collection<String> PEER_LOCATIONS = Arrays.asList(testConfig.getIntegrationTestsPeers().split(","));
-
 
     final static Collection<String> ORDERER_LOCATIONS = Arrays.asList(testConfig.getIntegrationTestsOrderers().split(","));
 
@@ -99,6 +92,8 @@ public class End2endIT {
     }
 
     @Test
+    @Ignore
+    // tests in End2endIT for now.  Need to figure out how to handle existing peers with already instantiated CC
     public void setup() {
 
         try {
@@ -118,21 +113,14 @@ public class End2endIT {
             User user = client.enroll("admin", "adminpw");
             client.setUserContext(user);
 
+            runChain(client, constructChain(TEST_CHAIN_NAME, client), true, 0);
 
-            ////////////////////////////
-            //Construct the chains
-
-            runChain(client, constructChain(FOO_CHAIN_NAME, client), true, 0);
-            out("\n");
-            runChain(client, constructChain(BAR_CHAIN_NAME, client), false, 100);//run a newly constructed foo chain with different b value!
-
-            out("That's all folks!");
+            out("----------- End of TestQsccIT -----------");
 
 
         }catch (Exception e){
             e.printStackTrace();
-
-            fail(e.getMessage());
+            fail("TestQsccIT failed with error: " + e.getMessage());
         }
 
 
@@ -368,24 +356,8 @@ public class End2endIT {
                     BlockchainInfo channelInfo = channelInfoResponses.iterator().next();
                     out("Channel info for : " + chainName);
                     out("Channel height: " + channelInfo.getHeight());
-                    out("Channel current block hash: " + Hex.encodeHexString(channelInfo.getCurrentBlockHash()));
-                    out("Channel previous block hash: " + Hex.encodeHexString(channelInfo.getPreviousBlockHash()));
-
-                    Collection<Block> blocks = chain.queryBlockByNumber(channelInfo.getHeight()-1);
-                    assertTrue("Have responses from queryBlockByNumber query", blocks.size()>0);
-                    Block returnedBlock = blocks.iterator().next();
-                    out("queryBlockByNumber returned correct block with blockNumber " + returnedBlock.getHeader().getNumber()
-                                    + " \n block hash " + Hex.encodeHexString(returnedBlock.getHeader().getDataHash().toByteArray()));
-                    assertEquals(channelInfo.getHeight()-1, returnedBlock.getHeader().getNumber());
-                    //TODO assertEquals(channelInfo.getCurrentBlockHash(), returnedBlock.getHeader().getDataHash().toByteArray());
-
-                    blocks = chain.queryBlockByHash(channelInfo.getCurrentBlockHash());
-                    assertTrue("Have responses from queryBlockByHash query", blocks.size()>0);
-                    returnedBlock = blocks.iterator().next();
-                    out("queryBlockByHash returned correct block with blockNumber " + returnedBlock.getHeader().getNumber()
-                                    + " \n block hash " + Hex.encodeHexString(returnedBlock.getHeader().getDataHash().toByteArray()));
-                    //assertEquals(channelInfo.getHeight()-1, returnedBlock.getHeader().getNumber());
-                    assertEquals(channelInfo.getCurrentBlockHash(), returnedBlock.getHeader().getDataHash().toByteArray());
+                    out("Channel current block hash: " + DatatypeConverter.printHexBinary(channelInfo.getCurrentBlockHash()));
+                    out("Channel previous block hash: " + DatatypeConverter.printHexBinary(channelInfo.getPreviousBlockHash()));
 
                     return null;
                 } catch (Exception e) {
