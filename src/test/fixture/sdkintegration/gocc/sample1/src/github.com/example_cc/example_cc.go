@@ -77,7 +77,7 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface) pb.Response {
 func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
         fmt.Println("########### example_cc Invoke ###########")
 	function, args := stub.GetFunctionAndParameters()
-	
+
 	if function != "invoke" {
                 return shim.Error("Unknown function call")
 	}
@@ -156,7 +156,7 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 		return shim.Error(err.Error())
 	}
 
-        return shim.Success(nil);
+        return shim.Success([]byte("hi"));
 }
 
 // Deletes an entity from state
