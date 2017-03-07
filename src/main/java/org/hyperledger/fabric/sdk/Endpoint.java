@@ -122,7 +122,9 @@ class Endpoint {
 
         if (protocol.equalsIgnoreCase("grpc")) {
             this.channelBuilder = ManagedChannelBuilder.forAddress(addr, port)
-                    .usePlaintext(true);
+                    .usePlaintext(true)
+                    .maxInboundMessageSize(400000000);
+
         } else if (protocol.equalsIgnoreCase("grpcs")) {
             if (StringUtil.isNullOrEmpty(pem)) {
                 // use root certificate
