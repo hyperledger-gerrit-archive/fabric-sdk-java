@@ -654,6 +654,14 @@ public class Chain {
     }
 
 
+    public  void getConfigurationBlock(){
+
+
+
+
+    }
+
+
     private static Policy buildPolicyEnvelope(int nOf) {
 
         SignaturePolicy.NOutOf nOutOf = SignaturePolicy.NOutOf.newBuilder().setN(nOf).build();
