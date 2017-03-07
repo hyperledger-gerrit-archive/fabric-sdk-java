@@ -15,13 +15,16 @@
 package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.codec.binary.Hex;
+import org.hyperledger.fabric.protos.ledger.rwset.kvrwset.KvRwset;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
@@ -40,6 +43,10 @@ import org.hyperledger.fabric.sdk.QueryByChaincodeRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.TransactionInfo;
 import org.hyperledger.fabric.sdk.TransactionProposalRequest;
+import org.hyperledger.fabric.sdk.TxReadWriteSetInfo;
+import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
+import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
@@ -50,6 +57,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.BlockInfo.EnvelopeType.TRANSACTION_ENVELOPE_INFO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -166,12 +174,17 @@ public class End2endIT {
             SampleOrg sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg1");
             Chain fooChain = constructChain(FOO_CHAIN_NAME, client, sampleOrg);
             runChain(client, fooChain, true, sampleOrg, 0);
+
             fooChain.shutdown(true); // Force foo chain to shutdown clean up resources.
             out("\n");
 
             sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
-            runChain(client, constructChain(BAR_CHAIN_NAME, client, sampleOrg), true, sampleOrg, 100); //run a newly constructed bar chain with different b value!
+            Chain barChain = constructChain(BAR_CHAIN_NAME, client, sampleOrg);
+            runChain(client, barChain, true, sampleOrg, 100); //run a newly constructed bar chain with different b value!
             //let bar chain just shutdown so we have both scenarios.
+
+            out("\nTraverse the blocks for chain %s ", barChain.getName());
+            blockWalker(barChain);
             out("That's all folks!");
 
         } catch (Exception e) {
@@ -521,6 +534,109 @@ public class End2endIT {
 //        } catch (InterruptedException e) {
 //            fail("should not have jumped out of sleep mode. No other threads should be running");
 //        }
+    }
+
+    void blockWalker(Chain chain) throws InvalidProtocolBufferException, InvalidArgumentException, ProposalException, UnsupportedEncodingException {
+
+        try {
+            BlockchainInfo channelInfo = chain.queryBlockchainInfo();
+
+            for (long current = channelInfo.getHeight() - 1; current > -1; --current) {
+                BlockInfo returnedBlock = chain.queryBlockByNumber(current);
+                long blockNumber = returnedBlock.getBlockNumber();
+
+                out("current block number %d has data hash: %s", blockNumber, Hex.encodeHexString(returnedBlock.getDataHash()));
+                out("current block number %d has previous hash id: %s", blockNumber, Hex.encodeHexString(returnedBlock.getPreviousHash()));
+                out("current block number %d has %d envelope count:", blockNumber, returnedBlock.getEnvelopCount());
+                int i = 0;
+                for (BlockInfo.EnvelopeInfo envelopeInfo : returnedBlock.getEnvelopeInfos()) {
+                    ++i;
+
+                    out("  Transaction number %d has transaction id: %s", i, envelopeInfo.getTxId());
+                    out("  Transaction number %d has channel id: %s", i, envelopeInfo.getChannelId());
+                    out("  Transaction number %d has epoch: %d", i, envelopeInfo.getEpoch());
+                    out("  Transaction number %d has transaction timestamp: %tB %<te,  %<tY  %<tT %<Tp", i, envelopeInfo.getTimestamp());
+                    out("  Transaction number %d has type id: %s", i, "" + envelopeInfo.getType());
+
+                    if (envelopeInfo.getType() == TRANSACTION_ENVELOPE_INFO) {
+                        BlockInfo.TansactionEnvelopeInfo tansactionEnvelopeInfo = (BlockInfo.TansactionEnvelopeInfo) envelopeInfo;
+
+                        out("  Transaction number %d has %d actions", i, tansactionEnvelopeInfo.getTransactionActionInfoCount());
+
+                        int j = 0;
+                        for (BlockInfo.TansactionEnvelopeInfo.TransactionActionInfo transactionActionInfo : tansactionEnvelopeInfo.getTransactionActionInfos()) {
+                            ++j;
+                            out("   Transaction action %d has response status %d", j, transactionActionInfo.getResponseStatus());
+                            out("   Transaction action %d has response message bytes as string: %s", j,
+                                    printableString(new String(transactionActionInfo.getResponseMessageBytes(), "UTF-8")));
+
+
+
+                            out("   Transaction action %d has %d endorsements", j, transactionActionInfo.getEndorsementsCount());
+                            for (int n = 0; n < transactionActionInfo.getEndorsementsCount(); ++n) {
+                                BlockInfo.EndorserInfo endorserInfo = transactionActionInfo.getEndorsementInfo(n);
+                                out("Endorser %d signature: %s", n, Hex.encodeHexString(endorserInfo.getSignature()));
+                                out("Endorser %d endorser: %s", n, new String(endorserInfo.getEndorser(), "UTF-8"));
+                            }
+
+                            TxReadWriteSetInfo rwsetInfo = transactionActionInfo.getTxReadWriteSet();
+                            if (null != rwsetInfo) {
+
+                                out("   Transaction action %d has %d name space read write sets", j, rwsetInfo.getNsRwsetCount());
+
+                                for (TxReadWriteSetInfo.NsRwsetInfo nsRwsetInfo : rwsetInfo.getNsRwsetInfos()) {
+
+                                    final String namespace = nsRwsetInfo.getNaamespace();
+                                    KvRwset.KVRWSet rws = nsRwsetInfo.getRwset();
+
+                                    int rs = -1;
+                                    for (KvRwset.KVRead readList : rws.getReadsList()) {
+                                        rs++;
+
+                                        out("     Namespace %s read set %d key %s  version [%d:%d]", namespace, rs, readList.getKey(),
+                                                readList.getVersion().getBlockNum(), readList.getVersion().getTxNum());
+
+                                    }
+
+                                    rs = -1;
+
+                                    for (KvRwset.KVWrite writeList : rws.getWritesList()) {
+                                        rs++;
+
+                                        out("     Namespace %s write set %d key %s has value '%s' ", namespace, rs,
+                                                writeList.getKey(),
+                                                printableString(new String(writeList.getValue().toByteArray(), "UTF-8")), writeList);
+
+                                    }
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        } catch (InvalidProtocolBufferRuntimeException e) {
+            throw e.getCause();
+        }
+
+    }
+
+    static String printableString(final String string) {
+        int maxLogStringLength = 64;
+        if (string == null || string.length() == 0) {
+            return string;
+        }
+
+        String ret = string.replaceAll("[^\\p{Print}]", "?");
+
+        ret = ret.substring(0, Math.min(ret.length(), maxLogStringLength)) + (ret.length() > maxLogStringLength ? "..." : "");
+
+        return ret;
+
     }
 
 }
