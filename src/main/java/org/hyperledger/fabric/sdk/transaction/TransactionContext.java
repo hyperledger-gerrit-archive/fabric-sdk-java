@@ -15,7 +15,6 @@
 package org.hyperledger.fabric.sdk.transaction;
 
 import java.nio.Buffer;
-import java.time.Instant;
 import java.util.List;
 
 import com.google.protobuf.ByteString;
@@ -45,7 +44,7 @@ public class TransactionContext {
     private static final Config config = Config.getConfig();
     private static final Log logger = LogFactory.getLog(TransactionContext.class);
     //TODO right now the server does not care need to figure out
-    private final ByteString nonce = ByteString.copyFromUtf8(SDKUtil.generateUUID());
+    private final ByteString nonce = ByteString.copyFrom(SDKUtil.generateNonce());
 
     private boolean verify = true;
 
@@ -72,6 +71,7 @@ public class TransactionContext {
 
         //  this.txID = transactionID;
         this.cryptoPrimitives = cryptoPrimitives;
+
 
         identity = ProtoUtils.createSerializedIdentity(getUser());
 
@@ -178,9 +178,9 @@ public class TransactionContext {
     public Timestamp getFabricTimestamp() {
         if (currentTimeStamp == null) {
 
-            Timestamp.Builder ts = Timestamp.newBuilder();
-            ts.setSeconds(Instant.now().toEpochMilli());
-            currentTimeStamp = ts.build();
+
+
+            currentTimeStamp = ProtoUtils.getCurrentFabricTimestamp();
         }
         return currentTimeStamp;
     }
@@ -253,7 +253,8 @@ public class TransactionContext {
         return txID;
     }
 
-    byte[] sign(byte[] b) throws CryptoException {
+
+     byte[] sign(byte[] b) throws CryptoException {
         return cryptoPrimitives.sign(getUser().getEnrollment().getKey(), b);
     }
 
