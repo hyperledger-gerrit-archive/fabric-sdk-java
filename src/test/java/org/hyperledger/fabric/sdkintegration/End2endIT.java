@@ -18,8 +18,10 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeID;
@@ -143,6 +145,25 @@ public class End2endIT {
 
 
             chain.initialize();
+
+            chain.registerBlockListener(blockEvent -> {
+
+                Common.Block be = blockEvent.getBlock();
+
+                List<BlockEvent.TransactionEvent> tes = blockEvent.getTransactionEvents();
+                for(BlockEvent.TransactionEvent te : tes){
+
+                    Common.Block cb = te.getBlock();
+                    Common.Envelope ev = te.getEnvelope();
+                    String tid = te.getTransactionID();
+
+                }
+
+
+            });
+
+
+
 
             Collection<Peer> peers = chain.getPeers();
             Collection<Orderer> orderers = chain.getOrderers();
