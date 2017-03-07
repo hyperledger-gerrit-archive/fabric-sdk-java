@@ -18,10 +18,12 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Hex;
+import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
@@ -182,6 +184,21 @@ public class End2endIT {
     void runChain(HFClient client, Chain chain, boolean installChainCode, SampleOrg sampleOrg, int delta) {
 
         try {
+
+            chain.registerBlockListener(blockEvent -> {
+
+                Common.Block be = blockEvent.getBlock();
+
+                List<BlockEvent.TransactionEvent> tes = blockEvent.getTransactionEvents();
+                for (BlockEvent.TransactionEvent te : tes) {
+
+                    Common.Block cb = te.getBlock();
+                    Common.Envelope ev = te.getEnvelope();
+                    String tid = te.getTransactionID();
+
+                }
+
+            });
 
             final String chainName = chain.getName();
             out("Running Chain %s", chainName);
