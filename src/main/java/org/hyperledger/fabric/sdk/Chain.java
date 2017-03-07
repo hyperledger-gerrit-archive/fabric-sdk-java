@@ -112,6 +112,7 @@ import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.toHexString;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.getCurrentFabricTimestamp;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.getSignatureHeaderAsByteString;
 
 /**
@@ -216,7 +217,7 @@ public class Chain {
             final ByteString sigHeaderByteString = getSignatureHeaderAsByteString(transactionContext);
 
             final ChannelHeader payloadChannelHeader = ProtoUtils.createChannelHeader(HeaderType.CONFIG_UPDATE,
-                    transactionContext.getTxID(), name, transactionContext.getEpoch(), null);
+                    transactionContext.getTxID(), name, transactionContext.getEpoch(), transactionContext.getFabricTimestamp(), null);
 
             final Header payloadHeader = Header.newBuilder().setChannelHeader(payloadChannelHeader.toByteString())
                     .setSignatureHeader(sigHeaderByteString).build();
@@ -701,7 +702,8 @@ public class Chain {
                             .setBehavior(SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
                             .build();
 
-                    ChannelHeader deliverChainHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4", name, 0, null);
+                    ChannelHeader deliverChainHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4",
+                            name, 0, getCurrentFabricTimestamp(), null);
 
                     String mspid = client.getUserContext().getMSPID();
                     String cert = getEnrollment().getCert();
@@ -988,13 +990,56 @@ public class Chain {
 
             long lastConfigIndex = lastConfig.getIndex();
 
-            logger.trace(format("Last config index is %d", lastConfigIndex));
+            logger.debug(format("Last config index is %d", lastConfigIndex));
 
-            ///................................................................................
+            Block configBlock = getBlockByNumber(lastConfigIndex);
+
+            //Little extra parsing but make sure this really is a config block for this chain.
+            Envelope envelopeRet = Envelope.parseFrom(configBlock.getData().getData(0));
+            Payload payload = Payload.parseFrom(envelopeRet.getPayload());
+            ChannelHeader channelHeader = ChannelHeader.parseFrom(payload.getHeader().getChannelHeader());
+            if (channelHeader.getType() != HeaderType.CONFIG.getNumber()) {
+                throw new TransactionException(format("Bad last configuation block type %d, expected %d",
+                        channelHeader.getType(), HeaderType.CONFIG.getNumber()));
+            }
+
+            if (!name.equals(channelHeader.getChannelId())) {
+                throw new TransactionException(format("Bad last configuation block channel id %s, expected %s",
+                        channelHeader.getChannelId(), name));
+            }
+
+            logger.trace(format("Chain %s getConfigurationBlock retraceturned %s", name, "" + configBlock));
+            if (!logger.isTraceEnabled()) {
+                logger.debug(format("Chain %s getConfigurationBlock returned", name));
+            }
+
+            return configBlock;
+
+        } catch (TransactionException e) {
+            logger.error(e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new TransactionException(e);
+        }
+
+    }
+
+    private Block getBlockByNumber(final long number) throws TransactionException {
+
+        logger.trace(format("getConfigurationBlock for chain %s", name));
+
+        try {
+            if (orderers.isEmpty()) {
+                throw new TransactionException(format("No orderers for chain %s", name));
+            }
+            Orderer orderer = orderers.iterator().next();
+
+            logger.trace(format("Last config index is %d", number));
 
             TransactionContext txContext = getTransactionContext();
 
-            SeekSpecified seekSpecified = SeekSpecified.newBuilder().setNumber(lastConfigIndex).build();
+            SeekSpecified seekSpecified = SeekSpecified.newBuilder().setNumber(number).build();
 
             SeekPosition seekPosition = SeekPosition.newBuilder()
                     .setSpecified(seekSpecified)
@@ -1007,7 +1052,7 @@ public class Chain {
                     .build();
 
             ChannelHeader seekInfoHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO,
-                    txContext.getTxID(), name, txContext.getEpoch(), null);
+                    txContext.getTxID(), name, txContext.getEpoch(), getCurrentFabricTimestamp(), null);
 
             SignatureHeader signatureHeader = SignatureHeader.newBuilder()
                     .setCreator(txContext.getIdentity().toByteString())
@@ -1051,19 +1096,6 @@ public class Chain {
                         if (dataCount < 1) {
                             throw new TransactionException(format("Bad config block data count %d", dataCount));
                         }
-                        //Little extra parsing but make sure this really is a config block for this chain.
-                        Envelope envelopeRet = Envelope.parseFrom(configBlock.getData().getData(0));
-                        Payload payload = Payload.parseFrom(envelopeRet.getPayload());
-                        ChannelHeader channelHeader = ChannelHeader.parseFrom(payload.getHeader().getChannelHeader());
-                        if (channelHeader.getType() != HeaderType.CONFIG.getNumber()) {
-                            throw new TransactionException(format("Bad last configuation block type %d, expected %d",
-                                    channelHeader.getType(), HeaderType.CONFIG.getNumber()));
-                        }
-
-                        if (!name.equals(channelHeader.getChannelId())) {
-                            throw new TransactionException(format("Bad last configuation block channel id %s, expected %s",
-                                    channelHeader.getChannelId(), name));
-                        }
                     }
                 }
             }
@@ -1106,7 +1138,7 @@ public class Chain {
                 .build();
 
         ChannelHeader seekInfoHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO,
-                txContext.getTxID(), name, txContext.getEpoch(), null);
+                txContext.getTxID(), name, txContext.getEpoch(), getCurrentFabricTimestamp(), null);
 
         SignatureHeader signatureHeader = SignatureHeader.newBuilder()
                 .setCreator(txContext.getIdentity().toByteString())
@@ -2110,6 +2142,7 @@ public class Chain {
 
         Collection<ProposalResponse> proposalResponses = new ArrayList<>();
         for (Pair peerFuturePair : peerFuturePairs) {
+
             FabricProposalResponse.ProposalResponse fabricResponse = null;
             String message;
             int status;
@@ -2448,7 +2481,7 @@ public class Chain {
 
                 try {
 
-                    final String blockchainID = blockEvent.getChannelID();
+                    final String blockchainID = blockEvent.getChannelId();
 
                     if (!Objects.equals(name, blockchainID)) {
                         continue; // not targeted for this chain
@@ -2463,7 +2496,7 @@ public class Chain {
                         try {
                             executorService.execute(() -> l.listener.received(blockEvent));
                         } catch (Throwable e) { //Don't let one register stop rest.
-                            logger.error("Error trying to call block listener on chain " + blockEvent.getChannelID(), e);
+                            logger.error("Error trying to call block listener on chain " + blockEvent.getChannelId(), e);
                         }
                     }
                 } catch (Exception e) {
@@ -2644,7 +2677,7 @@ public class Chain {
                 executorService.execute(() -> future.completeExceptionally(
                         new TransactionEventException(format("Received invalid transaction event. Transaction ID %s status %s",
                                 transactionEvent.getTransactionID(),
-                                transactionEvent.validationCode()),
+                                transactionEvent.getValidationCode()),
                                 transactionEvent)));
             }
         }
