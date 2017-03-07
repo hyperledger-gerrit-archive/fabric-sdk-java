@@ -23,13 +23,10 @@ import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.common.Common.BlockData;
 import org.hyperledger.fabric.protos.common.Common.BlockMetadata;
-import org.hyperledger.fabric.protos.common.Common.BlockMetadataIndex;
-import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
-import org.hyperledger.fabric.protos.common.Common.Header;
-import org.hyperledger.fabric.protos.common.Common.Payload;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.Transaction;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
+import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
 
 import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
 
@@ -38,10 +35,12 @@ import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
  *
  * @see Block
  */
-public class BlockEvent {
+public class BlockEvent extends BlockInfo {
     private static final Log logger = LogFactory.getLog(BlockEvent.class);
 
     private final Block block;
+    private final BlockDeserializer blockdes;
+    //private final BlockDeserializer blockdes;
 
     /**
      * Get eventhub that received the event
@@ -61,7 +60,6 @@ public class BlockEvent {
 
     private String channelID;  // TODO a block contains payloads from a single channel ??????
     private final ArrayList<TransactionEvent> txList = new ArrayList<>();
-    private byte[] txResults;   // mapping of Block.Metadata[TRANSACTIONS_FILTER] which is an array of Golang uint8
     private int transactionsInBlock;
 
     public Event getEvent() {
@@ -76,13 +74,23 @@ public class BlockEvent {
      * @see Block
      */
     BlockEvent(EventHub eventHub, Event event) throws InvalidProtocolBufferException {
-        this.event = event;
-        this.block = event.getBlock();
-        this.eventHub = eventHub;
-        blockMetadata = this.block.getMetadata();
-        getChannelIDFromBlock();
-        populateResultsMap();
-        processTransactions();
+        super(event.getBlock());
+        try {
+
+            this.event = event;
+            this.block = event.getBlock();
+            this.blockdes = new BlockDeserializer(this.block);
+
+            this.eventHub = eventHub;
+            blockMetadata = this.block.getMetadata();
+            getChannelIDFromBlock();
+
+            //      populateResultsMap();
+            processTransactions();
+        } catch (InvalidProtocolBufferRuntimeException e) {
+            logger.error("blockeven ",e);
+            throw  e.getCause();
+        }
     }
 
     /**
@@ -92,22 +100,23 @@ public class BlockEvent {
      * @throws InvalidProtocolBufferException
      */
     private void getChannelIDFromBlock() throws InvalidProtocolBufferException {
-        blockData = block.getData();
-        ByteString data = blockData.getData(0);
-        Envelope envelope = Envelope.parseFrom(data);
-        Payload payload = Payload.parseFrom(envelope.getPayload());
-        Header plh = payload.getHeader();
-        ChannelHeader channelHeader = ChannelHeader.parseFrom(plh.getChannelHeader());
-        channelID = channelHeader.getChannelId();
+        channelID = blockdes.getData(0).getPayload().getHeader().getChannelHeader().getChannelId();
+        blockData = blockdes.getData();
+//        ByteString data = blockData.getData(0);
+//        Envelope envelope = Envelope.parseFrom(data);
+//        Payload payload = Payload.parseFrom(envelope.getPayload());
+//        Header plh = payload.getHeader();
+//        ChannelHeader channelHeader = ChannelHeader.parseFrom(plh.getChannelHeader());
+//        channelID = channelHeader.getChannelId();
     }
 
-    /**
-     * populateResultsMap parses the Block and retrieves the bit string that lists the transaction results
-     */
-    private void populateResultsMap() {
-        ByteString txResultsBytes = blockMetadata.getMetadata(BlockMetadataIndex.TRANSACTIONS_FILTER_VALUE);
-        txResults = txResultsBytes.toByteArray();
-    }
+//    /**
+//     * populateResultsMap parses the Block and retrieves the bit string that lists the transaction results
+//     */
+//    private void populateResultsMap() {
+//        ByteString txResultsBytes = blockMetadata.getMetadata(BlockMetadataIndex.TRANSACTIONS_FILTER_VALUE);
+//        transActionsMetaData = txResultsBytes.toByteArray();
+//    }
 
     /**
      * processTransactions retrieves the Transactions from the Block and wrappers each into
@@ -124,16 +133,10 @@ public class BlockEvent {
         for (ByteString db : blockData.getDataList()) {
             blockIndex++;
             Envelope env = Envelope.parseFrom(db);
-            txList.add(new TransactionEvent(blockIndex, env));
+            txList.add(new TransactionEvent(blockIndex));
         }
     }
 
-    /**
-     * @return the Block associated with this BlockEvent
-     */
-    public Block getBlock() {
-        return block;
-    }
 
     /**
      * @return the channel ID from the Block
@@ -154,25 +157,88 @@ public class BlockEvent {
      */
     public class TransactionEvent {
         private final int txIndex;
-        private final Block enclosingBlock;
-        private final Envelope txEnvelope;
+//        private final Block enclosingBlock;
+//        private final Envelope txEnvelope;
         private final String txID;
+        private final EnvelopeDeserializer ed;
 
         /**
          * constructs a TransactionEvent by parsing the given Envelope
          *
          * @param index      the position of this Transaction in the Block
-         * @param txEnvelope the Envelope that wraps the Transaction payload in the Block
          * @throws InvalidProtocolBufferException
          */
-        TransactionEvent(int index, Envelope txEnvelope) throws InvalidProtocolBufferException {
-            this.txIndex = index;
-            this.enclosingBlock = block;
-            this.txEnvelope = txEnvelope;
-            Payload payload = Payload.parseFrom(txEnvelope.getPayload());
-            Header plh = payload.getHeader();
-            ChannelHeader channelHeader = ChannelHeader.parseFrom(plh.getChannelHeader());
-            txID = channelHeader.getTxId();
+        TransactionEvent(int index) throws InvalidProtocolBufferException {
+            txIndex = index;
+            ed = blockdes.getData(txIndex);
+
+           // this.enclosingBlock = block;
+//            this.txEnvelope = txEnvelope;
+//             Payload payload = Payload.parseFrom(blockdes.getData(txIndex).getEnvelope().getPayload());
+//            Header plh = payload.getHeader();
+          //  ChannelHeader channelHeader = ChannelHeader.parseFrom(plh.getChannelHeader());
+            txID = ed.getPayload().getHeader().getChannelHeader().getTxId();
+//// NEW....................
+//
+//            //   ByteString bdb = payload.getData();
+////            String ho = Hex.encodeHexString(bdb.toByteArray());
+////            System.out.println(ho);
+//
+//            Transaction tx = Transaction.parseFrom(payload.getData());
+//            List<FabricTransaction.TransactionAction> al = tx.getActionsList();
+//            for (FabricTransaction.TransactionAction ta : al) {
+//
+//
+////                Common.SignatureHeader sh = Common.SignatureHeader.parseFrom(ta.getHeader());
+////                ByteString nob = sh.getNonce();
+////                String nobs = nob.toStringUtf8();
+////
+//
+//
+//
+//                //         FabricTransaction.ChaincodeActionPayload tap = ta.getHeader();
+//
+//                FabricTransaction.ChaincodeActionPayload tap = FabricTransaction.ChaincodeActionPayload.parseFrom(ta.getPayload());//<<<
+//                FabricProposal.ChaincodeProposalPayload ccpp = FabricProposal.ChaincodeProposalPayload.parseFrom(tap.getChaincodeProposalPayload());
+//                Chaincode.ChaincodeInput cinput = Chaincode.ChaincodeInput.parseFrom(ccpp.getInput());
+//
+//                for (ByteString x : cinput.getArgsList()) {
+//
+//                    System.out.println("x " + x);
+//
+//                }
+//
+//                FabricTransaction.ChaincodeEndorsedAction cae = tap.getAction();
+//
+//                // FabricProposalResponse.ProposalResponsePayload cpr = FabricProposalResponse.ProposalResponsePayload.parseFrom(cae.getProposalResponsePayload());
+//                FabricProposalResponse.ProposalResponsePayload cpr = FabricProposalResponse.ProposalResponsePayload.parseFrom(cae.getProposalResponsePayload());
+//                FabricProposal.ChaincodeAction ca = FabricProposal.ChaincodeAction.parseFrom(cpr.getExtension());
+//
+//                FabricProposalResponse.Response rsp = ca.getResponse();
+//                System.out.println(String.format(" resp message= %s,  status=%d", new String(rsp.getPayload().toByteArray()), rsp.getStatus()));
+//
+//                ByteString rwset = ca.getResults();  ///<<<<<<<<<<<<<<
+//
+//                FabricProposalResponse.Response a = ca.getResponse();
+//
+//                //cae.getProposalResponsePayload();r
+//                System.out.println("rwset:'" + Hex.encodeHexString(rwset.toByteArray()) + "'");
+//
+//            }
+//
+//            /*
+//            ChaincodeEndorsedAction.getAction
+//            ProposalResponsePayload
+//               ProposalResponsePayload.getExtension
+//               ChaincodeAction.getResults()
+//             */
+//
+////
+////            FabricProposal.Proposal sp = FabricProposal.Proposal.parseFrom(bdb);
+////            Header ph = Header.parseFrom(sp.getHeader());
+////
+////            ChannelHeader pch = ChannelHeader.parseFrom(ph.getChannelHeader());
+//
         }
 
         /**
@@ -182,25 +248,25 @@ public class BlockEvent {
             return this.txID;
         }
 
-        /**
-         * @return the Envelope wrapper of this Transaction payload
-         */
-        public Envelope getEnvelope() {
-            return this.txEnvelope;
-        }
+//        /**
+//         * @return the Envelope wrapper of this Transaction payload
+//         */
+//        public Envelope getEnvelope() {
+//            return this.txEnvelope;
+//        }
 
         /**
          * @return the Block that contains this Transaction
          */
         public Block getBlock() {
-            return this.enclosingBlock;
+            return blockdes.getBlock();
         }
 
         /**
          * @return the position of this Transaction in the Block
          */
         public int getIndexInBlock() {
-            return this.txIndex;
+            return txIndex;
         }
 
         /**
@@ -210,7 +276,7 @@ public class BlockEvent {
             if (txIndex >= transactionsInBlock) {
                 return false;
             }
-            byte txResult = txResults[this.txIndex];
+            byte txResult = blockdes.getTransActionsMetaData()[txIndex];
             logger.debug("TxID " + this.txID + " txResult = " + txResult);
 
             return txResult == TxValidationCode.VALID_VALUE;
@@ -223,7 +289,7 @@ public class BlockEvent {
             if (txIndex >= transactionsInBlock) {
                 return (byte) TxValidationCode.INVALID_OTHER_REASON_VALUE;
             }
-            return txResults[this.txIndex];
+            return blockdes.getTransActionsMetaData()[txIndex];
         }
 
         /**
