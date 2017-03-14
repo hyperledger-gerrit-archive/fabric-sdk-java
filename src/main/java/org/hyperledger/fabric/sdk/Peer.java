@@ -14,10 +14,11 @@
 
 package org.hyperledger.fabric.sdk;
 
-import com.google.common.util.concurrent.ListenableFuture;
-
 import java.util.Objects;
+import java.util.Properties;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
@@ -25,6 +26,10 @@ import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.exception.PeerException;
+
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 
 /**
  * The Peer class represents a peer to which SDK sends deploy, or query requests.
@@ -32,28 +37,40 @@ import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 public class Peer {
     private static final Log logger = LogFactory.getLog(Peer.class);
     private final EndorserClient endorserClent;
-    private String name = null;
-    private String url;
+    private final Properties properties;
+    private final String name;
+    private final String url;
+
+    Peer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
+
+        Exception e = checkGrpcUrl(grpcURL);
+        if (e != null) {
+            throw new InvalidArgumentException("Bad peer url.", e);
+
+        }
+
+
+        if (StringUtil.isNullOrEmpty(name)) {
+            throw new InvalidArgumentException("Invalid name for peer");
+        }
+
+        this.url = grpcURL;
+        this.name = name;
+        this.properties = properties == null ? null : (Properties) properties.clone(); //keep our own copy.
+
+
+        this.endorserClent = new EndorserClient(new Endpoint(url, this.properties).getChannelBuilder());
+
+
+    }
 
     public String getName() {
         return name;
     }
 
-    /**
-     * Set peer's name
-     *
-     * @param name
-     */
-    public void setName(String name) throws InvalidArgumentException {
-        if (name == null) {
-            throw new InvalidArgumentException("Peer name set to null");
-        }
-        if (name.length() == 0) {
-            throw new InvalidArgumentException("Peer name can not be empty string.");
-        }
-        this.name = name;
+    public Properties getProperties() {
+        return properties == null ? null : (Properties) properties.clone();
     }
-
 
 
     /**
@@ -72,26 +89,6 @@ public class Peer {
 
     private Chain chain;
 
-    /**
-     * Constructor for a peer given the endpoint config for the peer.
-     *
-     * @param url The URL of of the peer
-     * @param pem PEM certificate of the peer
-     */
-    public Peer(String url, String pem) throws InvalidArgumentException {
-
-
-        Exception e = SDKUtil.checkGrpcUrl(url);
-        if(e != null){
-            throw new InvalidArgumentException("Bad peer url.", e);
-
-        }
-        this.url = url;
-
-
-
-        this.endorserClent = new EndorserClient(new Endpoint(url, pem).getChannelBuilder());
-    }
 
     /**
      * Get the chain of which this peer is a member.
@@ -114,6 +111,7 @@ public class Peer {
 
     /**
      * for use in list of peers comparisons , e.g. list.contains() calls
+     *
      * @param otherPeer the peer instance to compare against
      * @return true if both peer instances have the same name and url
      */
@@ -154,7 +152,7 @@ public class Peer {
         if (chain == null) {
             throw new PeerException("Chain is null");
         }
-        Exception e = SDKUtil.checkGrpcUrl(url);
+        Exception e = checkGrpcUrl(url);
         if (e != null) {
             throw new InvalidArgumentException("Bad peer url.", e);
 
@@ -162,62 +160,8 @@ public class Peer {
     }
 
 
-    /**
-     * TODO: Temporary hack to wait until the deploy event has hopefully completed.
-     * This does not detect if an error occurs in the peer or chaincode when deploying.
-     * When peer event listening is added to the SDK, this will be implemented correctly.
-     */
+    static Peer createNewInstance(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
 
-    /*TODO check waitForDeployComplete
-    private void waitForDeployComplete(events.EventEmitter eventEmitter, EventDeploySubmitted submitted) {
-        let waitTime = this.chain.getDeployWaitTime();
-        logger.debug("waiting %d seconds before emitting deploy complete event",waitTime);
-        setTimeout(
-           function() {
-              let event = new EventDeployComplete(
-                  submitted.uuid,
-                  submitted.chaincodeID,
-                  "TODO: get actual results; waited "+waitTime+" seconds and assumed deploy was successful"
-              );
-              eventEmitter.emit("complete",event);
-           },
-           waitTime * 1000
-        );
+        return new Peer(name, grpcURL, properties);
     }
-    */
-
-    /**
-     * TODO: Temporary hack to wait until the deploy event has hopefully completed.
-     * This does not detect if an error occurs in the peer or chaincode when deploying.
-     * When peer event listening is added to the SDK, this will be implemented correctly.
-     */
-
-    /*TODO check waitForInvokeComplete
-    private void waitForInvokeComplete(events.EventEmitter eventEmitter) {
-        let waitTime = this.chain.getInvokeWaitTime();
-        logger.debug("waiting %d seconds before emitting invoke complete event",waitTime);
-        setTimeout(
-           function() {
-              eventEmitter.emit("complete",new EventInvokeComplete("waited "+waitTime+" seconds and assumed invoke was successful"));
-           },
-           waitTime * 1000
-        );
-    }
-    */
-
-    /**
-     * Remove the peer from the chain.
-     */
-    public void remove() {
-        throw new RuntimeException("TODO: implement"); //TODO implement remove
-    }
-
-    /**
-     * create a new peer with given peer endpoint config.
-     */
-    static Peer createNewInstance(String grpcUrl, String pem) throws InvalidArgumentException {
-        return new Peer(grpcUrl, pem);
-    }
-
-
 } // end Peer
