@@ -51,6 +51,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 
 import io.netty.util.internal.StringUtil;
+import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 
 public class SDKUtil {
     private static final Log logger = LogFactory.getLog(SDKUtil.class);
@@ -284,6 +285,10 @@ public class SDKUtil {
             props.setProperty("protocol", m.group(1));
             props.setProperty("host", m.group(2));
             props.setProperty("port", m.group(3));
+
+            String protocol = props.getProperty("protocol");
+            if ( ! "grpc".equals(protocol) && !"grpcs".equals(protocol))
+            throw new RuntimeException(String.format("Invalid protocol expected grpc or grpcs and found %s.", protocol));
         } else {
             throw new RuntimeException("URL must be of the format protocol://host:port");
         }
