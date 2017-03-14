@@ -192,8 +192,6 @@ your server(s) hostname(s) and port(s).
 ### GO Lang chaincode
 Go lang chaincode dependencies must be contained in vendor folder. 
  For an explanation of this see [Vender folder explanation](https://blog.gopheracademy.com/advent-2015/vendor-folder/)
- 
- 
 #Basic Troubleshooting
 **identity or token do not match**
 
