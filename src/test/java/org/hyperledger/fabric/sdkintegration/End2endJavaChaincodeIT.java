@@ -332,19 +332,21 @@ public class End2endJavaChaincodeIT {
 
         Chain newChain = client.newChain(CHAIN_NAME);
 
+        int i=0;
+
         for (String peerloc : PEER_LOCATIONS) {
-            Peer peer = client.newPeer(peerloc);
+            Peer peer = client.newPeer("peer_" + i++, peerloc);
             peer.setName("peer1");
             newChain.addPeer(peer);
         }
 
         for (String orderloc : ORDERER_LOCATIONS) {
-            Orderer orderer = client.newOrderer(orderloc);
+            Orderer orderer = client.newOrderer("myorderer", orderloc);
             newChain.addOrderer(orderer);
         }
 
         for (String eventHub : EVENTHUB_LOCATIONS) {
-            EventHub orderer = client.newEventHub(eventHub);
+            EventHub orderer = client.newEventHub("myeventhub", eventHub);
             newChain.addEventHub(orderer);
         }
 

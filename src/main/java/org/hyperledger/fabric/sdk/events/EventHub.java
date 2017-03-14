@@ -15,6 +15,7 @@
 package org.hyperledger.fabric.sdk.events;
 
 import java.util.ArrayList;
+import java.util.Properties;
 
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
@@ -37,7 +38,8 @@ public class EventHub {
 
 
     private final String url;
-    private final String pem;
+    private final String name;
+    private final Properties properties;
     private ManagedChannel channel;
     private boolean connected = false;
     private EventsGrpc.EventsStub events;
@@ -52,9 +54,17 @@ public class EventHub {
     //private static EventHub eventHub = null;
 
 
-    private EventHub(String url, String pem) {
-        this.url = url;
-        this.pem = pem;
+    private EventHub(String name, String url) {
+
+        this(name, url, null);
+
+    }
+
+    public EventHub(String name, String url, Properties properties) {
+
+        this.name = name;
+        this. url = url;
+        this.properties = properties;
     }
 
     public void connect() throws EventHubException {
@@ -63,7 +73,7 @@ public class EventHub {
             return;
         }
 
-        channel = new Endpoint(url, pem).getChannelBuilder().build();
+        channel = new Endpoint(url, properties).getChannelBuilder().build();
 
         events = EventsGrpc.newStub(channel);
 
@@ -128,13 +138,14 @@ public class EventHub {
     /**
      * Create a new instance.
      *
+     * @param name
      * @param url
-     * @param pem
+     * @param properties
      * @return
      */
 
-    public static EventHub createNewInstance(String url, String pem) {
-        return new EventHub(url, pem);
+    public static EventHub createNewInstance(String name, String url, Properties properties) {
+        return new EventHub(name, url, properties);
     }
 
     /**

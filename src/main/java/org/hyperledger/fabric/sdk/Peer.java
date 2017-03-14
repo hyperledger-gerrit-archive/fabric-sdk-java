@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.util.Properties;
+
 import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -29,8 +31,27 @@ import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 public class Peer {
     private static final Log logger = LogFactory.getLog(Peer.class);
     private final EndorserClient endorserClent;
+    private final Properties properties;
     private String name = null;
     private String url;
+
+    Peer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
+        setName(name);
+        this.properties = properties;
+
+        Exception e = SDKUtil.checkGrpcUrl(grpcURL);
+        if(e != null){
+            throw new InvalidArgumentException("Bad peer url.", e);
+
+        }
+        this.url = grpcURL;
+
+
+
+        this.endorserClent = new EndorserClient(new Endpoint(url, properties).getChannelBuilder());
+
+
+    }
 
     public String getName() {
         return name;
@@ -75,20 +96,20 @@ public class Peer {
      * @param url The URL of of the peer
      * @param pem PEM certificate of the peer
      */
-    public Peer(String url, String pem) throws InvalidArgumentException {
-
-
-        Exception e = SDKUtil.checkGrpcUrl(url);
-        if(e != null){
-            throw new InvalidArgumentException("Bad peer url.", e);
-
-        }
-        this.url = url;
-
-
-
-        this.endorserClent = new EndorserClient(new Endpoint(url, pem).getChannelBuilder());
-    }
+//    public Peer(String url, String pem) throws InvalidArgumentException {
+//
+//
+//        Exception e = SDKUtil.checkGrpcUrl(url);
+//        if(e != null){
+//            throw new InvalidArgumentException("Bad peer url.", e);
+//
+//        }
+//        this.url = url;
+//
+//
+//
+//        this.endorserClent = new EndorserClient(new Endpoint(url,prop).getChannelBuilder());
+//    }
 
     /**
      * Get the chain of which this peer is a member.
@@ -194,16 +215,20 @@ public class Peer {
     }
     */
 
-    /**
-     * Remove the peer from the chain.
-     */
-    public void remove() {
-        throw new RuntimeException("TODO: implement"); //TODO implement remove
+//    /**
+//     * Remove the peer from the chain.
+//     */
+//    public void remove() {
+//        throw new RuntimeException("TODO: implement"); //TODO implement remove
+//    }
+//
+//    public static Peer createNewInstance(String name, String pem) throws InvalidArgumentException {
+//        return new Peer(name, pem);
+//    }
+
+
+    static Peer createNewInstance(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
+
+        return new Peer(name, grpcURL, properties);
     }
-
-    public static Peer createNewInstance(String name, String pem) throws InvalidArgumentException {
-        return new Peer(name, pem);
-    }
-
-
 } // end Peer

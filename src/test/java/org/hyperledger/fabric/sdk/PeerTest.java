@@ -14,8 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.io.File;
-
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
@@ -35,7 +33,7 @@ public class PeerTest {
         try {
 			hfclient = TestHFClient.newInstance();
 
-            peer= hfclient.newPeer("grpc://localhost:7051");
+            peer= hfclient.newPeer("peer_" , "grpc://localhost:7051");
         } catch (Exception e) {
             e.printStackTrace();
             Assert.fail("Unexpected Exception " + e.getMessage());
@@ -122,7 +120,7 @@ public class PeerTest {
 
 		try {
 
-			Peer badpeer = hfclient.newPeer("grpc://localhost:7051");
+			Peer badpeer = hfclient.newPeer("peer_", "grpc://localhost:7051");
 			badpeer.setName("badpeer");
 
 			badpeer.sendProposal(FabricProposal.SignedProposal.newBuilder().build());
@@ -140,7 +138,7 @@ public class PeerTest {
 
 	@Test(expected = PeerException.class)
 	public void testSendAsyncNullChain() throws Exception {
-		Peer peer = hfclient.newPeer("grpc://localhost:7051");
+		Peer peer = hfclient.newPeer("peer_" , "grpc://localhost:7051");
 		peer.sendProposalAsync(FabricProposal.SignedProposal.newBuilder().build());
 	}
 
@@ -149,7 +147,7 @@ public class PeerTest {
 
 		try {
 
-			hfclient.newPeer(" ");
+			hfclient.newPeer("peer_", " ");
 
 			Assert.fail("Expected peer with no chain throw exception");
 
