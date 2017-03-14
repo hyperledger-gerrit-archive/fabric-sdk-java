@@ -40,16 +40,18 @@ public class TestConfig {
     private static final String PROPBASE = "org.hyperledger.fabric.sdktest.";
 
 
-    private static final String INVOKEWAITTIME =  PROPBASE + "InvokeWaitTime";
-    private static final String DEPLOYWAITTIME =  PROPBASE + "DeployWaitTime";
-    private static final String INTEGRATIONTESTPEERS = PROPBASE +  "integrationTests.peers";
-    private static final String INTEGRATIONTESTSORDERERS = PROPBASE +  "integrationTests.orderers";
-    private static final String INTEGRATIONTESTSEVENTHUBS = PROPBASE +  "integrationTests.eventhubs";
-    private static final String INTEGRATIONTESTSFABRICCA = PROPBASE +  "integrationTests.fabric_ca";
+    private static final String INVOKEWAITTIME = PROPBASE + "InvokeWaitTime";
+    private static final String DEPLOYWAITTIME = PROPBASE + "DeployWaitTime";
+    private static final String INTEGRATIONTESTPEERS = PROPBASE + "integrationTests.peers";
+    private static final String INTEGRATIONTESTSORDERERS = PROPBASE + "integrationTests.orderers";
+    private static final String INTEGRATIONTESTSEVENTHUBS = PROPBASE + "integrationTests.eventhubs";
+    private static final String INTEGRATIONTESTSFABRICCA = PROPBASE + "integrationTests.fabric_ca";
+    private static final String INTEGRATIONTESTSTLS = PROPBASE + "integrationtests.tls";
 
 
     private static TestConfig config;
     private final static Properties sdkProperties = new Properties();
+    private final boolean runningTLS;
 
     private TestConfig() {
         File loadFile;
@@ -72,14 +74,60 @@ public class TestConfig {
 
             defaultProperty(INVOKEWAITTIME, "100000");
             defaultProperty(DEPLOYWAITTIME, "120000");
+            defaultProperty(INTEGRATIONTESTSTLS, "false");
+
+
+            runningTLS = "true".equals(sdkProperties.getProperty(INTEGRATIONTESTSTLS));
+
+
             defaultProperty(INTEGRATIONTESTPEERS, "grpc://localhost:7051,grpc://localhost:7056");
             defaultProperty(INTEGRATIONTESTSORDERERS, "grpc://localhost:7050");
-
             defaultProperty(INTEGRATIONTESTSEVENTHUBS, "grpc://localhost:7053");
             defaultProperty(INTEGRATIONTESTSFABRICCA, "http://localhost:7054");
 
+
+            if (runningTLS) {
+                sdkProperties.put(INTEGRATIONTESTPEERS, tlsIfyGrpcProtocol(sdkProperties.getProperty(INTEGRATIONTESTPEERS)));
+                sdkProperties.put(INTEGRATIONTESTSORDERERS, tlsIfyGrpcProtocol(sdkProperties.getProperty(INTEGRATIONTESTSORDERERS)));
+                sdkProperties.put(INTEGRATIONTESTSEVENTHUBS, tlsIfyGrpcProtocol(sdkProperties.getProperty(INTEGRATIONTESTSEVENTHUBS)));
+                sdkProperties.put(INTEGRATIONTESTSFABRICCA, tlsIfyHTTPProtocol(sdkProperties.getProperty(INTEGRATIONTESTSFABRICCA)));
+            }
+
         }
 
+    }
+
+    private String tlsIfyGrpcProtocol(String property) {
+
+        String[] props = property.split(",");
+
+        StringBuilder ret = new StringBuilder();
+
+        String sep = "";
+
+        for (String prop : props) {
+
+            String np = prop.replaceFirst("^[^:]*", "grpcs");
+            ret.append(sep).append(np);
+            sep = ",";
+        }
+        return ret.toString();
+    }
+    private String tlsIfyHTTPProtocol(String property) {
+
+        String[] props = property.split(",");
+
+        StringBuilder ret = new StringBuilder();
+
+        String sep = "";
+
+        for (String prop : props) {
+
+            String np = prop.replaceFirst("^[^:]*", "https");
+            ret.append(sep).append(np);
+            sep = ",";
+        }
+        return ret.toString();
     }
 
     /**
@@ -168,6 +216,40 @@ public class TestConfig {
 
     public String getIntegrationtestsFabricCA() {
         return getProperty(INTEGRATIONTESTSFABRICCA);
+    }
+
+    static String tlsbase = "src/test/fixture/tls";
+
+    public Properties getPeerProperties(String name) {
+
+        return getTLSProperties("peer", name);
+
+    }
+
+    public Properties getOrdererProperties(String name) {
+
+        return getTLSProperties("orderer", name);
+    }
+
+    public Properties getEventHubProperties(String name) {
+
+        return getTLSProperties("eventhub", name);
+
+    }
+
+    private Properties getTLSProperties(String type, String name) {
+        Properties ret = null;
+        if (runningTLS) {
+            String cert = tlsbase + "/" + type + "/" + name + "/ca.pem";
+            File cf = new File(cert);
+            if (!cf.exists() || !cf.isFile()) {
+                throw new RuntimeException("Missing cert file " + cf.getAbsolutePath());
+            }
+            ret = new Properties();
+            ret.setProperty("pemFile", cert);
+            ret.setProperty("certificateOverride", "true");
+        }
+        return ret;
     }
 
 }
