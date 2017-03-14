@@ -17,6 +17,7 @@ package org.hyperledger.fabric.sdk;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -114,42 +115,33 @@ public class HFClient {
 
     /**
      * newPeer create a new peer
+     *
+     * @param name
      * @param grpcURL to the peer's location
+     * @param properties
      * @return Peer
      * @throws InvalidArgumentException
      */
 
-    public Peer newPeer(String grpcURL) throws InvalidArgumentException {
-        return Peer.createNewInstance(grpcURL, null);
+    public Peer newPeer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
+        return Peer.createNewInstance(name, grpcURL, properties);
     }
 
     /**
      * newPeer create a new peer
+     * @param name
      * @param grpcURL to the peer's location
-     * @param pem file used for TLS configuration
      * @return Peer
      * @throws InvalidArgumentException
      */
 
-    public Peer newPeer(String grpcURL, String pem) throws InvalidArgumentException {
-        return Peer.createNewInstance(grpcURL, pem);
+    public Peer newPeer(String name, String grpcURL) throws InvalidArgumentException {
+        return Peer.createNewInstance(name, grpcURL, null);
     }
 
 
-    /**
-     * newOrderer Create a new Order
-     *
-     * @param grpcURL to the orderer's location
-     * @return Orderer
-     * @throws InvalidArgumentException
-     */
 
-
-    public Orderer newOrderer(String grpcURL) throws InvalidArgumentException {
-        return Orderer.createNewInstance(grpcURL, null);
-    }
-
-    /**
+     /**
      * Get the member service associated this chain.
      *
      * @return MemberServices associated with the chain, or undefined if not set.
@@ -261,8 +253,8 @@ public class HFClient {
      * @return event hub
      */
 
-    public EventHub newEventHub(String url, String pem) {
-        return EventHub.createNewInstance(url, pem);
+    public EventHub newEventHub(String name, String url, Properties properties) {
+        return EventHub.createNewInstance(name, url, properties);
     }
 
 
@@ -273,9 +265,16 @@ public class HFClient {
      * @return event hub
      */
 
-    public EventHub newEventHub(String url) {
-        return EventHub.createNewInstance(url, null);
+    public EventHub newEventHub(String name, String url) {
+        return newEventHub(name, url, null);
     }
 
 
+    public Orderer newOrderer(String name, String url) throws InvalidArgumentException {
+        return newOrderer(name, url, null);
+    }
+
+    public Orderer newOrderer(String name, String url, Properties properties) throws InvalidArgumentException {
+       return Orderer.createNewInstance(name, url, properties);
+    }
 }
