@@ -137,6 +137,10 @@ For the sample in the End2endIT.java the command run was
  your servers. For Docker environment OrdererDefaults Addresses 127.0.0.1 changed to `orderer` and Organizations 
   AnchorPeers Hosts 127.0.0.1 to `vp0`.  Repeat the Host's section to add second peer `vp1`
 
+
+
+
+
 #Basic Troubleshooting
 **identity or token do not match**
 
