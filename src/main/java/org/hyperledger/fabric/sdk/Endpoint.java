@@ -47,9 +47,17 @@ public class Endpoint {
                 this.channelBuilder = ManagedChannelBuilder.forAddress(addr, port);
             } else {
                 try {
+
+                    /*
+                    https://groups.google.com/forum/#!topic/grpc-io/0EdIOpTLWb4
+                    SslCredentialsOptions ssl_opts = {"", "", ""};
+
+      Client greeter(grpc::CreateChannel(std::string(argv[2])+":ABCD", SslCredentials(ssl_opts), ChannelArguments()));
+                     */
+
                     SslContext sslContext = GrpcSslContexts.forClient().trustManager(new java.io.File(pem)).build();
                     this.channelBuilder = NettyChannelBuilder.forAddress(addr, port)
-                            .sslContext(sslContext);
+                            .sslContext(sslContext).overrideAuthority("admin");
                 } catch (SSLException sslex) {
                     throw new RuntimeException(sslex);
                 }

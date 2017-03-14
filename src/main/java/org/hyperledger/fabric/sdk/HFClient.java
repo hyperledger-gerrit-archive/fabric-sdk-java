@@ -172,6 +172,10 @@ public class HFClient {
         return Orderer.createNewInstance(grpcURL, null);
     }
 
+    public Orderer newOrderer(String grpcURL, String pem) throws InvalidArgumentException {
+        return Orderer.createNewInstance(grpcURL, pem);
+    }
+
     /**
      * Get the member service associated this chain.
      *
