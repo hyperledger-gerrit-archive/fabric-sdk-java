@@ -407,7 +407,8 @@ public class End2endIT {
         Collection<Orderer> orderers = new LinkedList<>();
 
         for (String orderloc : ORDERER_LOCATIONS) {
-            orderers.add(client.newOrderer(orderloc));
+            orderers.add(client.newOrderer(orderloc, "ordererOrg1-cert.pem"));
+          //  orderers.add(client.newOrderer(orderloc));
 
         }
 

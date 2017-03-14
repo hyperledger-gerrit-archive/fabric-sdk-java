@@ -73,7 +73,7 @@ public class TestConfig {
             defaultProperty(INVOKEWAITTIME, "100000");
             defaultProperty(DEPLOYWAITTIME, "120000");
             defaultProperty(INTEGRATIONTESTPEERS, "grpc://localhost:7051,grpc://localhost:7056");
-            defaultProperty(INTEGRATIONTESTSORDERERS, "grpc://localhost:7050");
+            defaultProperty(INTEGRATIONTESTSORDERERS, "grpcs://localhost:7050");
 
             defaultProperty(INTEGRATIONTESTSEVENTHUBS, "grpc://localhost:7053");
             defaultProperty(INTEGRATIONTESTSFABRICCA, "http://localhost:7054");
