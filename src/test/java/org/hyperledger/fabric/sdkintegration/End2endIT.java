@@ -18,6 +18,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Hex;
@@ -40,7 +41,6 @@ import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 
 import org.hyperledger.fabric.sdk.TransactionInfo;
-import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.events.EventHub;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
@@ -122,12 +122,12 @@ public class End2endIT {
             //Persistence is not part of SDK. Sample file store is for demonstration purposes only!
             //   MUST be replaced with more robust application implementation  (Database, LDAP)
             File sampleStoreFile = new File(System.getProperty("java.io.tmpdir") + "/HFCSampletest.properties");
-            if (sampleStoreFile.exists()) { //For testing start fresh
-                sampleStoreFile.delete();
-            }
+//            if (sampleStoreFile.exists()) { //For testing start fresh
+//                sampleStoreFile.delete();
+//            }
 
             final SampleStore sampleStore = new SampleStore(sampleStoreFile);
-            sampleStoreFile.deleteOnExit();
+ //           sampleStoreFile.deleteOnExit();
 
             //SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
             SampleUser admin = sampleStore.getMember("admin");
@@ -496,8 +496,11 @@ public class End2endIT {
 
         Collection<Orderer> orderers = new LinkedList<>();
 
+        int o=0;
+
         for (String orderloc : ORDERER_LOCATIONS) {
-            orderers.add(client.newOrderer(orderloc));
+            final String pname = "orderer" +o++;
+            orderers.add(client.newOrderer(pname ,orderloc, testConfig.getOrdererProperties(pname)));
 
         }
 
@@ -510,21 +513,24 @@ public class End2endIT {
 
         Chain newChain = client.newChain(name, anOrderer, chainConfiguration);
 
-        int i = 0;
-        for (String peerloc : PEER_LOCATIONS) {
-            Peer peer = client.newPeer(peerloc);
-            peer.setName("peer_" + i);
-            newChain.joinPeer(peer); // have Peers join the chain
+        for(Orderer orderer : orderers){
 
-        }
-
-        for (String orderloc : ORDERER_LOCATIONS) {
-            Orderer orderer = client.newOrderer(orderloc);
             newChain.addOrderer(orderer);
         }
 
+
+        int i = 0;
+        for (String peerloc : PEER_LOCATIONS) {
+            final String pname = "peer" +i++;
+            Peer peer = client.newPeer(pname, peerloc, testConfig.getPeerProperties(pname));
+            newChain.joinPeer(peer); // have Peers join the chain
+        }
+
+
+        i=0;
         for (String eventHubLoc : EVENTHUB_LOCATIONS) {
-            EventHub eventHub = client.newEventHub(eventHubLoc);
+            final String pname = "eventhub" +i++;
+            EventHub eventHub = client.newEventHub(pname, eventHubLoc, testConfig.getEventHubProperties(pname));
             newChain.addEventHub(eventHub);
         }
 
@@ -552,19 +558,18 @@ public class End2endIT {
 
         int i = 0;
         for (String peerloc : PEER_LOCATIONS) {
-            Peer peer = client.newPeer(peerloc);
-            peer.setName("peer_" + i);
+            Peer peer = client.newPeer("peer_" + i, peerloc);
             newChain.addPeer(peer);
 
         }
 
         for (String orderloc : ORDERER_LOCATIONS) {
-            Orderer orderer = client.newOrderer(orderloc);
+            Orderer orderer = client.newOrderer("rick", orderloc);
             newChain.addOrderer(orderer);
         }
 
         for (String eventHubLoc : EVENTHUB_LOCATIONS) {
-            EventHub eventHub = client.newEventHub(eventHubLoc);
+            EventHub eventHub = client.newEventHub("myeventhub", eventHubLoc);
             newChain.addEventHub(eventHub);
         }
 
