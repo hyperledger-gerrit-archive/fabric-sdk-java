@@ -42,6 +42,7 @@ public class TestConfig {
 
     private static final String INVOKEWAITTIME =  PROPBASE + "InvokeWaitTime";
     private static final String DEPLOYWAITTIME =  PROPBASE + "DeployWaitTime";
+    private static final String INTEGRATIONTESTSMSPIDS = PROPBASE +  "integrationTests.mspids";
     private static final String INTEGRATIONTESTPEERS = PROPBASE +  "integrationTests.peers";
     private static final String INTEGRATIONTESTSORDERERS = PROPBASE +  "integrationTests.orderers";
     private static final String INTEGRATIONTESTSEVENTHUBS = PROPBASE +  "integrationTests.eventhubs";
@@ -72,11 +73,12 @@ public class TestConfig {
 
             defaultProperty(INVOKEWAITTIME, "100000");
             defaultProperty(DEPLOYWAITTIME, "120000");
-            defaultProperty(INTEGRATIONTESTPEERS, "grpc://localhost:7051,grpc://localhost:7056");
+            defaultProperty(INTEGRATIONTESTSMSPIDS, "peerOrg1 Org1MSP, peerOrg2 Org2MSP");
+            defaultProperty(INTEGRATIONTESTPEERS, "peerOrg1 grpc://localhost:7051,peerOrg1 grpc://localhost:7056,peerOrg2 grpc://localhost:8051,peerOrg2 grpc://localhost:8056");
             defaultProperty(INTEGRATIONTESTSORDERERS, "grpc://localhost:7050");
 
-            defaultProperty(INTEGRATIONTESTSEVENTHUBS, "grpc://localhost:7053");
-            defaultProperty(INTEGRATIONTESTSFABRICCA, "http://localhost:7054");
+            defaultProperty(INTEGRATIONTESTSEVENTHUBS, "grpc://localhost:7053,grpc://localhost:8053");
+            defaultProperty(INTEGRATIONTESTSFABRICCA, "peerOrg1 http://localhost:7054, peerOrg2 http://localhost:8054");
 
         }
 
@@ -153,6 +155,9 @@ public class TestConfig {
         return Integer.parseInt(getProperty(DEPLOYWAITTIME));
     }
 
+    public String getIntegrationTestsMSPIDs(){
+        return getProperty(INTEGRATIONTESTSMSPIDS);
+    }
 
     public String getIntegrationTestsPeers() {
         return getProperty(INTEGRATIONTESTPEERS);

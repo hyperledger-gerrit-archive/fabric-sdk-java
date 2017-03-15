@@ -488,6 +488,7 @@ public class Chain {
 
         List<byte[]> certList;
         for (MSP msp : msps.values()) {
+            logger.debug("loading certificates for MSP : " + msp.getID());
             certList = Arrays.asList(msp.getRootCerts());
             if (certList != null && certList.size()>0)
                 cryptoSuite.loadCACertificatesAsBytes(certList);
@@ -1581,10 +1582,11 @@ public class Chain {
 
             boolean success = false;
             Exception se = null;
+            BroadcastResponse resp = null;
             for (Orderer orderer : orderers) {
 
                 try {
-                    BroadcastResponse resp = orderer.sendTransaction(transactionEnvelope);
+                    resp = orderer.sendTransaction(transactionEnvelope);
                     if (resp.getStatus() == Status.SUCCESS) {
 
                         success = true;
@@ -1593,7 +1595,8 @@ public class Chain {
                     }
                 } catch (Exception e) {
                     se = e;
-                    logger.error(e.getMessage(), e);
+                    String emsg = format("Unsuccesful sendTransaction to orderer. Status %s", resp.getStatus());
+                    logger.error(emsg);
 
                 }
 
@@ -1605,12 +1608,15 @@ public class Chain {
                 logger.debug(format("Successful sent to Orderer transaction id: %s", proposalTransactionID));
                 return sret;
             } else {
+                String emsg = format("Failed to place transaction %s on Orderer. Cause: UNSUCCESSFUL", proposalTransactionID);
                 CompletableFuture<TransactionEvent> ret = new CompletableFuture<>();
-                ret.completeExceptionally(new Exception(format("Failed to place transaction %s on Orderer. Cause: %s", proposalTransactionID, se.getMessage())));
+                ret.completeExceptionally(new Exception(emsg));
                 return ret;
             }
         } catch (Exception e) {
-            throw new TransactionException("sendTransaction: " + e.getMessage(), e);
+            String emsg = String.format("error sending transaction to orderer. Error: %s", e.getMessage());
+            logger.error(emsg);
+            throw new TransactionException(emsg, e);
         }
 
     }

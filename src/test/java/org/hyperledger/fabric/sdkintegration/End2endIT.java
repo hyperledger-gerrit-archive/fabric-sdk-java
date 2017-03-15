@@ -15,9 +15,14 @@
 package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
+import java.net.MalformedURLException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.LinkedList;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Hex;
@@ -71,24 +76,52 @@ public class End2endIT {
   ///  static final String TEST_CHAIN_NAME = "testchainid";
     static final String FOO_CHAIN_NAME = "foo";
     static final String BAR_CHAIN_NAME = "bar";
+    static final String MYCHANNEL_CHAIN_NAME = "mychannel";
+
+    static final Hashtable<String, String> MSPIDs = new Hashtable<>();
+    static final Hashtable<String, SampleUser> admins = new Hashtable<>();
+    static final Hashtable<String, Set<String>> peers = new Hashtable<>();
+    static final Hashtable<String, Set<Peer>> orgPeers = new Hashtable<>();
+    static final Hashtable<String, SampleUser> users = new Hashtable<>();
+    static final Hashtable<String, HFCAClient> fabricCAs = new Hashtable<>();
 
     String testTxID = null ;  // save the CC invoke TxID and use in queries
 
     final static Collection<String> PEER_LOCATIONS = Arrays.asList(testConfig.getIntegrationTestsPeers().split(","));
 
+    final static Collection<String> MSPS = Arrays.asList(testConfig.getIntegrationTestsMSPIDs().split(","));
 
     final static Collection<String> ORDERER_LOCATIONS = Arrays.asList(testConfig.getIntegrationTestsOrderers().split(","));
 
     final static Collection<String> EVENTHUB_LOCATIONS = Arrays.asList(testConfig.getIntegrationtestsEventhubs().split(","));
 
-    final static String FABRIC_CA_SERVICES_LOCATION = testConfig.getIntegrationtestsFabricCA();
+    final static String[] FABRIC_CA_SERVICES_LOCATION = testConfig.getIntegrationtestsFabricCA().split(",");
 
     private final TestConfigHelper configHelper = new TestConfigHelper();
 
     @Before
-    public void checkConfig() throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
+    public void checkConfig() throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException, MalformedURLException {
         configHelper.clearConfig();
         configHelper.customizeConfig();
+        for (String peerLocation : PEER_LOCATIONS) {
+            String[] temp = peerLocation.trim().split(" ");
+            if (! peers.containsKey(temp[0])) {
+                HashSet<String> aSet = new HashSet<>();
+                aSet.add(temp[1]);
+                peers.put(temp[0], aSet);
+            }
+            else {
+                peers.get(temp[0]).add(temp[1]);
+            }
+        }
+        for (String ca : FABRIC_CA_SERVICES_LOCATION) {
+            String[] temp = ca.trim().split(" ");
+            fabricCAs.put(temp[0], new HFCAClient(temp[1], null));
+        }
+        for (String msp : MSPS) {
+            String[] temp = msp.trim().split(" ");
+            MSPIDs.put(temp[0], temp[1]);
+        }
     }
 
     @After
@@ -113,8 +146,8 @@ public class End2endIT {
             HFClient client = HFClient.createNewInstance();
 
             client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
-            HFCAClient fabricCA = new HFCAClient(FABRIC_CA_SERVICES_LOCATION, null);
-            client.setMemberServices(fabricCA);
+
+            // client.setMemberServices(peerOrg1FabricCA);
 
             ////////////////////////////
             //Set up USERS
@@ -130,42 +163,45 @@ public class End2endIT {
             sampleStoreFile.deleteOnExit();
 
             //SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
-            SampleUser admin = sampleStore.getMember("admin");
-            if(!admin.isEnrolled()){  //Preregistered admin only needs to be enrolled with Fabric CA.
-                admin.setEnrollment(fabricCA.enroll(admin.getName(), "adminpw"));
-                admin.setMPSID("DEFAULT"); //This is out of band information provided by the user's registration organisation
-                // "DEFAULT" is used by test environment.
+
+            ////////////////////////////
+            // get users for all orgs
+            Set<String> orgs = MSPIDs.keySet();
+            SampleUser admin;
+            SampleUser user;
+            for (String org : orgs) {
+                HFCAClient ca = fabricCAs.get(org);
+                client.setMemberServices(ca);
+                admin = sampleStore.getMember("admin", org);
+                if(!admin.isEnrolled()){  //Preregistered admin only needs to be enrolled with Fabric CA.
+
+                    admin.setEnrollment(ca.enroll(admin.getName(), "adminpw"));
+                    admin.setMPSID(MSPIDs.get(org));
+                }
+                admins.put(org, admin);
+
+                user = sampleStore.getMember("user1", org);
+                if(!user.isRegistered()){  // users need to be registered AND enrolled
+                    RegistrationRequest rr = new RegistrationRequest(user.getName(), "org1.department1");
+                    user.setEnrollmentSecret(ca.register(rr, admin));
+                }
+                if (!user.isEnrolled()){
+                    user.setEnrollment(ca.enroll(user.getName(), user.getEnrollmentSecret()));
+                    user.setMPSID(MSPIDs.get(org));
+                }
+                users.put(org, user);
             }
 
-            //Non admin user needs to be registered and enrolled with Fabric CA
-            SampleUser user1 = sampleStore.getMember("user1");
-
-            if(!user1.isRegistered()){
-
-                RegistrationRequest rr = new RegistrationRequest(user1.getName(), "org1.department1");
-
-                user1.setEnrollmentSecret(fabricCA.register(rr, admin)); //Admin can register other users.
-
-            }
-
-            if (!user1.isEnrolled()){
-
-                user1.setEnrollment(fabricCA.enroll(user1.getName(), user1.getEnrollmentSecret()));
-
-                user1.setMPSID("DEFAULT"); //This is out of band information provided by the user's registration organisation
-                // "DEFAULT" is used by test environment.
-
-            }
-
-            client.setUserContext(user1);
+            // client.setUserContext(users.get("peerOrg1"));
 
             ////////////////////////////
             //Construct and run the chains
-
-            runChain(client, constructChain(FOO_CHAIN_NAME, client), true, 0);
+            /*
+            runChain(client, constructChain(FOO_CHAIN_NAME, client), true, "orgPeer1", 0);
             out("\n");
-            runChain(client, constructChain(BAR_CHAIN_NAME, client), false, 100);//run a newly constructed foo chain with different b value!
-
+            runChain(client, constructChain(BAR_CHAIN_NAME, client), false, "orgPeer2", 100);//run a newly constructed foo chain with different b value!
+            */
+            runChain(client, constructChain(MYCHANNEL_CHAIN_NAME, client, "peerOrg2"), true, "peerOrg1", 0);
             out("That's all folks!");
 
 
@@ -179,7 +215,7 @@ public class End2endIT {
     }
 
 
-    void runChain(HFClient client, Chain chain, boolean installChainCode, int delta) {
+    void runChain(HFClient client, Chain chain, boolean installChainCode, String orgToUse, int delta) {
 
 
         try {
@@ -189,7 +225,7 @@ public class End2endIT {
             chain.setInvokeWaitTime(testConfig.getInvokeWaitTime());
             chain.setDeployWaitTime(testConfig.getDeployWaitTime());
 
-            Collection<Peer> peers = chain.getPeers();
+            Collection<Peer> channelPeers = chain.getPeers();
             Collection<Orderer> orderers = chain.getOrderers();
             final ChainCodeID chainCodeID;
             Collection<ProposalResponse> responses;
@@ -206,33 +242,35 @@ public class End2endIT {
                 ////////////////////////////
                 // Install Proposal Request
                 //
-
-                out("Creating install proposal");
-
-
                 InstallProposalRequest installProposalRequest = client.newInstallProposalRequest();
                 installProposalRequest.setChaincodeID(chainCodeID);
                 ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
                 installProposalRequest.setChaincodeSourceLocation(new File("src/test/fixture"));
 
-                responses = chain.sendInstallProposal(installProposalRequest, peers);
+                out("Sending install proposal");
 
-                for (ProposalResponse response : responses) {
-                    if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
-                        out("Successful install proposal response Txid: %s", response.getTransactionID());
-                        successful.add(response);
+                ////////////////////////////
+                // only a client from the same org as the peer can issue an install request
+                int numInstallProposal = 0;
+                Set<String> orgs = orgPeers.keySet();
+                for (String org : orgs) {
+                    client.setUserContext(admins.get(org));
+                    Set<Peer> peersFromOrg = orgPeers.get(org);
+                    numInstallProposal = numInstallProposal + peersFromOrg.size();
+                    responses = chain.sendInstallProposal(installProposalRequest, peersFromOrg);
 
-                    } else {
-                        failed.add(response);
+                    for (ProposalResponse response : responses) {
+                        if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
+                            out("Successful install proposal response Txid: %s", response.getTransactionID());
+                            successful.add(response);
+                        } else {
+                            failed.add(response);
+                        }
                     }
-
                 }
-                out("Received %d install proposal responses. Successful+verified: %d . Failed: %d", responses.size(), successful.size(), failed.size());
+                out("Received %d install proposal responses. Successful+verified: %d . Failed: %d", numInstallProposal, successful.size(), failed.size());
 
-                if (successful.size() < 1) { // TODO choose this as an arbitrary limit right now.
-                    if (failed.size() == 0) {
-                        fail("No endorsers found for CC install");
-                    }
+                if (failed.size() > 0) {
                     ProposalResponse first = failed.iterator().next();
                     fail("Not enough endorsers for install :" + successful.size() + ".  " + first.getMessage());
                 }
@@ -250,22 +288,18 @@ public class End2endIT {
             instantiateProposalRequest.setFcn("init");
             instantiateProposalRequest.setArgs(new String[]{"a", "100", "b", ""+(200 + delta)});
 
-
             /*
               policyBitsAdmin - which has policy AND(DEFAULT.admin) meaning 1 signature from the DEFAULT MSP admin' is required
               See README.md Chaincode endorsement policies section for more details.
-             */
-
+            */
             ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy(new File("src/test/resources/policyBitsAdmin"));
             instantiateProposalRequest.setChaincodeEndorsementPolicy(chaincodeEndorsementPolicy);
 
-            out("Sending instantiateProposalRequest code with a and b set to 100 and %s respectively", ""+(200 + delta) );
-
-            responses = chain.sendInstantiationProposal(instantiateProposalRequest, peers);
-
+            out("Sending instantiateProposalRequest to all peers with arguments: a and b set to 100 and %s respectively", ""+(200 + delta) );
             successful.clear();
             failed.clear();
 
+            responses = chain.sendInstantiationProposal(instantiateProposalRequest, chain.getPeers());
             for (ProposalResponse response : responses) {
                 if (response.isVerified() && response.getStatus() == ProposalResponse.Status.SUCCESS) {
                     successful.add(response);
@@ -275,80 +309,62 @@ public class End2endIT {
                 }
             }
             out("Received %d instantiate proposal responses. Successful+verified: %d . Failed: %d", responses.size(), successful.size(), failed.size());
-
-            if (successful.size() < 1) { // TODO choose this as an arbitrary limit right now.
-                if (failed.size() == 0) {
-                    throw new Exception("No endorsers found for CC instantiate proposal");
-                }
+            if (failed.size() > 0) {
                 ProposalResponse first = failed.iterator().next();
-
-                throw new Exception("Not enough endorsers for instantiate  :" + successful.size() + ".  " + first.getMessage() + ". Was verified:" + first.isVerified());
+                fail("Not enough endorsers for instantiate :" + successful.size() + "endorser failed with " + first.getMessage() + ". Was verified:" + first.isVerified());
             }
 
+            successful.clear();
+            failed.clear();
 
-            /// Send instantiate transaction.
+            ///////////////
+            /// Send instantiate transaction to orderer
+            out("Sending instantiateTransaction to orderer with a and b set to 100 and %s respectively", ""+(200 + delta));
             chain.sendTransaction(successful, orderers).thenApply(transactionEvent -> {
 
                 assertTrue(transactionEvent.isValid()); // must be valid to be here.
                 out("Finished instantiate transaction with transaction id %s", transactionEvent.getTransactionID());
 
                 try {
-
-
-
                     out("Successfully completed chaincode instantiation.");
-
                     out("Creating invoke proposal");
-
-                    InvokeProposalRequest invokeProposalRequest = client.newInvokeProposalRequest();
-
-                    invokeProposalRequest.setChaincodeID(chainCodeID);
-                    invokeProposalRequest.setFcn("invoke");
-                    invokeProposalRequest.setArgs(new String[]{"move", "a", "b", "100"});
-
-                    Collection<ProposalResponse> invokePropResp = chain.sendInvokeProposal(invokeProposalRequest, peers);
-
 
                     successful.clear();
                     failed.clear();
+                    client.setUserContext(admins.get(orgToUse)); // select the user for all subsequent requests
 
+                    ///////////////
+                    /// Send invoke proposal to all peers
+                    InvokeProposalRequest invokeProposalRequest = client.newInvokeProposalRequest();
+                    invokeProposalRequest.setChaincodeID(chainCodeID);
+                    invokeProposalRequest.setFcn("invoke");
+                    invokeProposalRequest.setArgs(new String[]{"move", "a", "b", "100"});
+                    out("sending invokeProposal to all peers with arguments: move(a,b,100)");
+
+                    Collection<ProposalResponse> invokePropResp = chain.sendInvokeProposal(invokeProposalRequest, chain.getPeers());
                     for (ProposalResponse response : invokePropResp) {
-
                         if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
                             out("Successful invoke proposal response Txid: %s", response.getTransactionID());
                             successful.add(response);
                         } else {
                             failed.add(response);
                         }
-
                     }
                     out("Received %d invoke proposal responses. Successful+verified: %d . Failed: %d",
                             invokePropResp.size(), successful.size(), failed.size());
-
-
-                    if (successful.size() < 1) {  //choose this as an arbitrary limit right now.
-
-                        if (failed.size() == 0) {
-                            throw new Exception("No endorsers found ");
-
-                        }
+                    if (failed.size() > 0) {
                         ProposalResponse firstInvokeProposalResponse = failed.iterator().next();
-
-
-                        throw new Exception("Not enough endorsers :" + successful.size() + ".  " +
+                        fail("Not enough endorsers for invoke(move a,b,100):" + failed.size() + " endorser error: " +
                                 firstInvokeProposalResponse.getMessage() +
                                 ". Was verified: " + firstInvokeProposalResponse.isVerified());
-
-
                     }
-                    out("Successfully received invoke proposal response.");
+                    out("Successfully received invoke proposal responses.");
 
                     ////////////////////////////
                     // Invoke Transaction
                     //
 
-                    out("Invoking chain code transaction to move 100 from a to b.");
-
+                    out("Sending chain code transaction(move a,b,100) to orderer.");
                     return chain.sendTransaction(successful, orderers).get(120, TimeUnit.SECONDS);
 
 
@@ -384,7 +400,7 @@ public class End2endIT {
                     queryProposalRequest.setChaincodeID(chainCodeID);
 
 
-                    Collection<ProposalResponse> queryProposals = chain.sendQueryProposal(queryProposalRequest, peers);
+                    Collection<ProposalResponse> queryProposals = chain.sendQueryProposal(queryProposalRequest, chain.getPeers());
 
                     for (ProposalResponse proposalResponse : queryProposals) {
                         if (!proposalResponse.isVerified() || proposalResponse.getStatus() != ProposalResponse.Status.SUCCESS) {
@@ -488,7 +504,7 @@ public class End2endIT {
 
 
 
-    private static Chain constructChain(String  name, HFClient client) throws Exception {
+    private static Chain constructChain(String  name, HFClient client, String org) throws Exception {
         //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved
         //Construct the chain
         //
@@ -506,16 +522,30 @@ public class End2endIT {
         Orderer anOrderer = orderers.iterator().next();
         orderers.remove(anOrderer);
 
-        ChainConfiguration chainConfiguration = new ChainConfiguration(new File("src/test/fixture/" + name+ ".configtx"));
+        //ChainConfiguration chainConfiguration = new ChainConfiguration(new File("src/test/fixture/" + name+ ".configtx"));
+        ChainConfiguration chainConfiguration = new ChainConfiguration(new File("src/test/fixture/e2e-2Orgs/channel/" + name + ".tx"));
 
+        client.setUserContext(admins.get(org));
         Chain newChain = client.newChain(name, anOrderer, chainConfiguration);
 
         int i = 0;
-        for (String peerloc : PEER_LOCATIONS) {
-            Peer peer = client.newPeer(peerloc);
-            peer.setName("peer_" + i);
-            newChain.joinPeer(peer); // have Peers join the chain
-
+        Set<String> orgs = peers.keySet() ;
+        for (String anOrg : orgs) {
+            Set<String> peersUrl = peers.get(anOrg);
+            client.setUserContext(admins.get(anOrg));
+            for (String peerloc : peersUrl) {
+                Peer peer = client.newPeer(peerloc);
+                peer.setName("peer_" + i);
+                newChain.joinPeer(peer);
+                if (! orgPeers.containsKey(anOrg)) {
+                    Set<Peer> aSet = new HashSet<>();
+                    aSet.add(peer);
+                    orgPeers.put(anOrg, aSet);
+                }
+                else {
+                    orgPeers.get(anOrg).add(peer);
+                }
+            }
         }
 
         for (String orderloc : ORDERER_LOCATIONS) {
