@@ -14,6 +14,12 @@
 
 package org.hyperledger.fabric.sdkintegration;
 
+import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.TransactionRequest.Type.GO_LANG;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,24 +42,18 @@ import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryProposalRequest;
-import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
-
 import org.hyperledger.fabric.sdk.TransactionInfo;
-import org.hyperledger.fabric.sdk.User;
+import org.hyperledger.fabric.sdk.TransactionRequest.Type;
 import org.hyperledger.fabric.sdk.events.EventHub;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
-import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
-
+import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
-
+import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import static org.junit.Assert.*;
-
-import static java.lang.String.format;
 
 /**
  * Test end to end scenario
@@ -62,13 +62,7 @@ public class End2endIT {
 
     static final TestConfig testConfig = TestConfig.getConfig();
 
-
-    static final String CHAIN_CODE_NAME = "example_cc.go";
-    static final String CHAIN_CODE_PATH = "github.com/example_cc";
-    static final String CHAIN_CODE_VERSION = "1.0";
-
-
-  ///  static final String TEST_CHAIN_NAME = "testchainid";
+    ///  static final String TEST_CHAIN_NAME = "testchainid";
     static final String FOO_CHAIN_NAME = "foo";
     static final String BAR_CHAIN_NAME = "bar";
 
@@ -84,6 +78,28 @@ public class End2endIT {
     final static String FABRIC_CA_SERVICES_LOCATION = testConfig.getIntegrationtestsFabricCA();
 
     private final TestConfigHelper configHelper = new TestConfigHelper();
+
+    protected String getChainCodeName() {
+        return "example_cc.go";
+    }
+
+    protected String getChainCodePath() {
+		/* relative to getChaincodeSourceLocation() + '/src' */
+    	return "github.com/example_cc";
+    }
+
+    protected String getChainCodeVersion() {
+        return "1.0";
+    }
+
+    protected Type getChaincodeLanguage() {
+        return GO_LANG;
+    }
+    
+    protected File getChaincodeSourceLocation() {
+        // location of Go workspace (i.e. GOPATH)
+        return new File("src/test/fixture/chaincode/go");
+    }
 
     @Before
     public void checkConfig() throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
@@ -197,9 +213,9 @@ public class End2endIT {
             Collection<ProposalResponse> failed = new LinkedList<>();
 
 
-            chainCodeID = ChainCodeID.newBuilder().setName(CHAIN_CODE_NAME)
-                    .setVersion(CHAIN_CODE_VERSION)
-                    .setPath(CHAIN_CODE_PATH).build();
+            chainCodeID = ChainCodeID.newBuilder().setName(getChainCodeName())
+                    .setVersion(getChainCodeVersion())
+                    .setPath(getChainCodePath()).build();
 
 
             if (installChainCode) {
@@ -212,8 +228,9 @@ public class End2endIT {
 
                 InstallProposalRequest installProposalRequest = client.newInstallProposalRequest();
                 installProposalRequest.setChaincodeID(chainCodeID);
+                installProposalRequest.setChaincodeLanguage(getChaincodeLanguage());
                 ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
-                installProposalRequest.setChaincodeSourceLocation(new File("src/test/fixture"));
+                installProposalRequest.setChaincodeSourceLocation(getChaincodeSourceLocation());
 
                 responses = chain.sendInstallProposal(installProposalRequest, peers);
 
@@ -240,13 +257,14 @@ public class End2endIT {
             //  final ChainCodeID chainCodeID = firstInstallProposalResponse.getChainCodeID();
             // Note install chain code does not require transaction no need to
             // send to Orderers
-
+            
             ///////////////
             //// Instantiate chain code.
 
             InstantiateProposalRequest instantiateProposalRequest = client.newInstantiationProposalRequest();
 
             instantiateProposalRequest.setChaincodeID(chainCodeID);
+            instantiateProposalRequest.setChaincodeLanguage(getChaincodeLanguage());
             instantiateProposalRequest.setFcn("init");
             instantiateProposalRequest.setArgs(new String[]{"a", "100", "b", ""+(200 + delta)});
 
@@ -287,6 +305,7 @@ public class End2endIT {
 
 
             /// Send instantiate transaction.
+            out("ProposalRequest size: " + successful.iterator().next().getProposalResponse().toByteArray().length);
             chain.sendTransaction(successful, orderers).thenApply(transactionEvent -> {
 
                 assertTrue(transactionEvent.isValid()); // must be valid to be here.
@@ -294,7 +313,8 @@ public class End2endIT {
 
                 try {
 
-
+                    out("Waiting a couple of seconds to give all peers a chance to get the instantiate tx...");
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(2));
 
                     out("Successfully completed chaincode instantiation.");
 
@@ -486,8 +506,6 @@ public class End2endIT {
         }
     }
 
-
-
     private static Chain constructChain(String  name, HFClient client) throws Exception {
         //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved
         //Construct the chain
@@ -542,6 +560,7 @@ public class End2endIT {
      * @return
      * @throws Exception
      */
+    @SuppressWarnings("unused")
     private static Chain reconstructChain(String  name, HFClient client) throws Exception {
 
         //Construct the chain
