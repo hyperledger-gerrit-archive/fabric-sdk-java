@@ -143,6 +143,7 @@ public class InstallProposalBuilder extends ProposalBuilder {
             ccType = Type.JAVA;
             targetPathPrefix = "src";
             projectSourceDir = Paths.get(chaincodeSource.toString(), chaincodePath).toFile();
+            break;
         default:
             throw new IllegalArgumentException("Unexpected chaincode language: " + chaincodeLanguage);
         }
