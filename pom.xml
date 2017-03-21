@@ -9,17 +9,17 @@
     <description>Java SDK for Hyperledger fabric project</description>
     <url>https://www.hyperledger.org/community/projects</url>
     <licenses>
-    <license>
-      <name>Apache License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <distribution>repo</distribution>
-    </license>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
     </licenses>
     <developers>
-    <developer>
-      <name>Fabric JAVA SDK Developers</name>
-      <email>hyperledger-technical-discuss@lists.hyperledger.org</email>
-    </developer>
+        <developer>
+            <name>Fabric JAVA SDK Developers</name>
+            <email>hyperledger-technical-discuss@lists.hyperledger.org</email>
+        </developer>
     </developers>
     <scm>
         <connection>scm:git:git://github.com/hyperledger/fabric-sdk-java.git</connection>
@@ -34,6 +34,24 @@
         <skipITs>true</skipITs>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>2.17</version>
+                <reportSets>
+                    <reportSet>
+                        <reports>
+                            <report>checkstyle</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+        </plugins>
+    </reporting>
+
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -215,6 +233,25 @@
                 <version>2.10.4</version>
                 <configuration/>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>2.17</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <consoleOutput>true</consoleOutput>
+                    <logViolationsToConsole>true</logViolationsToConsole>
+                    <failOnViolation>false</failOnViolation>
+                    <failsOnError>false</failsOnError>
+                    <configLocation>checkstyle-config.xml</configLocation>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
     <distributionManagement>
@@ -228,34 +265,34 @@
             <id>release</id>
             <build>
                 <plugins>
-                  <plugin>
-                    <groupId>org.sonatype.plugins</groupId>
-                    <artifactId>nexus-staging-maven-plugin</artifactId>
-                    <version>1.6.7</version>
-                    <extensions>true</extensions>
-                    <configuration>
-                      <serverId>ossrh</serverId>
-                      <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                      <autoReleaseAfterClose>false</autoReleaseAfterClose>
-                    </configuration>
-                  </plugin>
-                   <plugin>
-                      <artifactId>maven-assembly-plugin</artifactId>
-                      <version>2.3</version>
-                      <configuration>
-                          <descriptorRefs>
-                              <descriptorRef>jar-with-dependencies</descriptorRef>
-                          </descriptorRefs>
-                      </configuration>
-                      <executions>
-                          <execution>
-                              <phase>package</phase>
-                              <goals>
-                                  <goal>single</goal>
-                              </goals>
-                          </execution>
-                      </executions>
-                   </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.plugins</groupId>
+                        <artifactId>nexus-staging-maven-plugin</artifactId>
+                        <version>1.6.7</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <serverId>ossrh</serverId>
+                            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                            <autoReleaseAfterClose>false</autoReleaseAfterClose>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <version>2.3</version>
+                        <configuration>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
