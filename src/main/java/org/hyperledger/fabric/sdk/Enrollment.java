@@ -14,6 +14,7 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.security.KeyPair;
 import java.security.PrivateKey;
 
 /**
@@ -39,4 +40,10 @@ public interface Enrollment {
      */
     public String getPublicKey();
 
+
+    /**
+     * The users key pair
+     * @return
+     */
+    public KeyPair getKeyPair();
 }

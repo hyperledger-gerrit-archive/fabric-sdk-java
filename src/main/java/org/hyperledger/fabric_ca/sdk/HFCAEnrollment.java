@@ -33,7 +33,7 @@ public class HFCAEnrollment implements Enrollment, Serializable {
         this.cert = signedPem;
     }
 
-
+    public KeyPair getKeyPair() { return key; }
 
     public PrivateKey getKey() {
         return key.getPrivate();

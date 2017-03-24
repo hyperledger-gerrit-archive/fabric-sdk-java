@@ -16,6 +16,7 @@ package org.hyperledger.fabric.sdk;
 
 
 import java.io.File;
+import java.security.KeyPair;
 import java.security.PrivateKey;
 
 import org.hyperledger.fabric.sdkintegration.SampleStore;
@@ -80,6 +81,9 @@ public class TestHFClient {
             public String getPublicKey() {
                 return "publickey";
             }
+
+            @Override
+            public KeyPair getKeyPair() { return null; }
         });
         hfclient.setUserContext(someTestUSER);
 

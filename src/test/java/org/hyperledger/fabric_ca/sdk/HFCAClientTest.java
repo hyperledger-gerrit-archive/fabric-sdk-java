@@ -14,8 +14,13 @@
 
 package org.hyperledger.fabric_ca.sdk;
 
+import java.io.File;
 import java.net.MalformedURLException;
 
+import org.hyperledger.fabric.sdk.Enrollment;
+import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric.sdkintegration.SampleStore;
+import org.hyperledger.fabric.sdkintegration.SampleUser;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -102,6 +107,74 @@ public class HFCAClientTest {
             }
         }
 
+        @Test
+        public void testReenrollAndRevoke() {
+            try {
+                CryptoSuite cryptoSuite = CryptoSuite.Factory.getCryptoSuite();
+                cryptoSuite.init();
+                HFCAClient client = new HFCAClient("http://127.0.0.1:7054", null);
+                client.setCryptoSuite(cryptoSuite);
+
+                File sampleStoreFile = new File(System.getProperty("java.io.tmpdir") + "/HFCSampletest.properties");
+                if (sampleStoreFile.exists()) { //For testing start fresh
+                    sampleStoreFile.delete();
+                }
+
+                final SampleStore sampleStore = new SampleStore(sampleStoreFile);
+                sampleStoreFile.deleteOnExit();
+
+                //SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
+                SampleUser admin = sampleStore.getMember("admin", "org0");
+                if(!admin.isEnrolled()){  //Preregistered admin only needs to be enrolled with Fabric CA.
+                    admin.setEnrollment(client.enroll(admin.getName(), "adminpw"));
+                }
+
+                Enrollment tmpEnroll = client.reenroll(admin);
+                client.revoke(admin, tmpEnroll, 1);
+            } catch (Exception e) {
+
+            }
+        }
+
+        @Test
+        public void testUserRevoke() {
+            try {
+                CryptoSuite cryptoSuite = CryptoSuite.Factory.getCryptoSuite();
+                cryptoSuite.init();
+                HFCAClient client = new HFCAClient("http://127.0.0.1:7054", null);
+                client.setCryptoSuite(cryptoSuite);
+
+                File sampleStoreFile = new File(System.getProperty("java.io.tmpdir") + "/HFCSampletest.properties");
+                if (sampleStoreFile.exists()) { //For testing start fresh
+                    sampleStoreFile.delete();
+                }
+
+                final SampleStore sampleStore = new SampleStore(sampleStoreFile);
+                sampleStoreFile.deleteOnExit();
+
+                //SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
+                SampleUser admin = sampleStore.getMember("admin", "org0");
+                if(!admin.isEnrolled()){  //Preregistered admin only needs to be enrolled with Fabric CA.
+                    admin.setEnrollment(client.enroll(admin.getName(), "adminpw"));
+                }
+
+                SampleUser user1 = sampleStore.getMember("user_b", "org0");
+
+                if(!user1.isRegistered()){
+                    RegistrationRequest rr = new RegistrationRequest(user1.getName(), "org1.department1");
+                    user1.setEnrollmentSecret(client.register(rr, admin)); //Admin can register other users.
+                }
+
+                if (!user1.isEnrolled()){
+                    user1.setEnrollment(client.enroll(user1.getName(), user1.getEnrollmentSecret()));
+                }
+
+                client.revoke(admin, user1.getName(), 1);
+            }
+            catch (Exception e) {
+
+            }
+        }
 
         //    @Test
         //    public void testBadEnrollUser() {
