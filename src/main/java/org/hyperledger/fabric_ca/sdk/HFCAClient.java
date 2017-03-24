@@ -22,10 +22,14 @@ package org.hyperledger.fabric_ca.sdk;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.KeyPair;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -38,6 +42,7 @@ import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonReader;
 import javax.json.JsonWriter;
+import javax.xml.bind.DatatypeConverter;
 
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
@@ -59,17 +64,21 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
-import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.GetTCertBatchRequest;
 import org.hyperledger.fabric.sdk.MemberServices;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric_ca.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.exception.RevocationException;
+import sun.security.util.DerValue;
+import sun.security.x509.KeyIdentifier;
+import sun.security.x509.AuthorityKeyIdentifierExtension;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -82,6 +91,8 @@ public class HFCAClient implements MemberServices {
     private static final String HFCA_CONTEXT_ROOT = "/api/v1/cfssl/";
     private static final String HFCA_ENROLL = HFCA_CONTEXT_ROOT + "enroll";
     private static final String HFCA_REGISTER = HFCA_CONTEXT_ROOT + "register";
+    private static final String HFCA_REENROLL = HFCA_CONTEXT_ROOT + "reenroll";
+    private static final String HFCA_REVOKE = HFCA_CONTEXT_ROOT + "revoke";
     private static final int DEFAULT_SECURITY_LEVEL = 256;  //TODO make configurable //Right now by default FAB services is using
     private static final String DEFAULT_HASH_ALGORITHM = "SHA2";  //Right now by default FAB services is using SHA2
 
@@ -257,7 +268,7 @@ public class HFCAClient implements MemberServices {
             String signedPem = new String(b64dec.decode(result.getString("Cert").getBytes(UTF_8)));
             logger.debug(format("[HFCAClient] enroll returned pem:[%s]", signedPem));
 
-            Enrollment enrollment = new HFCAEnrollment(signingKeyPair, Hex.toHexString(signingKeyPair.getPublic().getEncoded()), signedPem);
+            Enrollment enrollment = new HFCAEnrollment(signingKeyPair, cryptoPrimitives.encodePublicKey(signingKeyPair.getPublic()), signedPem);
             return enrollment;
 
 
@@ -271,6 +282,159 @@ public class HFCAClient implements MemberServices {
         }
 
 
+    }
+
+    /**
+     * Re-Enroll the user with member service
+     *
+     * @param user user to be re-enrolled
+     * @return enrollment
+     */
+    @Override
+    public Enrollment reenroll(User user) throws EnrollmentException, InvalidArgumentException {
+        logger.debug(format("re-enroll user %s", user.getName()));
+
+        try {
+
+            KeyPair keypair = new KeyPair(cryptoPrimitives.decodePublicKey(user.getEnrollment().getPublicKey()), user.getEnrollment().getKey());
+
+            // generate CSR
+            PKCS10CertificationRequest csr = cryptoPrimitives.generateCertificationRequest(user.getName(), keypair);
+            String pem = cryptoPrimitives.certificationRequestToPEM(csr);
+
+            // build request body
+            JsonObjectBuilder factory = Json.createObjectBuilder();
+            factory.add("certificate_request", pem);
+            JsonObject postObject = factory.build();
+
+            StringWriter stringWriter = new StringWriter();
+            JsonWriter jsonWriter = Json.createWriter(new PrintWriter(stringWriter));
+            jsonWriter.writeObject(postObject);
+            jsonWriter.close();
+            String body = stringWriter.toString();
+
+            // build authentication header
+            String authHdr = getHTTPAuthCertificate(user.getEnrollment(), body);
+            JsonObject result = httpPost(url + HFCA_REENROLL, body, authHdr);
+
+            // get new cert from response
+            Base64.Decoder b64dec = Base64.getDecoder();
+            String signedPem = new String(b64dec.decode(result.getString("Cert").getBytes(UTF_8)));
+            logger.debug(format("[HFCAClient] re-enroll returned pem:[%s]", signedPem));
+
+            return new HFCAEnrollment(keypair, user.getEnrollment().getPublicKey(), signedPem);
+
+        } catch (EnrollmentException ee) {
+            logger.error(ee.getMessage(), ee);
+            throw ee;
+        } catch (Exception e) {
+            EnrollmentException ee = new EnrollmentException(format("Failed to re-enroll user %s", user), e);
+            logger.error(e.getMessage(), e);
+            throw ee;
+        }
+    }
+
+    /**
+     * revoke one enrollment of user
+     * @param revoker admin user who has revoker attribute configured in CA-server
+     * @param enrollment the user enrollment to be revoked
+     * @param reason revoke reason, see RFC 5280
+     * @throws RevocationException
+     * @throws InvalidArgumentException
+     */
+    @Override
+    public void revoke(User revoker, Enrollment enrollment, int reason) throws RevocationException, InvalidArgumentException {
+
+        if (enrollment == null) {
+            throw new InvalidArgumentException("revokee enrollment is not set");
+        }
+        if (revoker == null) {
+            throw new InvalidArgumentException("revoker is not set");
+        }
+
+        try {
+            // get cert from to-be-revoked enrollment
+            BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(enrollment.getCert().getBytes()));
+            CertificateFactory certFactory = CertificateFactory.getInstance(Config.getConfig().getCertificateFormat());
+            X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(pem);
+
+            // get its serial number
+            JsonObjectBuilder factory = Json.createObjectBuilder();
+            String serial = DatatypeConverter.printHexBinary(certificate.getSerialNumber().toByteArray());
+            factory.add("serial", "0" + serial);
+
+            // get its aki
+            // 2.5.29.35 : AuthorityKeyIdentifier
+            byte[] var3 = new DerValue(certificate.getExtensionValue("2.5.29.35")).getOctetString();
+            AuthorityKeyIdentifierExtension var4 = new AuthorityKeyIdentifierExtension(Boolean.FALSE, var3);
+            String aki = DatatypeConverter.printHexBinary(((KeyIdentifier)var4.get("key_id")).getIdentifier());
+            factory.add("aki", aki);
+
+            // add reason
+            factory.add("reason", reason);
+
+            // build request body
+            JsonObject postObject = factory.build();
+            StringWriter stringWriter = new StringWriter();
+            JsonWriter jsonWriter = Json.createWriter(new PrintWriter(stringWriter));
+            jsonWriter.writeObject(postObject);
+            jsonWriter.close();
+            String body = stringWriter.toString();
+            String authHdr = getHTTPAuthCertificate(revoker.getEnrollment(), body);
+
+            // send revoke request
+            httpPost(url + HFCA_REVOKE, body, authHdr);
+        } catch (CertificateException e) {
+            logger.error("Cannot validate certificate. Error is: " + e.getMessage());
+            throw new RevocationException("Error while revoking cert. " + e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new RevocationException("Error while revoking the user. " + e.getMessage(), e);
+
+        }
+    }
+
+    /**
+     * revoke one user (including his all enrollments)
+     * @param revoker amdin user who has revoker attribute configured in CA-server
+     * @param revokee user who is to be revoked
+     * @param reason revoke reason, see RFC 5280
+     * @throws RevocationException
+     * @throws InvalidArgumentException
+     */
+    @Override
+    public void revoke(User revoker, String revokee, int reason) throws RevocationException, InvalidArgumentException {
+
+        logger.debug(format("revoke user %s", revokee));
+
+        if (StringUtil.isNullOrEmpty(revokee)) {
+            throw new InvalidArgumentException("revokee user is not set");
+        }
+        if (revoker == null) {
+            throw new InvalidArgumentException("revoker is not set");
+        }
+
+        try {
+            // build request body
+            JsonObjectBuilder factory = Json.createObjectBuilder();
+            factory.add("id", revokee);
+            factory.add("reason", reason);
+            JsonObject postObject = factory.build();
+            StringWriter stringWriter = new StringWriter();
+            JsonWriter jsonWriter = Json.createWriter(new PrintWriter(stringWriter));
+            jsonWriter.writeObject(postObject);
+            jsonWriter.close();
+            String body = stringWriter.toString();
+
+            // build auth hreader
+            String authHdr = getHTTPAuthCertificate(revoker.getEnrollment(), body);
+
+            // send revoke request
+            httpPost(url + HFCA_REVOKE, body, authHdr);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new RevocationException("Error while revoking the user. " + e.getMessage(), e);
+        }
     }
 
     /**
