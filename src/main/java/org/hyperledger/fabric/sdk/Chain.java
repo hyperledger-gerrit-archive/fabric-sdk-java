@@ -14,7 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,8 +35,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.xml.bind.DatatypeConverter;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -66,12 +63,9 @@ import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekInfo;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekPosition;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekSpecified;
-import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse.ProposalResponsePayload;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Response;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.ProcessedTransaction;
 import org.hyperledger.fabric.protos.peer.PeerEvents.Event.EventCase;
 import org.hyperledger.fabric.sdk.BlockEvent.TransactionEvent;
@@ -80,7 +74,6 @@ import org.hyperledger.fabric.sdk.events.EventHub;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
-import org.hyperledger.fabric.sdk.exception.InvalidTransactionException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
@@ -92,9 +85,9 @@ import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
-import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
+import org.hyperledger.fabric.sdk.transaction.UpgradeProposalBuilder;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.protos.common.Common.HeaderType;
@@ -1068,6 +1061,42 @@ public class Chain {
 
         return sendProposalToPeers(peers, signedProposal, transactionContext);
     }
+
+    public Collection<ProposalResponse> sendUpgradeProposal(UpgradeProposalRequest upgradeProposalRequest, Collection<Peer> peers)
+            throws Exception {
+        if (null == upgradeProposalRequest) {
+            throw new InvalidArgumentException("sendInstallProposal deploymentProposalRequest is null");
+        }
+        if (null == peers) {
+            throw new InvalidArgumentException("sendInstallProposal peers is null");
+        }
+        if (peers.isEmpty()) {
+            throw new InvalidArgumentException("sendInstallProposal peers to send to is empty.");
+        }
+        if (!isInitialized()) {
+            throw new ProposalException("sendInstallProposal on chain not initialized.");
+        }
+
+
+        TransactionContext transactionContext = getTransactionContext();
+        //transactionContext.verify(false);  // Install will have no signing cause it's not really targeted to a chain.
+        transactionContext.setProposalWaitTime(upgradeProposalRequest.getProposalWaitTime());
+        UpgradeProposalBuilder upgradeProposalBuilder = UpgradeProposalBuilder.newBuilder();
+        upgradeProposalBuilder.context(transactionContext);
+        upgradeProposalBuilder.chainID(name);
+        upgradeProposalBuilder.setChaincodeLanguage(upgradeProposalRequest.getChaincodeLanguage());
+        upgradeProposalBuilder.chaincodeName(upgradeProposalRequest.getChaincodeName());
+        upgradeProposalBuilder.chaincodePath(upgradeProposalRequest.getChaincodePath());
+        upgradeProposalBuilder.chaincodeVersion(upgradeProposalRequest.getChaincodeVersion());
+        upgradeProposalBuilder.setChaincodeSource(upgradeProposalRequest.getChaincodeSourceLocation());
+
+        FabricProposal.Proposal updradeProposal = upgradeProposalBuilder.build();
+        SignedProposal signedProposal = getSignedProposal(updradeProposal);
+
+
+        return sendProposalToPeers(peers, signedProposal, transactionContext);
+    }
+
 
 
     private SignedProposal getSignedProposal(FabricProposal.Proposal proposal) throws CryptoException {
