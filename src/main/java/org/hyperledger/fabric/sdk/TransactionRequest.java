@@ -67,7 +67,7 @@ public class TransactionRequest {
     /**
      * Some peer requests (e.g. queries to QSCC) require the field to be blank.
      * Subclasses should override this method as needed.
-     * @param proposalBuilder
+     *
      */
     public boolean noChainID() {
         return false;

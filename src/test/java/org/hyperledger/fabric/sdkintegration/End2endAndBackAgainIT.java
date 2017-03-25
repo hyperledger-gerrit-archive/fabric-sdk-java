@@ -20,9 +20,13 @@ import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.Hashtable;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
+import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeID;
@@ -62,10 +66,10 @@ public class End2endAndBackAgainIT {
 
     private final int gossipWaitTime = testConfig.getGossipWaitTime();
 
-    private static final String CHAIN_CODE_NAME = "example_cc.go";
+    private static final String CHAIN_CODE_NAME = "example_cc_go";
     private static final String CHAIN_CODE_PATH = "github.com/example_cc";
-    private static final String CHAIN_CODE_VERSION = "1.0";
-    private static final String CHAIN_CODE_VERSION_11 = "1.1";
+    private static final String CHAIN_CODE_VERSION = "1";
+    private static final String CHAIN_CODE_VERSION_11 = "11";
 
 
     final ChainCodeID chainCodeID = ChainCodeID.newBuilder().setName(CHAIN_CODE_NAME)
@@ -176,11 +180,11 @@ public class End2endAndBackAgainIT {
     }
 
 
-    void runChain(HFClient client, Chain chain, SampleOrg sampleOrg, int delta) {
+    void runChain(HFClient client, Chain chain, SampleOrg sampleOrg, final int delta) {
 
 
         final String chainName = chain.getName();
-        out("Running Chain %s", chainName);
+        out("Running Chain %s with a delta %d", chainName, delta);
         chain.setInvokeWaitTime(testConfig.getInvokeWaitTime());
         chain.setDeployWaitTime(testConfig.getDeployWaitTime());
 
@@ -215,7 +219,7 @@ public class End2endAndBackAgainIT {
                 installProposalRequest.setChaincodeID(chainCodeID);
                 ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
                 installProposalRequest.setChaincodeSourceLocation(new File(TEST_FIXTURES_PATH + "/sdkintegration/gocc/sample_11"));
-                installProposalRequest.setChaincodeVersion("1.1");
+                installProposalRequest.setChaincodeVersion(CHAIN_CODE_VERSION_11);
 
                 out("Sending install proposal");
 
@@ -227,7 +231,7 @@ public class End2endAndBackAgainIT {
                 try {
                     client.setUserContext(sampleOrg.getAdmin());
                 } catch (InvalidArgumentException e) {
-                    throw new AssertionError(e);
+                    throw new CompletionException(e);
                 }
 
                 Collection<ProposalResponse> responses;
@@ -236,9 +240,9 @@ public class End2endAndBackAgainIT {
                 Collection<Peer> peersFromOrg = chain.getPeers();
                 numInstallProposal = numInstallProposal + peersFromOrg.size();
                 try {
-                    responses = chain.sendInstallProposal(installProposalRequest, peersFromOrg);
+                    responses = chain.sendInstallProposal(installProposalRequest);
                 } catch (Exception e) {
-                    throw new AssertionError(e);
+                    throw new CompletionException(e);
                 }
 
                 for (ProposalResponse response : responses) {
@@ -266,11 +270,11 @@ public class End2endAndBackAgainIT {
                 upgradeProposalRequest.setFcn("init");
                 upgradeProposalRequest.setArgs(new String[]{});// no arguments don't change the ledger see chaincode.
 
-                ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = null;
+                ChaincodeEndorsementPolicy chaincodeEndorsementPolicy;
                 try {
                     chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy(new File(TEST_FIXTURES_PATH + "/sdkintegration/e2e-2Orgs/channel/members_from_org1_or_2.policy"));
                 } catch (IOException e) {
-                    throw new AssertionError(e);
+                    throw new CompletionException(e);
                 }
                 upgradeProposalRequest.setChaincodeEndorsementPolicy(chaincodeEndorsementPolicy);
 
@@ -284,7 +288,7 @@ public class End2endAndBackAgainIT {
                 try {
                     responses2 = chain.sendUpgradeProposal(upgradeProposalRequest);
                 } catch (Exception e1) {
-                    throw new RuntimeException(e1);
+                    throw new CompletionException(e1);
                 }
 
                 successful.clear();
@@ -302,7 +306,8 @@ public class End2endAndBackAgainIT {
 
                 if (failed.size() > 0) {
                     ProposalResponse first = failed.iterator().next();
-                    fail("Not enough endorsers for upgrade :" + successful.size() + ".  " + first.getMessage());
+                    throw new CompletionException(new AssertionError("Not enough endorsers for upgrade :"
+                            + successful.size() + ".  " + first.getMessage()));
                 }
 
                 return chain.sendTransaction(successful, chain.getOrderers());
@@ -312,7 +317,42 @@ public class End2endAndBackAgainIT {
                 waitOnFabric(10000);
                 out("Chain code has been upgraded.");
 
+
+                //Check to see if peers have new chaincode and old chain code is gone.
+                try {
+
+                    for (Peer peer : chain.getPeers()) {
+
+                        if (!checkInstalledChaincode(client, peer, CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_VERSION_11)) {
+                            throw new CompletionException(new AssertionError(format("Peer %s is missing chaincode name:%s, path:%s, version: %s",
+                                    peer.getName(), CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_PATH)));
+                        }
+
+
+                        //should be instantiated too..
+
+                        if (!checkInstantiatedChaincode(chain, peer, CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_VERSION_11)) {
+
+                            throw new CompletionException(new AssertionError(format("Peer %s is missing instantiated chaincode name:%s, path:%s, version: %s",
+                                    peer.getName(), CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_PATH)));
+                        }
+
+
+                        if (checkInstantiatedChaincode(chain, peer, CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_VERSION)) {
+
+                            throw new CompletionException(new AssertionError(format("Peer %s still has old instantiated chaincode name:%s, path:%s, version: %s",
+                                    peer.getName(), CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_PATH)));
+                        }
+
+                    }
+                } catch (Exception e) {
+
+                    throw new CompletionException(e);
+
+                }
+
                 ///Check if we still get the same value on the ledger
+                out("delta is %s", delta);
                 queryChainCodeForExpectedValue(client, chain, "" + (325 + delta), chainCodeID);
 
                 //Now lets run the new chaincode which should *double* the results we asked to move.
@@ -328,6 +368,9 @@ public class End2endAndBackAgainIT {
 
                 return null;
             }).exceptionally(e -> {
+                if (e instanceof CompletionException && e.getCause() != null) {
+                    e = e.getCause();
+                }
                 if (e instanceof TransactionEventException) {
                     BlockEvent.TransactionEvent te = ((TransactionEventException) e).getTransactionEvent();
                     if (te != null) {
@@ -374,8 +417,8 @@ public class End2endAndBackAgainIT {
             if (failed.size() > 0) {
                 ProposalResponse firstInvokeProposalResponse = failed.iterator().next();
 
-                throw new ProposalException(String.format("\"Not enough endorsers for invoke(move a,b,%s):%d endorser error:%s. Was verified:%b",
-                        moveAmount, firstInvokeProposalResponse.getMessage(), firstInvokeProposalResponse.isVerified()));
+                throw new ProposalException(format("Not enough endorsers for invoke(move a,b,%s):%d endorser error:%s. Was verified:%b",
+                        moveAmount, firstInvokeProposalResponse.getStatus().getStatus(), firstInvokeProposalResponse.getMessage(), firstInvokeProposalResponse.isVerified()));
 
             }
             out("Successfully received invoke proposal responses.");
@@ -386,10 +429,7 @@ public class End2endAndBackAgainIT {
             return chain.sendTransaction(successful, chain.getOrderers());
         } catch (Exception e) {
 
-            CompletableFuture<BlockEvent.TransactionEvent> transactionEventCompletableFuture = new CompletableFuture<>();
-
-            transactionEventCompletableFuture.completeExceptionally(e);
-            return transactionEventCompletableFuture;
+            throw new CompletionException(e);
 
         }
 
@@ -411,6 +451,13 @@ public class End2endAndBackAgainIT {
         for (String peerName : sampleOrg.getPeerNames()) {
             String peerLocation = sampleOrg.getPeerLocation(peerName);
             Peer peer = client.newPeer(peerName, peerLocation, testConfig.getPeerProperties(peerName));
+
+            //Query the actual peer for which channels it belongs to and check it belongs to this channel
+            Set<String> channels = client.queryChannels(peer);
+            if (!channels.contains(name)) {
+                throw new AssertionError(format("Peer %s does not appear to belong to channel %s", peerName, name));
+            }
+
             newChain.addPeer(peer);
             sampleOrg.addPeer(peer);
         }
@@ -422,14 +469,32 @@ public class End2endAndBackAgainIT {
         }
 
         newChain.initialize();
-        return newChain;
 
+        //Before return lets see if we have the chaincode on the peers that we expect from End2endIT
+        //And if they were instantiated too.
+
+        for (Peer peer : newChain.getPeers()) {
+
+            if (!checkInstalledChaincode(client, peer, CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_VERSION)) {
+                throw new AssertionError(format("Peer %s is missing chaincode name: %s, path:%s, version: %s",
+                        peer.getName(), CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_PATH));
+            }
+
+            if (!checkInstantiatedChaincode(newChain, peer, CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_VERSION)) {
+
+                throw new AssertionError(format("Peer %s is missing instantiated chaincode name: %s, path:%s, version: %s",
+                        peer.getName(), CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_PATH));
+            }
+
+        }
+
+        return newChain;
     }
 
 
     private void queryChainCodeForExpectedValue(HFClient client, Chain chain, final String expect, ChainCodeID chainCodeID) {
 
-        out("Now query chain code for the value of b.");
+        out("Now query chaincode on chain %s for the value of b expecting to see: %s", chain.getName(), expect);
         QueryProposalRequest queryProposalRequest = client.newQueryProposalRequest();
         queryProposalRequest.setArgs(new String[]{"query", "b"});
         queryProposalRequest.setFcn("invoke");
@@ -438,9 +503,9 @@ public class End2endAndBackAgainIT {
         Collection<ProposalResponse> queryProposals;
 
         try {
-            queryProposals = chain.sendQueryProposal(queryProposalRequest, chain.getPeers());
+            queryProposals = chain.sendQueryProposal(queryProposalRequest);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new CompletionException(e);
         }
 
         for (ProposalResponse proposalResponse : queryProposals) {
@@ -471,6 +536,37 @@ public class End2endAndBackAgainIT {
         } catch (InterruptedException e) {
             fail("should not have jumped out of sleep mode. No other threads should be running");
         }
+    }
+
+
+    private static boolean checkInstalledChaincode(HFClient client, Peer peer, String cc_name, String cc_path, String cc_version) throws InvalidArgumentException, ProposalException {
+        List<ChaincodeInfo> ccinfoList = client.queryInstalledChaincodes(peer);
+
+        boolean found = false;
+
+        for (ChaincodeInfo ccifo : ccinfoList) {
+
+            found = cc_name.equals(ccifo.getName()) && cc_path.equals(ccifo.getPath()) && cc_version.equals(ccifo.getVersion());
+            if (true == found) break;
+
+        }
+
+        return found;
+    }
+
+
+    private static boolean checkInstantiatedChaincode(Chain chain, Peer peer, String cc_name, String cc_path, String cc_version) throws InvalidArgumentException, ProposalException {
+        List<ChaincodeInfo> ccinfoList = chain.queryInstantiatedChaincodes(peer);
+
+        boolean found = false;
+
+        for (ChaincodeInfo ccifo : ccinfoList) {
+            found = cc_name.equals(ccifo.getName()) && cc_path.equals(ccifo.getPath()) && cc_version.equals(ccifo.getVersion());
+            if (true == found) break;
+
+        }
+
+        return found;
     }
 
 

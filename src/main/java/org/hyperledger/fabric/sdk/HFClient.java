@@ -16,16 +16,20 @@ package org.hyperledger.fabric.sdk;
 
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.peer.Query;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
@@ -360,4 +364,66 @@ public class HFClient {
     public Orderer newOrderer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
         return Orderer.createNewInstance(name, grpcURL, properties);
     }
+
+    public Set<String> queryChannels(Peer peer) throws InvalidArgumentException, ProposalException {
+
+        if (userContext == null) {
+            throw new InvalidArgumentException("UserContext has not been set.");
+        }
+        if (null == peer) {
+
+            throw new InvalidArgumentException("peer set to null");
+
+        }
+
+        //Run this on a system chain.
+
+        try {
+            Chain systemChain =  Chain.newSystemChain(this);
+
+            return  systemChain.queryChannels(peer);
+        } catch (InvalidArgumentException e) {
+              throw e;  //dont log
+        } catch (ProposalException e) {
+            logger.error(format("queryChannels for peer %s failed." + e.getMessage(), peer.getName()),e);
+            throw e;
+        }
+
+    }
+
+    public List<Query.ChaincodeInfo> queryInstalledChaincodes(Peer peer) throws InvalidArgumentException, ProposalException {
+
+        if (userContext == null) {
+            throw new InvalidArgumentException("UserContext has not been set.");
+        }
+        if (null == peer) {
+
+            throw new InvalidArgumentException("peer set to null");
+
+        }
+
+        try {
+
+
+            //Run this on a system chain.
+
+            Chain systemChain =  Chain.newSystemChain(this);
+
+            return  systemChain.queryInstalledChaincodes(peer);
+        } catch (InvalidArgumentException e) {
+            throw e;  //dont log
+        } catch (ProposalException e) {
+            logger.error(format("queryInstalledChaincodes for peer %s failed." + e.getMessage(), peer.getName()),e);
+            throw e;
+        }
+
+
+
+
+    }
+
+
+
+
+
 }
