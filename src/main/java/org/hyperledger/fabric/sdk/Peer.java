@@ -84,26 +84,6 @@ public class Peer {
      * @param chain
      */
 
-    void setChain(Chain chain) throws InvalidArgumentException {
-        if (chain == null) {
-            throw new InvalidArgumentException("Chain can not be null");
-        }
-
-        this.chain = chain;
-    }
-
-    private Chain chain;
-
-
-    /**
-     * Get the chain of which this peer is a member.
-     *
-     * @return {Chain} The chain of which this peer is a member.
-     */
-    Chain getChain() {
-        return this.chain;
-    }
-
     /**
      * Get the URL of the peer.
      *
@@ -154,9 +134,6 @@ public class Peer {
         if (proposal == null) {
             throw new PeerException("Proposal is null");
         }
-        if (chain == null) {
-            throw new PeerException("Chain is null");
-        }
         Exception e = checkGrpcUrl(url);
         if (e != null) {
             throw new InvalidArgumentException("Bad peer url.", e);
@@ -169,4 +146,6 @@ public class Peer {
 
         return new Peer(name, grpcURL, properties);
     }
+
+
 } // end Peer

@@ -104,8 +104,8 @@ public class ProposalBuilder {
 
 
     public FabricProposal.Proposal build() throws CryptoException, ProposalException {
-        if (request != null && request.noChainID())
-            chainID = "";
+//        if (request != null && request.noChainID())
+//            chainID = "";
         return createFabricProposal(chainID, chaincodeID);
     }
 
