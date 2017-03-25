@@ -18,6 +18,7 @@ package org.hyperledger.fabric.sdk;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,8 +27,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+
+import static java.lang.String.format;
 
 public class HFClient {
 
@@ -117,22 +121,23 @@ public class HFClient {
      * newPeer create a new peer
      *
      * @param name
-     * @param grpcURL to the peer's location
-     * @param properties
-     *
-     *<p>
-     * Supported properties
-     * <ul>
-     * <li>pemFile - File location for x509 pem certificate for SSL.</li>
-     * <li>trustServerCertificate - boolen(true/false) override CN to match pemFile certificate -- for development only.
-     * If the pemFile has the target server's certificate (instead of a CA Root certificate),
-     * instruct the TLS client to trust the CN value of the certificate in the pemFile,
-     * useful in development to get past default server hostname verification during
-     * TLS handshake, when the server host name does not match the certificate.
-     * </li>
-     * <li>hostnameOverride - Specify the certificates CN -- for development only.</li>
-     * </ul>
-     *
+     * @param grpcURL    to the peer's location
+     * @param properties <p>
+     *                   Supported properties
+     *                   <ul>
+     *                   <li>pemFile - File location for x509 pem certificate for SSL.</li>
+     *                   <li>trustServerCertificate - boolen(true/false) override CN to match pemFile certificate -- for development only.
+     *                   If the pemFile has the target server's certificate (instead of a CA Root certificate),
+     *                   instruct the TLS client to trust the CN value of the certificate in the pemFile,
+     *                   useful in development to get past default server hostname verification during
+     *                   TLS handshake, when the server host name does not match the certificate.
+     *                   </li>
+     *                   <li>hostnameOverride - Specify the certificates CN -- for development only.
+     *                   If the pemFile does not represent the server certificate, use this property to specify the URI authority
+     *                   (a.k.a hostname) expected in the target server's certificate. This is required to get past default server
+     *                   hostname verifications during TLS handshake.
+     *                   </li>
+     *                   </ul>
      * @return Peer
      * @throws InvalidArgumentException
      */
@@ -206,6 +211,11 @@ public class HFClient {
         return new InstantiateProposalRequest();
     }
 
+
+    public UpgradeProposalRequest newUpgradeProposalRequest() {
+        return new UpgradeProposalRequest();
+    }
+
     /**
      * newInvokeProposalRequest  get new invoke proposal request.
      *
@@ -238,13 +248,18 @@ public class HFClient {
         if (userContext == null) {
             throw new InvalidArgumentException("setUserContext is null");
         }
+        final String userName = userContext.getName();
+        if (StringUtil.isNullOrEmpty(userName)) {
+            throw new InvalidArgumentException("setUserContext user's name is missing");
+        }
+
         Enrollment enrollment = userContext.getEnrollment();
         if (enrollment == null) {
-            throw new InvalidArgumentException("setUserContext has no Enrollment set");
+            throw new InvalidArgumentException(format("setUserContext for user %s has no Enrollment set", userName));
         }
 
         if (StringUtil.isNullOrEmpty(userContext.getMSPID())) {
-            throw new InvalidArgumentException("setUserContext user's MSPID is missing");
+            throw new InvalidArgumentException(format("setUserContext for user %s  has user's MSPID is missing", userName));
         }
 
         if (StringUtil.isNullOrEmpty(userContext.getName())) {
@@ -252,13 +267,13 @@ public class HFClient {
         }
 
         if (StringUtil.isNullOrEmpty(enrollment.getCert())) {
-            throw new InvalidArgumentException("setUserContext Enrollment missing user certificate.");
+            throw new InvalidArgumentException(format("setUserContext for user %s Enrollment missing user certificate.", userName));
         }
         if (null == enrollment.getKey()) {
-            throw new InvalidArgumentException("setUserContext has no Enrollment missing signing key");
+            throw new InvalidArgumentException(format("setUserContext for user %s has Enrollment missing signing key", userName));
         }
         if (StringUtil.isNullOrEmpty(enrollment.getPublicKey())) {
-            throw new InvalidArgumentException("setUserContext Enrollment missing user public key.");
+            throw new InvalidArgumentException(format("setUserContext for user %s  Enrollment missing user public key.", userName));
         }
 
         this.userContext = userContext;
@@ -267,21 +282,24 @@ public class HFClient {
     /**
      * Create a new Eventhub.
      *
-     * @param name name of Orderer.
-     * @param grpcURL  url location of orderer grpc or grpcs protocol.
-     * @param properties
-     *<p>
-     * Supported properties
-     * <ul>
-     * <li>pemFile - File location for x509 pem certificate for SSL.</li>
-     * <li>trustServerCertificate - boolen(true/false) override CN to match pemFile certificate -- for development only.
-     * If the pemFile has the target server's certificate (instead of a CA Root certificate),
-     * instruct the TLS client to trust the CN value of the certificate in the pemFile,
-     * useful in development to get past default server hostname verification during
-     * TLS handshake, when the server host name does not match the certificate.
-     * </li>
-     * <li>hostnameOverride - Specify the certificates CN -- for development only.</li>
-     * </ul>
+     * @param name       name of Orderer.
+     * @param grpcURL    url location of orderer grpc or grpcs protocol.
+     * @param properties <p>
+     *                   Supported properties
+     *                   <ul>
+     *                   <li>pemFile - File location for x509 pem certificate for SSL.</li>
+     *                   <li>trustServerCertificate - boolen(true/false) override CN to match pemFile certificate -- for development only.
+     *                   If the pemFile has the target server's certificate (instead of a CA Root certificate),
+     *                   instruct the TLS client to trust the CN value of the certificate in the pemFile,
+     *                   useful in development to get past default server hostname verification during
+     *                   TLS handshake, when the server host name does not match the certificate.
+     *                   </li>
+     *                   <li>hostnameOverride - Specify the certificates CN -- for development only.
+     *                   If the pemFile does not represent the server certificate, use this property to specify the URI authority
+     *                   (a.k.a hostname) expected in the target server's certificate. This is required to get past default server
+     *                   hostname verifications during TLS handshake.
+     *                   </li>
+     *                   </ul>
      * @return The orderer.
      * @throws InvalidArgumentException
      */
@@ -294,7 +312,7 @@ public class HFClient {
     /**
      * Create a new event hub
      *
-     * @param name Name of eventhup should match peer's name it's associated with.
+     * @param name    Name of eventhup should match peer's name it's associated with.
      * @param grpcURL The http url location of the event hub
      * @return event hub
      */
@@ -305,7 +323,8 @@ public class HFClient {
 
     /**
      * Create a new urlOrderer.
-     * @param name name of the orderer.
+     *
+     * @param name    name of the orderer.
      * @param grpcURL url location of orderer grpc or grpcs protocol.
      * @return a new Orderer.
      * @throws InvalidArgumentException
@@ -318,21 +337,24 @@ public class HFClient {
     /**
      * Create a new orderer.
      *
-     * @param name name of Orderer.
-     * @param grpcURL  url location of orderer grpc or grpcs protocol.
-     * @param properties
-     *<p>
-     * Supported properties
-     * <ul>
-     * <li>pemFile - File location for x509 pem certificate for SSL.</li>
-     * <li>trustServerCertificate - boolen(true/false) override CN to match pemFile certificate -- for development only.
-     * If the pemFile has the target server's certificate (instead of a CA Root certificate),
-     * instruct the TLS client to trust the CN value of the certificate in the pemFile,
-     * useful in development to get past default server hostname verification during
-     * TLS handshake, when the server host name does not match the certificate.
-     * </li>
-     * <li>hostnameOverride - Specify the certificates CN -- for development only.</li>
-     * </ul>
+     * @param name       name of Orderer.
+     * @param grpcURL    url location of orderer grpc or grpcs protocol.
+     * @param properties <p>
+     *                   Supported properties
+     *                   <ul>
+     *                   <li>pemFile - File location for x509 pem certificate for SSL.</li>
+     *                   <li>trustServerCertificate - boolen(true/false) override CN to match pemFile certificate -- for development only.
+     *                   If the pemFile has the target server's certificate (instead of a CA Root certificate),
+     *                   instruct the TLS client to trust the CN value of the certificate in the pemFile,
+     *                   useful in development to get past default server hostname verification during
+     *                   TLS handshake, when the server host name does not match the certificate.
+     *                   </li>
+     *                   <li>hostnameOverride - Specify the certificates CN -- for development only.
+     *                   If the pemFile does not represent the server certificate, use this property to specify the URI authority
+     *                   (a.k.a hostname) expected in the target server's certificate. This is required to get past default server
+     *                   hostname verifications during TLS handshake.
+     *                   </li>
+     *                   </ul>
      * @return The orderer.
      * @throws InvalidArgumentException
      */
@@ -340,4 +362,27 @@ public class HFClient {
     public Orderer newOrderer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
         return Orderer.createNewInstance(name, grpcURL, properties);
     }
+
+    public Set<String> queryChannels(Peer peer) throws InvalidArgumentException, ProposalException {
+
+        if (userContext == null) {
+            throw new InvalidArgumentException("UserContext has not been set.");
+        }
+        if (null == peer) {
+
+            throw new InvalidArgumentException("peer set to null");
+
+        }
+
+        //Run this on a system chain.
+
+        Chain systemChain =  Chain.newSystemChain(this);
+        Peer speer = new Peer(peer); //same peer on system chain.
+        speer.setChain(systemChain);;
+
+        return  systemChain.queryChannels(speer);
+
+    }
+
+
 }

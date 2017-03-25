@@ -14,9 +14,12 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.io.File;
+
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class ChainTest {
@@ -45,7 +48,7 @@ public class ChainTest {
         try {
 
             final String CHAIN_NAME = "chain3";
-            Chain testchain = new Chain(CHAIN_NAME, hfclient);
+            Chain testchain = new Chain(CHAIN_NAME, hfclient, false);
             Assert.assertEquals(CHAIN_NAME, testchain.getName());
             Assert.assertEquals(testchain.client, hfclient);
             Assert.assertEquals(testchain.getOrderers().size(), 0);
@@ -65,9 +68,8 @@ public class ChainTest {
         try {
 
             final String CHAIN_NAME = "chain3";
-            final Chain testchain = new Chain(CHAIN_NAME, hfclient);
+            final Chain testchain = new Chain(CHAIN_NAME, hfclient, false);
             final Peer peer = hfclient.newPeer("peer_" , "grpc://localhost:7051");
-
 
             testchain.addPeer(peer);
 
@@ -87,7 +89,7 @@ public class ChainTest {
         try {
 
             final String CHAIN_NAME = "chain3";
-            final Chain testchain = new Chain(CHAIN_NAME, hfclient);
+            final Chain testchain = new Chain(CHAIN_NAME, hfclient, false);
             final Orderer orderer = hfclient.newOrderer("testorder", "grpc://localhost:7051");
 
 
@@ -110,7 +112,7 @@ public class ChainTest {
         try {
 
             final String CHAIN_NAME = "chain3";
-            testchain = new Chain(CHAIN_NAME, hfclient);
+            testchain = new Chain(CHAIN_NAME, hfclient, false);
 
 
             testchain.addPeer(null);
@@ -132,7 +134,7 @@ public class ChainTest {
         try {
 
             final String CHAIN_NAME = "chain3";
-            testchain = new Chain(CHAIN_NAME, hfclient);
+            testchain = new Chain(CHAIN_NAME, hfclient, false);
             final Peer peer = hfclient.newPeer(null , "grpc://localhost:7051");
 
             testchain.addPeer(peer);
@@ -153,7 +155,7 @@ public class ChainTest {
         try {
 
             final String CHAIN_NAME = "chain3";
-            testchain = new Chain(CHAIN_NAME, hfclient);
+            testchain = new Chain(CHAIN_NAME, hfclient, false);
 
 
             testchain.addOrderer(null);
@@ -175,7 +177,7 @@ public class ChainTest {
             class MockChain extends Chain{
 
                 MockChain(String name, HFClient client) throws InvalidArgumentException {
-                    super(name, client);
+                    super(name, client, false);
                 }
 
                 @Override
@@ -208,7 +210,7 @@ public class ChainTest {
         try {
 
             final String CHAIN_NAME = "chain3";
-            testchain = new Chain(CHAIN_NAME, hfclient);
+            testchain = new Chain(CHAIN_NAME, hfclient, false);
 
             Assert.assertEquals(testchain.isInitialized(), false);
             testchain.initialize();

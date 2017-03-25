@@ -169,4 +169,8 @@ public class Peer {
 
         return new Peer(name, grpcURL, properties);
     }
+
+    Peer( Peer peer) throws InvalidArgumentException {
+       this(peer.getName(), peer.getUrl(), peer.getProperties());
+    }
 } // end Peer
