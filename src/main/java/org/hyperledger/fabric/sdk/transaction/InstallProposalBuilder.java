@@ -37,11 +37,11 @@ import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createDeploymentSpec;
 
 
-public class InstallProposalBuilder extends ProposalBuilder {
+public class InstallProposalBuilder extends LCCCProposalBuilder {
 
 
     private final static Log logger = LogFactory.getLog(InstallProposalBuilder.class);
-    private static final ChaincodeID LIFECYCLE_CHAINCODE_ID = ChaincodeID.newBuilder().setName("lccc").build();
+//    private static final ChaincodeID LIFECYCLE_CHAINCODE_ID = ChaincodeID.newBuilder().setName("lccc").build();
     private String chaincodePath;
 
 
@@ -50,7 +50,7 @@ public class InstallProposalBuilder extends ProposalBuilder {
     private String chaincodeVersion;
     private TransactionRequest.Type chaincodeLanguage;
     protected String action = "install";
-    protected String chainId = ""; // no specific chain.
+  //  protected String chainId = ""; // no specific chain.
 
 
     protected InstallProposalBuilder() {
@@ -176,9 +176,9 @@ public class InstallProposalBuilder extends ProposalBuilder {
         argList.add(depspec.toByteString());
         args(argList);
 
-        chaincodeID(LIFECYCLE_CHAINCODE_ID);
-        ccType(ccType);
-        chainID(chainId); //Installing chaincode is not targeted to a chain.
+//       chaincodeID(LIFECYCLE_CHAINCODE_ID);
+//        ccType(ccType);
+      //  chainID(chainId); //Installing chaincode is not targeted to a chain.
 
     }
 
@@ -196,7 +196,7 @@ public class InstallProposalBuilder extends ProposalBuilder {
 
 
         args(argList);
-        chaincodeID(LIFECYCLE_CHAINCODE_ID);
+
     }
 
     public void setChaincodeLanguage(TransactionRequest.Type chaincodeLanguage) {
