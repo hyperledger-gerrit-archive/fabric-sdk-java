@@ -127,6 +127,7 @@ public class InstantiateProposalBuilder extends ProposalBuilder {
 
 
 
+
         List<String> modlist = new LinkedList<>();
         modlist.add("init");
         modlist.addAll(argList);

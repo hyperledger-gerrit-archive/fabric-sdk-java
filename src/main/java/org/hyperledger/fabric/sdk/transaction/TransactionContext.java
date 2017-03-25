@@ -71,7 +71,8 @@ public class TransactionContext {
 
         this.user = user;
         this.chain = chain;
-        this.tcert = tcert;
+        this.verify =  ! "".equals(chain.getName());  //if name is not blank not system chain and need verify.
+
         //  this.txID = transactionID;
         this.cryptoPrimitives = cryptoPrimitives;
 
