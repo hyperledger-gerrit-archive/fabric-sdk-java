@@ -50,7 +50,7 @@ public class InstallProposalBuilder extends ProposalBuilder {
     private String chaincodeVersion;
     private TransactionRequest.Type chaincodeLanguage;
     protected String action = "install";
-    protected String chainId = ""; // no specific chain.
+  //  protected String chainId = ""; // no specific chain.
 
 
     protected InstallProposalBuilder() {
@@ -178,7 +178,7 @@ public class InstallProposalBuilder extends ProposalBuilder {
 
         chaincodeID(LIFECYCLE_CHAINCODE_ID);
         ccType(ccType);
-        chainID(chainId); //Installing chaincode is not targeted to a chain.
+      //  chainID(chainId); //Installing chaincode is not targeted to a chain.
 
     }
 
