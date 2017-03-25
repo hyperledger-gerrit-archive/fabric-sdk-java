@@ -85,7 +85,7 @@ class OrdererClient {
 
             @Override
             public void onCompleted() {
-                logger.debug("onCompleted");
+                logger.info("onCompleted");
                 finishLatch.countDown();
             }
         };

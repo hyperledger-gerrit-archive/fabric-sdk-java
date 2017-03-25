@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.google.protobuf.ByteString;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.HeaderType;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeDeploymentSpec;
@@ -26,9 +28,13 @@ import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type;
 import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeHeaderExtension;
 
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ProtoUtils {
+
+    private final static Log logger = LogFactory.getLog(ProtoUtils.class);
+    private final static boolean isDebugLevel = logger.isDebugEnabled();
 
     /**
      * createChannelHeader create chainHeader
@@ -41,6 +47,12 @@ public class ProtoUtils {
      * @return
      */
     public static ChannelHeader createChannelHeader(HeaderType type, String txID, String chainID, long epoch, ChaincodeHeaderExtension chaincodeHeaderExtension) {
+
+        if (isDebugLevel) {
+           logger.debug(format("ChannelHeader: type: %s, version: 1, Txid: %s, channelId: %s, epoch %d",
+                    type.name(), txID, chainID, epoch));
+
+        }
 
         ChannelHeader.Builder ret = ChannelHeader.newBuilder()
                 .setType(type.getNumber())

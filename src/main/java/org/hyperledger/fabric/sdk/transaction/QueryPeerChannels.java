@@ -23,44 +23,28 @@ import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.Block;
-import org.hyperledger.fabric.protos.peer.Chaincode;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 
-import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type.GOLANG;
-
-public class JoinPeerProposalBuilder extends CSCCProposalBuilder {
-    private static final Log logger = LogFactory.getLog(JoinPeerProposalBuilder.class);
+public class QueryPeerChannels extends CSCCProposalBuilder {
+    private static final Log logger = LogFactory.getLog(QueryPeerChannels.class);
 
 
-    public JoinPeerProposalBuilder genesisBlock(Block genesisBlock) throws ProposalException {
-
-        if (genesisBlock == null) {
-            ProposalException exp = new ProposalException("No genesis block for Join proposal.");
-            JoinPeerProposalBuilder.logger.error(exp.getMessage(), exp);
-            throw exp;
-        }
+    private QueryPeerChannels() {
 
         List<ByteString> argList = new ArrayList<>();
-        argList.add(ByteString.copyFrom("JoinChain", StandardCharsets.UTF_8));
-        argList.add(genesisBlock.toByteString());
+        argList.add(ByteString.copyFrom("GetChannels", StandardCharsets.UTF_8));
         args(argList);
-        return this;
-    }
-
-    private JoinPeerProposalBuilder() {
 
     }
 
     @Override
-    public JoinPeerProposalBuilder context(TransactionContext context) {
+    public QueryPeerChannels context(TransactionContext context) {
         super.context(context);
         return  this;
     }
 
-    public static JoinPeerProposalBuilder newBuilder() {
-        return new JoinPeerProposalBuilder();
+    public static QueryPeerChannels newBuilder() {
+        return new QueryPeerChannels();
     }
 
 

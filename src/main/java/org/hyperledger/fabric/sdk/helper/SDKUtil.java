@@ -54,6 +54,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class SDKUtil {
     private static final Log logger = LogFactory.getLog(SDKUtil.class);
+    private static final Config confg = Config.getConfig();
+    private static final int maxLogStringLength = confg.maxLogStringLength();
 
     /**
      * Generate parameter hash for the given chain code path,func and args
@@ -324,5 +326,34 @@ public class SDKUtil {
 
     }
 
+
+    /**
+     * Makes logging strings which can be long or with unprintable characters be logged and trimmed.
+     * @param string Unsafe string to long
+     * @return returns a string which does not have unprintable characters and trimed in length.
+     */
+    public static String logString(final String string) {
+        if (string == null || string.length() == 0) {
+            return string;
+        }
+
+        String ret = string.replaceAll("[^\\p{Print}]", "?");
+
+        ret = ret.substring(0, Math.min(ret.length(), maxLogStringLength)) + (ret.length() >= maxLogStringLength ? "..." :"");
+
+        return ret;
+
+
+    }
+
+
+//
+//    public static void main (String args[]){
+//
+//        System.out.println(logString("hi \n \000 \001 Rick"));
+//
+//
+//    }
+//
 
 }

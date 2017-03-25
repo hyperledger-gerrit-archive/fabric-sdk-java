@@ -191,9 +191,9 @@ public class CryptoPrimitives implements CryptoSuite {
         if (plainText == null || signature == null || pemCertificate == null)
             return false;
 
-        logger.debug("plaintext in hex: " + DatatypeConverter.printHexBinary(plainText));
-        logger.debug("signature in hex: " + DatatypeConverter.printHexBinary(signature));
-        logger.debug("PEM cert in hex: " + DatatypeConverter.printHexBinary(pemCertificate));
+        logger.trace("plaintext in hex: " + DatatypeConverter.printHexBinary(plainText));
+        logger.trace("signature in hex: " + DatatypeConverter.printHexBinary(signature));
+        logger.trace("PEM cert in hex: " + DatatypeConverter.printHexBinary(pemCertificate));
 
         try {
             BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(pemCertificate));

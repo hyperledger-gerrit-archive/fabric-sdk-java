@@ -29,6 +29,7 @@ import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeID;
 import org.hyperledger.fabric.sdk.ChainConfiguration;
 import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
+import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.InstantiateProposalRequest;
@@ -39,7 +40,6 @@ import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryProposalRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.TransactionInfo;
-import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
@@ -66,9 +66,9 @@ public class End2endIT {
 
     private final int gossipWaitTime = testConfig.getGossipWaitTime();
 
-    private static final String CHAIN_CODE_NAME = "example_cc.go";
+    private static final String CHAIN_CODE_NAME = "example_cc_go";
     private static final String CHAIN_CODE_PATH = "github.com/example_cc";
-    private static final String CHAIN_CODE_VERSION = "1.0";
+    private static final String CHAIN_CODE_VERSION = "1";
 
     private static final String FOO_CHAIN_NAME = "foo";
     private static final String BAR_CHAIN_NAME = "bar";
@@ -130,7 +130,7 @@ public class End2endIT {
             }
 
             final SampleStore sampleStore = new SampleStore(sampleStoreFile);
-            sampleStoreFile.deleteOnExit();
+            //  sampleStoreFile.deleteOnExit();
 
             //SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
 
@@ -219,7 +219,8 @@ public class End2endIT {
                 InstallProposalRequest installProposalRequest = client.newInstallProposalRequest();
                 installProposalRequest.setChaincodeID(chainCodeID);
                 ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
-                installProposalRequest.setChaincodeSourceLocation(new File(TEST_FIXTURES_PATH));
+                installProposalRequest.setChaincodeSourceLocation(new File(TEST_FIXTURES_PATH + "/sdkintegration/gocc/sample1"));
+                installProposalRequest.setChaincodeVersion(CHAIN_CODE_VERSION);
 
                 out("Sending install proposal");
 
@@ -258,7 +259,7 @@ public class End2endIT {
             InstantiateProposalRequest instantiateProposalRequest = client.newInstantiationProposalRequest();
             instantiateProposalRequest.setChaincodeID(chainCodeID);
             instantiateProposalRequest.setFcn("init");
-            instantiateProposalRequest.setArgs(new String[]{"a", "100", "b", "" + (200 + delta)});
+            instantiateProposalRequest.setArgs(new String[]{"a", "500", "b", "" + (200 + delta)});
 
             /*
               policy OR(Org1MSP.member, Org2MSP.member) meaning 1 signature from someone in either Org1 or Org2
@@ -522,46 +523,6 @@ public class End2endIT {
 
     }
 
-
-//    /**
-//     * TODO not working as currently done
-//     * Sample how to reconstruct chain
-//     * @param name
-//     * @param client
-//     * @return
-//     * @throws Exception
-//     */
-//    private Chain reconstructChain(String  name, HFClient client) throws Exception {
-//
-//        //Construct the chain
-//        //
-//
-//
-//        Chain newChain = client.newChain(name);
-//
-//        int i = 0;
-//        for (String peerloc : PEER_LOCATIONS) {
-//            Peer peer = client.newPeer(peerloc);
-//            peer.setName("peer_" + i);
-//            newChain.addPeer(peer);
-//
-//        }
-//
-//        for (String orderloc : ORDERER_LOCATIONS) {
-//            Orderer orderer = client.newOrderer(orderloc);
-//            newChain.addOrderer(orderer);
-//        }
-//
-//        for (String eventHubLoc : EVENTHUB_LOCATIONS) {
-//            EventHub eventHub = client.newEventHub(eventHubLoc);
-//            newChain.addEventHub(eventHub);
-//        }
-//
-//        newChain.initialize();
-//        return newChain;
-//
-//    }
-//
 
     static void out(String format, Object... args) {
 
