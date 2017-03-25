@@ -26,8 +26,11 @@ import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.sdk.events.EventHub;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+
+import static java.lang.String.format;
 
 public class HFClient {
 
@@ -197,6 +200,11 @@ public class HFClient {
         return new InstantiateProposalRequest();
     }
 
+
+    public UpgradeProposalRequest newUpgradeProposalRequest() {
+        return new UpgradeProposalRequest();
+    }
+
     /**
      * newInvokeProposalRequest  get new invoke proposal request.
      * @return InvokeProposalRequest
@@ -227,27 +235,29 @@ public class HFClient {
         if(userContext == null){
             throw new  InvalidArgumentException("setUserContext is null");
         }
-        Enrollment enrollment = userContext.getEnrollment();
-        if(enrollment  == null){
-            throw new  InvalidArgumentException("setUserContext has no Enrollment set");
-        }
-
-        if(StringUtil.isNullOrEmpty(userContext.getMSPID())){
-            throw new  InvalidArgumentException("setUserContext user's MSPID is missing");
-        }
-
-        if(StringUtil.isNullOrEmpty(userContext.getName())){
+        final String userName = userContext.getName();
+        if(StringUtil.isNullOrEmpty(userName)){
             throw new  InvalidArgumentException("setUserContext user's name is missing");
         }
 
+        Enrollment enrollment = userContext.getEnrollment();
+        if(enrollment  == null){
+            throw new  InvalidArgumentException(format("setUserContext for user %s has no Enrollment set", userName));
+        }
+
+        if(StringUtil.isNullOrEmpty(userContext.getMSPID())){
+            throw new  InvalidArgumentException(format("setUserContext for user %s  has user's MSPID is missing", userName));
+        }
+
+
         if(StringUtil.isNullOrEmpty(enrollment.getCert())){
-            throw new  InvalidArgumentException("setUserContext Enrollment missing user certificate.");
+            throw new  InvalidArgumentException(format("setUserContext for user %s Enrollment missing user certificate.", userName));
         }
         if( null == enrollment.getKey()){
-            throw new  InvalidArgumentException("setUserContext has no Enrollment missing signing key");
+            throw new  InvalidArgumentException(format("setUserContext for user %s has Enrollment missing signing key", userName));
         }
         if(StringUtil.isNullOrEmpty(enrollment.getPublicKey())){
-            throw new  InvalidArgumentException("setUserContext Enrollment missing user public key.");
+            throw new  InvalidArgumentException(format("setUserContext for user %s  Enrollment missing user public key.", userName));
         }
 
         this.userContext = userContext;
@@ -276,6 +286,25 @@ public class HFClient {
     public EventHub newEventHub(String url) {
         return EventHub.createNewInstance(url, null);
     }
+
+
+    public  Object queryChannels(Peer peer) throws InvalidArgumentException, ProposalException {
+
+        if(userContext == null){
+            throw new  InvalidArgumentException("UserContext has not been set.");
+        }
+        if( null == peer){
+
+            throw new  InvalidArgumentException("peer set to null" );
+
+        }
+
+        return Chain.newSystemChain(this).queryChannels(peer);
+
+
+    }
+
+
 
 
 }
