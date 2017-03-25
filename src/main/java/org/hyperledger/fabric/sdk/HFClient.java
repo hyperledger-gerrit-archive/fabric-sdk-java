@@ -29,6 +29,8 @@ import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
+import static java.lang.String.format;
+
 public class HFClient {
 
     private CryptoSuite cryptoSuite;
@@ -206,6 +208,11 @@ public class HFClient {
         return new InstantiateProposalRequest();
     }
 
+
+    public UpgradeProposalRequest newUpgradeProposalRequest() {
+        return new UpgradeProposalRequest();
+    }
+
     /**
      * newInvokeProposalRequest  get new invoke proposal request.
      *
@@ -238,27 +245,30 @@ public class HFClient {
         if (userContext == null) {
             throw new InvalidArgumentException("setUserContext is null");
         }
+        final String userName = userContext.getName();
+        if(StringUtil.isNullOrEmpty(userName)){
+            throw new  InvalidArgumentException("setUserContext user's name is missing");
+        }
+
         Enrollment enrollment = userContext.getEnrollment();
-        if (enrollment == null) {
-            throw new InvalidArgumentException("setUserContext has no Enrollment set");
+        if(enrollment  == null){
+            throw new  InvalidArgumentException(format("setUserContext for user %s has no Enrollment set", userName));
         }
 
-        if (StringUtil.isNullOrEmpty(userContext.getMSPID())) {
-            throw new InvalidArgumentException("setUserContext user's MSPID is missing");
+        if(StringUtil.isNullOrEmpty(userContext.getMSPID())){
+            throw new  InvalidArgumentException(format("setUserContext for user %s  has user's MSPID is missing", userName));
         }
 
-        if (StringUtil.isNullOrEmpty(userContext.getName())) {
-            throw new InvalidArgumentException("setUserContext user's name is missing");
+        if(StringUtil.isNullOrEmpty(enrollment.getCert())){
+            throw new  InvalidArgumentException(format("setUserContext for user %s Enrollment missing user certificate.", userName));
         }
 
-        if (StringUtil.isNullOrEmpty(enrollment.getCert())) {
-            throw new InvalidArgumentException("setUserContext Enrollment missing user certificate.");
+        if( null == enrollment.getKey()){
+            throw new  InvalidArgumentException(format("setUserContext for user %s has Enrollment missing signing key", userName));
         }
-        if (null == enrollment.getKey()) {
-            throw new InvalidArgumentException("setUserContext has no Enrollment missing signing key");
-        }
-        if (StringUtil.isNullOrEmpty(enrollment.getPublicKey())) {
-            throw new InvalidArgumentException("setUserContext Enrollment missing user public key.");
+
+        if(StringUtil.isNullOrEmpty(enrollment.getPublicKey())){
+            throw new  InvalidArgumentException(format("setUserContext for user %s  Enrollment missing user public key.", userName));
         }
 
         this.userContext = userContext;
