@@ -34,20 +34,20 @@ public class QuerySCCRequest extends TransactionRequest {
                 Chaincode.ChaincodeID.newBuilder().setName("qscc").build());
     }
 
-    /* (non-Javadoc)
-     * Responses from QSCC are not signed
-     * @see org.hyperledger.fabric.sdk.TransactionRequest#doVerify()
-     */
-    @Override
-    public boolean doVerify() {
-        return false;
-    }
+//    /* (non-Javadoc)
+//     * Responses from QSCC are not signed
+//     * @see org.hyperledger.fabric.sdk.TransactionRequest#doVerify()
+//     */
+//    @Override
+//    public boolean doVerify() {
+//        return false;
+//    }
 
     /* (non-Javadoc)
      * @see org.hyperledger.fabric.sdk.TransactionRequest#clearChainID(org.hyperledger.fabric.sdk.transaction.ProposalBuilder)
      */
-    @Override
-    public boolean noChainID() {
-        return true;
-    }
+//    @Override
+//    public boolean noChainID() {
+//        return true;
+//    }
 }
