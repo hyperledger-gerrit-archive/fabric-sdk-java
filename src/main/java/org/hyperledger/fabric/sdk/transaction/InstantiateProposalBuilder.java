@@ -24,9 +24,6 @@ import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeDeploymentSpec;
-import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
-import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
-import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
@@ -37,10 +34,10 @@ import org.hyperledger.fabric.sdk.exception.ProposalException;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createDeploymentSpec;
 
 
-public class InstantiateProposalBuilder extends ProposalBuilder {
+public class InstantiateProposalBuilder extends LCCCProposalBuilder {
 
     private final static Log logger = LogFactory.getLog(InstantiateProposalBuilder.class);
-    private final static String LCCC_CHAIN_NAME = "lccc";
+
     private String chaincodePath;
 
 
@@ -50,7 +47,7 @@ public class InstantiateProposalBuilder extends ProposalBuilder {
     private TransactionRequest.Type chaincodeLanguage;
     private String chaincodeVersion;
 
-    private byte[] chaincodePolicy = null ;
+    private byte[] chaincodePolicy = null;
     protected String action = "deploy";
 
     protected InstantiateProposalBuilder() {
@@ -126,7 +123,6 @@ public class InstantiateProposalBuilder extends ProposalBuilder {
         }
 
 
-
         List<String> modlist = new LinkedList<>();
         modlist.add("init");
         modlist.addAll(argList);
@@ -139,15 +135,11 @@ public class InstantiateProposalBuilder extends ProposalBuilder {
         argList.add(ByteString.copyFrom(action, StandardCharsets.UTF_8));
         argList.add(ByteString.copyFrom("default", StandardCharsets.UTF_8));
         argList.add(depspec.toByteString());
-        if (chaincodePolicy != null ) {
+        if (chaincodePolicy != null) {
             argList.add(ByteString.copyFrom(chaincodePolicy));
         }
 
-        ChaincodeID lcccID = ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
-
         args(argList);
-        chaincodeID(lcccID);
-        ccType(ccType);
 
     }
 
@@ -159,7 +151,6 @@ public class InstantiateProposalBuilder extends ProposalBuilder {
         ChaincodeDeploymentSpec depspec = createDeploymentSpec(Type.GOLANG,
                 chaincodeName, chaincodePath, chaincodeVersion, argList, null);
 
-        ChaincodeID lcccID = ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
 
         List<ByteString> argList = new ArrayList<>();
         argList.add(ByteString.copyFrom("install", StandardCharsets.UTF_8));
@@ -167,12 +158,8 @@ public class InstantiateProposalBuilder extends ProposalBuilder {
 
 
         super.args(argList);
-        super.chaincodeID(lcccID);
-
 
     }
-
-
 
 
     public void setChaincodeLanguage(TransactionRequest.Type chaincodeLanguage) {
