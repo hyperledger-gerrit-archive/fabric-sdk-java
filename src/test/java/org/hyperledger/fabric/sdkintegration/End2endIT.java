@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Hex;
+import org.bouncycastle.tsp.GenTimeAccuracy;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
@@ -517,6 +518,7 @@ public class End2endIT {
         newChain.initialize();
 
         out("Finished initialization chain %s", name);
+
 
         return newChain;
 
