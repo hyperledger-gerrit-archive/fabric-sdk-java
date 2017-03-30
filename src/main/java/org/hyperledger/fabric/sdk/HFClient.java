@@ -35,16 +35,6 @@ public class HFClient {
 
     private CryptoSuite cryptoSuite;
 
-    static {
-
-        if (null == System.getProperty("org.hyperledger.fabric.sdk.logGRPC")) {
-            // Turn this off by default!
-            Logger.getLogger("io.netty").setLevel(Level.OFF);
-            Logger.getLogger("io.grpc").setLevel(Level.OFF);
-
-        }
-    }
-
     private static final Log logger = LogFactory.getLog(HFClient.class);
 
     private final Map<String, Chain> chains = new HashMap<>();
