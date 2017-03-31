@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="ERROR" name="fabric-sdk-java">
+    <Properties>
+        <Property name="LOG_DIR">${sys:web.root}/logs</Property>
+        <Property name="ARCHIVE">${LOG_DIR}/archive</Property>
+        <Property name="PATTERN">[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n</Property>
+    </Properties>
+    <Appenders>
+        <Console name="STDOUT" target="SYSTEM_OUT">
+            <PatternLayout pattern="${PATTERN}"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="STDOUT"/>
+        </Root>
+        <Logger name="io.netty" level="OFF" additivity="true"/>
+        <Logger name="io.grpc" level="OFF" additivity="true"/>
+        <Logger name="org.hyperledger.fabric.sdk" level="ERROR" additivity="true"/>
+    </Loggers>
+</Configuration>
