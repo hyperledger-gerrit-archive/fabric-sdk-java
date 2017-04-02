@@ -43,7 +43,7 @@ import org.junit.Test;
  */
 public class End2endJavaChaincodeIT {
 
-    static final String CHAIN_CODE_NAME = "example_cc_java";
+    static final String CHAIN_CODE_NAME = "example_cc-go";
     static final String CHAIN_CODE_PATH = "github.com/example_cc";
     static final String CHAIN_CODE_VERSION = "1";
 
