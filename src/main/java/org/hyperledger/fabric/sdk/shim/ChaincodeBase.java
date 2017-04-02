@@ -16,13 +16,10 @@ limitations under the License.
 
 package org.hyperledger.fabric.sdk.shim;
 
-import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.netty.GrpcSslContexts;
-import io.grpc.netty.NegotiationType;
-import io.grpc.netty.NettyChannelBuilder;
-import io.grpc.stub.StreamObserver;
-import io.netty.handler.ssl.SslContext;
+import java.io.File;
+
+import javax.net.ssl.SSLException;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
@@ -30,21 +27,24 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
-import org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage;
-import org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type;
+import org.hyperledger.fabric.protos.peer.ChaincodeShim.ChaincodeMessage;
+import org.hyperledger.fabric.protos.peer.ChaincodeShim.ChaincodeMessage.Type;
 import org.hyperledger.fabric.protos.peer.ChaincodeSupportGrpc;
 import org.hyperledger.fabric.protos.peer.ChaincodeSupportGrpc.ChaincodeSupportStub;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
-import org.hyperledger.fabric.sdk.ChainCodeResponse;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage.Response;
 
-import javax.net.ssl.SSLException;
-import java.io.File;
+import io.grpc.ManagedChannel;
+import io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.NegotiationType;
+import io.grpc.netty.NettyChannelBuilder;
+import io.grpc.stub.StreamObserver;
+import io.netty.handler.ssl.SslContext;
 
 public abstract class ChaincodeBase {
 
 	private static Log logger = LogFactory.getLog(ChaincodeBase.class);
 
-	public abstract FabricProposalResponse.Response invoke(ChaincodeStub stub, String function, String[] args);
+	public abstract Response invoke(ChaincodeStub stub, String function, String[] args);
 	public abstract String getChaincodeID();
 
 	public static final String DEFAULT_HOST = "127.0.0.1";
@@ -201,14 +201,14 @@ public abstract class ChaincodeBase {
 		}
 	}
 
-	public FabricProposalResponse.Response runRaw(ChaincodeStub stub, String function, String[] args) {
+	public Response runRaw(ChaincodeStub stub, String function, String[] args) {
 		return null;
 	}
 
-	protected FabricProposalResponse.Response runHelper(ChaincodeStub stub, String function, String[] args) {
-		FabricProposalResponse.Response ret = runRaw(stub, function, args);
+	protected Response runHelper(ChaincodeStub stub, String function, String[] args) {
+		Response ret = runRaw(stub, function, args);
 		if (ret == null) {
-			FabricProposalResponse.Response tmp = invoke(stub, function, args);
+			Response tmp = invoke(stub, function, args);
 			ret = tmp;
 		}
 		return ret;

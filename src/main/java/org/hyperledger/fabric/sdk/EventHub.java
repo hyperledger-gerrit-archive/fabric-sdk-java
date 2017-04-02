@@ -23,7 +23,10 @@ import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.EventsGrpc;
-import org.hyperledger.fabric.protos.peer.PeerEvents;
+import org.hyperledger.fabric.protos.peer.EventsPackage.Event;
+import org.hyperledger.fabric.protos.peer.EventsPackage.EventType;
+import org.hyperledger.fabric.protos.peer.EventsPackage.Interest;
+import org.hyperledger.fabric.protos.peer.EventsPackage.Register;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 
@@ -45,7 +48,7 @@ public class EventHub {
     private ManagedChannel channel;
     private boolean connected = false;
     private EventsGrpc.EventsStub events;
-    private StreamObserver<PeerEvents.Event> sender;
+    private StreamObserver<Event> sender;
     /**
      * Event queue for all events from eventhubs in the chain
      */
@@ -118,9 +121,9 @@ public class EventHub {
         final ArrayList<Throwable> threw = new ArrayList<>();
 
 
-        StreamObserver<PeerEvents.Event> eventStream = new StreamObserver<PeerEvents.Event>() {
+        StreamObserver<Event> eventStream = new StreamObserver<Event>() {
             @Override
-            public void onNext(PeerEvents.Event event) {
+            public void onNext(Event event) {
                 eventQue.addBEvent(event);  //add to chain queue
 
             }
@@ -162,11 +165,11 @@ public class EventHub {
     private void blockListen() {
 
 
-        PeerEvents.Register register = PeerEvents.Register.newBuilder()
-                .addEvents(PeerEvents.Interest.newBuilder()
-                        .setEventType(PeerEvents.EventType.BLOCK).build()).build();
+        Register register = Register.newBuilder()
+                .addEvents(Interest.newBuilder()
+                        .setEventType(EventType.BLOCK).build()).build();
 
-        PeerEvents.Event blockEvent = PeerEvents.Event.newBuilder().setRegister(register).build();
+        Event blockEvent = Event.newBuilder().setRegister(register).build();
         sender.onNext(blockEvent);
 
 

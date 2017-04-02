@@ -14,27 +14,29 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
+import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createDeploymentSpec;
+
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.protobuf.ByteString;
-import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeDeploymentSpec;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.Proposal;
 import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 
-import static java.lang.String.format;
-import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createDeploymentSpec;
+import com.google.protobuf.ByteString;
+
+import io.netty.util.internal.StringUtil;
 
 
 public class InstallProposalBuilder extends ProposalBuilder {
@@ -88,7 +90,7 @@ public class InstallProposalBuilder extends ProposalBuilder {
     }
 
     @Override
-    public FabricProposal.Proposal build() throws ProposalException, CryptoException {
+    public Proposal build() throws ProposalException, CryptoException {
 
         constructInstallProposal();
         return super.build();

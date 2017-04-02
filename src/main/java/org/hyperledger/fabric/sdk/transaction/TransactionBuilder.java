@@ -17,33 +17,38 @@ package org.hyperledger.fabric.sdk.transaction;
 import java.util.Arrays;
 import java.util.Collection;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
-import org.hyperledger.fabric.protos.peer.FabricTransaction;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.ChaincodeProposalPayload;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.Proposal;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage.Endorsement;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.ChaincodeActionPayload;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.ChaincodeEndorsedAction;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.Transaction;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.TransactionAction;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 
 public class TransactionBuilder {
 
     private final static Log logger = LogFactory.getLog(TransactionBuilder.class);
-    private FabricProposal.Proposal chaincodeProposal;
-    private Collection<FabricProposalResponse.Endorsement> endorsements;
+    private Proposal chaincodeProposal;
+    private Collection<Endorsement> endorsements;
     private ByteString proposalResponsePayload;
 
     public static TransactionBuilder newBuilder() {
         return new TransactionBuilder();
     }
 
-    public TransactionBuilder chaincodeProposal(FabricProposal.Proposal chaincodeProposal) {
+    public TransactionBuilder chaincodeProposal(Proposal chaincodeProposal) {
         this.chaincodeProposal = chaincodeProposal;
         return this;
     }
 
-    public TransactionBuilder endorsements(Collection<FabricProposalResponse.Endorsement> endorsements) {
+    public TransactionBuilder endorsements(Collection<Endorsement> endorsements) {
         this.endorsements = endorsements;
         return this;
     }
@@ -61,27 +66,27 @@ public class TransactionBuilder {
     }
 
 
-    private Common.Payload createTransactionCommonPayload(FabricProposal.Proposal chaincodeProposal,  ByteString proposalResponsePayload,
-                                                          Collection<FabricProposalResponse.Endorsement> endorsements) throws InvalidProtocolBufferException {
+    private Common.Payload createTransactionCommonPayload(Proposal chaincodeProposal,  ByteString proposalResponsePayload,
+                                                          Collection<Endorsement> endorsements) throws InvalidProtocolBufferException {
 
 
-        FabricTransaction.ChaincodeEndorsedAction.Builder chaincodeEndorsedActionBuilder = FabricTransaction.ChaincodeEndorsedAction.newBuilder();
+        ChaincodeEndorsedAction.Builder chaincodeEndorsedActionBuilder = ChaincodeEndorsedAction.newBuilder();
         chaincodeEndorsedActionBuilder.setProposalResponsePayload(proposalResponsePayload);
         chaincodeEndorsedActionBuilder.addAllEndorsements(endorsements);
 
         //ChaincodeActionPayload
-        FabricTransaction.ChaincodeActionPayload.Builder chaincodeActionPayloadBuilder = FabricTransaction.ChaincodeActionPayload.newBuilder();
+        ChaincodeActionPayload.Builder chaincodeActionPayloadBuilder = ChaincodeActionPayload.newBuilder();
         chaincodeActionPayloadBuilder.setAction(chaincodeEndorsedActionBuilder.build());
 
         //We need to remove any transient fields - they are not part of what the peer uses to calculate hash.
-        FabricProposal.ChaincodeProposalPayload.Builder chaincodeProposalPayloadNoTransBuilder = FabricProposal.ChaincodeProposalPayload.newBuilder();
+        ChaincodeProposalPayload.Builder chaincodeProposalPayloadNoTransBuilder = ChaincodeProposalPayload.newBuilder();
         chaincodeProposalPayloadNoTransBuilder.mergeFrom(chaincodeProposal.getPayload());
        // chaincodeProposalPayloadNoTransBuilder.clearTransient();
 
        // chaincodeActionPayloadBuilder.setChaincodeProposalPayload(chaincodeProposalPayloadNoTransBuilder.build().toByteString());
         chaincodeActionPayloadBuilder.setChaincodeProposalPayload(chaincodeProposal.getPayload());
 
-        FabricTransaction.TransactionAction.Builder transactionActionBuilder = FabricTransaction.TransactionAction.newBuilder();
+        TransactionAction.Builder transactionActionBuilder = TransactionAction.newBuilder();
 
         Common.Header header = Common.Header.parseFrom(chaincodeProposal.getHeader());
 
@@ -90,12 +95,12 @@ public class TransactionBuilder {
 
         transactionActionBuilder.setHeader(header.getSignatureHeader());
 
-        FabricTransaction.ChaincodeActionPayload chaincodeActionPayload = chaincodeActionPayloadBuilder.build();
+        ChaincodeActionPayload chaincodeActionPayload = chaincodeActionPayloadBuilder.build();
         logger.trace("transactionActionBuilder.setPayload" + Arrays.toString(chaincodeActionPayload.toByteString().toByteArray()));
         transactionActionBuilder.setPayload(chaincodeActionPayload.toByteString());
 
         //Transaction
-        FabricTransaction.Transaction.Builder transactionBuilder = FabricTransaction.Transaction.newBuilder();
+        Transaction.Builder transactionBuilder = Transaction.newBuilder();
         transactionBuilder.addActions(transactionActionBuilder.build());
 
 

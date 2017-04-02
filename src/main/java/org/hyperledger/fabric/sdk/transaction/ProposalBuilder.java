@@ -27,9 +27,9 @@ import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInvocationSpec;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeHeaderExtension;
-import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeProposalPayload;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.ChaincodeHeaderExtension;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.ChaincodeProposalPayload;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.Proposal;
 import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
@@ -103,14 +103,14 @@ public class ProposalBuilder {
     }
 
 
-    public FabricProposal.Proposal build() throws CryptoException, ProposalException {
+    public Proposal build() throws CryptoException, ProposalException {
         if (request != null && request.noChainID())
             chainID = "";
         return createFabricProposal(chainID, chaincodeID);
     }
 
 
-    private FabricProposal.Proposal createFabricProposal(String chainID, Chaincode.ChaincodeID chaincodeID) throws CryptoException {
+    private Proposal createFabricProposal(String chainID, Chaincode.ChaincodeID chaincodeID) throws CryptoException {
 
 
         ChaincodeHeaderExtension chaincodeHeaderExtension = ChaincodeHeaderExtension.newBuilder()
@@ -136,7 +136,7 @@ public class ProposalBuilder {
                 .setChannelHeader(chainHeader.toByteString())
                 .build();
 
-        return FabricProposal.Proposal.newBuilder()
+        return Proposal.newBuilder()
                 .setHeader(header.toByteString())
                 .setPayload(payload.toByteString())
                 .build();

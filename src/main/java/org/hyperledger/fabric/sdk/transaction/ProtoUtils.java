@@ -24,7 +24,7 @@ import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type;
-import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeHeaderExtension;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.ChaincodeHeaderExtension;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 

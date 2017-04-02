@@ -2,23 +2,27 @@ package org.hyperledger.fabric.sdk;
 
 import javax.xml.bind.DatatypeConverter;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.protos.peer.Chaincode;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.ChaincodeProposalPayload;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.Proposal;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.SignedProposal;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage.Endorsement;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 public class ProposalResponse extends ChainCodeResponse {
 
     private static final Log logger = LogFactory.getLog(ProposalResponse.class);
 
-    private FabricProposal.SignedProposal signedProposal;
+    private SignedProposal signedProposal;
 
     private boolean isVerified = false;
 
@@ -48,7 +52,7 @@ public class ProposalResponse extends ChainCodeResponse {
             // by client code
             return isVerified();
 
-        FabricProposalResponse.Endorsement endorsement = this.proposalResponse.getEndorsement();
+        Endorsement endorsement = this.proposalResponse.getEndorsement();
         ByteString sig = endorsement.getSignature();
 
         try {
@@ -71,30 +75,30 @@ public class ProposalResponse extends ChainCodeResponse {
         return this.isVerified;
     } // verify
 
-    private  FabricProposal.Proposal proposal;
+    private  Proposal proposal;
 
-    public FabricProposal.Proposal getProposal() {
+    public Proposal getProposal() {
         return proposal;
     }
 
-    public FabricProposalResponse.ProposalResponse getProposalResponse() {
+    public ProposalResponsePackage.ProposalResponse getProposalResponse() {
         return proposalResponse;
     }
 
-    private FabricProposalResponse.ProposalResponse proposalResponse;
+    private ProposalResponsePackage.ProposalResponse proposalResponse;
 
-    public void setProposal(FabricProposal.SignedProposal signedProposal) throws ProposalException {
+    public void setProposal(SignedProposal signedProposal) throws ProposalException {
 
         try {
             this.signedProposal = signedProposal;
-            this.proposal = FabricProposal.Proposal.parseFrom(signedProposal.getProposalBytes());
+            this.proposal = Proposal.parseFrom(signedProposal.getProposalBytes());
         } catch (InvalidProtocolBufferException e) {
             throw new ProposalException("Proposal exception", e);
 
         }
     }
 
-    public void setProposalResponse(FabricProposalResponse.ProposalResponse proposalResponse) {
+    public void setProposalResponse(ProposalResponsePackage.ProposalResponse proposalResponse) {
         this.proposalResponse = proposalResponse;
     }
 
@@ -121,7 +125,7 @@ public class ProposalResponse extends ChainCodeResponse {
 
         Chaincode.ChaincodeID chaincodeID = null; // TODO NEED to clean up
         try {
-            FabricProposal.ChaincodeProposalPayload ppl = FabricProposal.ChaincodeProposalPayload
+            ChaincodeProposalPayload ppl = ChaincodeProposalPayload
                     .parseFrom(proposal.getPayload());
             Chaincode.ChaincodeInvocationSpec ccis = Chaincode.ChaincodeInvocationSpec.parseFrom(ppl.getInput());
             Chaincode.ChaincodeSpec scs = ccis.getChaincodeSpec();

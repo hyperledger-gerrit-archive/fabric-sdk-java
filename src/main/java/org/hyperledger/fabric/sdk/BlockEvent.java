@@ -14,7 +14,6 @@
 package org.hyperledger.fabric.sdk;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
@@ -27,8 +26,8 @@ import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
 import org.hyperledger.fabric.protos.common.Common.Payload;
-import org.hyperledger.fabric.protos.peer.FabricTransaction.Transaction;
-import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.Transaction;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.TxValidationCode;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;

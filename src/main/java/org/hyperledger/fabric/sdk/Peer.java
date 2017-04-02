@@ -21,8 +21,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.SignedProposal;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
 
@@ -132,7 +132,7 @@ public class Peer {
         return Objects.equals(getName(), p.getName()) && Objects.equals(getUrl(), p.getUrl());
     }
 
-    ListenableFuture<FabricProposalResponse.ProposalResponse> sendProposalAsync(FabricProposal.SignedProposal proposal)
+    ListenableFuture<ProposalResponsePackage.ProposalResponse> sendProposalAsync(SignedProposal proposal)
             throws PeerException, InvalidArgumentException {
         checkSendProposal(proposal);
 
@@ -141,7 +141,7 @@ public class Peer {
         return endorserClent.sendProposalAsync(proposal);
     }
 
-    FabricProposalResponse.ProposalResponse sendProposal(FabricProposal.SignedProposal proposal)
+    ProposalResponsePackage.ProposalResponse sendProposal(SignedProposal proposal)
             throws PeerException, InvalidArgumentException {
         checkSendProposal(proposal);
 
@@ -150,7 +150,7 @@ public class Peer {
         return endorserClent.sendProposal(proposal);
     }
 
-    private void checkSendProposal(FabricProposal.SignedProposal proposal) throws PeerException, InvalidArgumentException {
+    private void checkSendProposal(SignedProposal proposal) throws PeerException, InvalidArgumentException {
         if (proposal == null) {
             throw new PeerException("Proposal is null");
         }

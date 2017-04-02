@@ -14,20 +14,10 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
-import org.hyperledger.fabric.protos.peer.Chaincode;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.sdk.exception.CryptoException;
-import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.helper.Config;
-import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
-import org.hyperledger.fabric.sdk.transaction.TransactionContext;
-
-import com.google.protobuf.ByteString;
 
 /**
  * A base transaction request common for InstallProposalRequest, InvokeRequest, and QueryRequest.

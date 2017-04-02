@@ -13,10 +13,13 @@
  */
 package org.hyperledger.fabric.sdk;
 
-import static java.nio.charset.StandardCharsets.*;
-import static org.junit.Assert.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.hyperledger.fabric.protos.common.Common.Block;
@@ -27,7 +30,7 @@ import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
 import org.hyperledger.fabric.protos.common.Common.Payload;
-import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.TxValidationCode;
 import org.junit.BeforeClass;
 import org.junit.Test;
 

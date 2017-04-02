@@ -14,8 +14,8 @@
 package org.hyperledger.fabric.sdk;
 
 import org.hyperledger.fabric.protos.common.Common.Envelope;
-import org.hyperledger.fabric.protos.peer.FabricTransaction.ProcessedTransaction;
-import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.ProcessedTransaction;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.TxValidationCode;
 
 /**
  * TransactionInfo contains the data from a {@link ProcessedTransaction} message

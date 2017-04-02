@@ -22,12 +22,9 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-//import org.hyperledger.protos.peer.Chaincode.ChaincodeSecurityContext;
-//import org.hyperledger.protos.peer.TableProto;
-import org.hyperledger.fabric.protos.peer.Chaincode;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Response;
+import org.hyperledger.fabric.protos.peer.ChaincodeShim.QueryStateKeyValue;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage.Response;
 import org.hyperledger.fabric.sdk.shim.crypto.signature.EcdsaSignatureVerifier;
-import org.hyperledger.fabric.protos.peer.Chaincodeshim;
 
 import com.google.protobuf.ByteString;
 
@@ -109,7 +106,7 @@ public class ChaincodeStub {
      */
     public Map<String, ByteString> rangeQueryRawState(String startKey, String endKey) {
         Map<String, ByteString> map = new HashMap<>();
-        for (Chaincodeshim.QueryStateKeyValue mapping : handler.handleRangeQueryState(
+        for (QueryStateKeyValue mapping : handler.handleRangeQueryState(
                 startKey, endKey, uuid).getKeysAndValuesList()) {
             map.put(mapping.getKey(), mapping.getValue());
         }

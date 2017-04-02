@@ -16,7 +16,7 @@ package org.hyperledger.fabric.sdk.shim;
 
 import com.google.protobuf.ByteString;
 import org.hyperledger.fabric.protos.common.Common;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Response;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage.Response;
 
 
 public class ChaincodeResponseHelper {

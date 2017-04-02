@@ -14,6 +14,12 @@
 
 package org.hyperledger.fabric.sdk;
 
+import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -38,9 +44,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import io.grpc.StatusRuntimeException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -49,15 +52,22 @@ import org.hyperledger.fabric.protos.common.Common.BlockMetadata;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
+import org.hyperledger.fabric.protos.common.Common.HeaderType;
 import org.hyperledger.fabric.protos.common.Common.LastConfig;
 import org.hyperledger.fabric.protos.common.Common.Metadata;
 import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.common.Common.SignatureHeader;
+import org.hyperledger.fabric.protos.common.Common.Status;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigEnvelope;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigGroup;
+import org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
 import org.hyperledger.fabric.protos.common.Ledger;
 import org.hyperledger.fabric.protos.common.Policies.Policy;
+import org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
+import org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvelope;
 import org.hyperledger.fabric.protos.msp.Identities;
-import org.hyperledger.fabric.protos.msp.Mspconfig;
+import org.hyperledger.fabric.protos.msp.MspConfigPackage.FabricMSPConfig;
+import org.hyperledger.fabric.protos.msp.MspConfigPackage.MSPConfig;
 import org.hyperledger.fabric.protos.orderer.Ab;
 import org.hyperledger.fabric.protos.orderer.Ab.BroadcastResponse;
 import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
@@ -66,11 +76,13 @@ import org.hyperledger.fabric.protos.orderer.Ab.SeekPosition;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekSpecified;
 import org.hyperledger.fabric.protos.peer.Configuration.AnchorPeer;
 import org.hyperledger.fabric.protos.peer.Configuration.AnchorPeers;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
-import org.hyperledger.fabric.protos.peer.FabricTransaction.ProcessedTransaction;
-import org.hyperledger.fabric.protos.peer.PeerEvents.Event.EventCase;
+import org.hyperledger.fabric.protos.peer.EventsPackage.Event;
+import org.hyperledger.fabric.protos.peer.EventsPackage.Event.EventCase;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.Proposal;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.SignedProposal;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage.Endorsement;
+import org.hyperledger.fabric.protos.peer.TransactionPackage.ProcessedTransaction;
 import org.hyperledger.fabric.sdk.BlockEvent.TransactionEvent;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
@@ -90,18 +102,10 @@ import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 import org.hyperledger.fabric.sdk.transaction.UpgradeProposalBuilder;
 
-import static java.lang.String.format;
-import static org.hyperledger.fabric.protos.common.Common.HeaderType;
-import static org.hyperledger.fabric.protos.common.Common.SignatureHeader;
-import static org.hyperledger.fabric.protos.common.Common.Status;
-import static org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
-import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
-import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvelope;
-import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
-import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+
+import io.grpc.StatusRuntimeException;
 
 
 /**
@@ -276,7 +280,7 @@ public class Chain {
             TransactionContext transactionContext = getTransactionContext();
             transactionContext.verify(false); // not targeted to a chain does not seem to be signed.
 
-            FabricProposal.Proposal joinProposal = JoinPeerProposalBuilder.newBuilder()
+            Proposal joinProposal = JoinPeerProposalBuilder.newBuilder()
                     .context(transactionContext)
                     .genesisBlock(genesisBlock)
                     .build();
@@ -659,12 +663,12 @@ public class Chain {
 
     class MSP {
         final String orgName;
-        final Mspconfig.FabricMSPConfig fabricMSPConfig;
+        final FabricMSPConfig fabricMSPConfig;
         byte[][] adminCerts;
         byte[][] rootCerts;
         byte[][] intermediateCerts;
 
-        MSP(String orgName, Mspconfig.FabricMSPConfig fabricMSPConfig) {
+        MSP(String orgName, FabricMSPConfig fabricMSPConfig) {
             this.orgName = orgName;
             this.fabricMSPConfig = fabricMSPConfig;
         }
@@ -800,9 +804,9 @@ public class Chain {
         if (null != mspv) {
             if (!msps.containsKey(name)) {
 
-                Mspconfig.MSPConfig mspConfig = Mspconfig.MSPConfig.parseFrom(mspv.getValue());
+                MSPConfig mspConfig = MSPConfig.parseFrom(mspv.getValue());
 
-                Mspconfig.FabricMSPConfig fabricMSPConfig = Mspconfig.FabricMSPConfig.parseFrom(mspConfig.getConfig());
+                FabricMSPConfig fabricMSPConfig = FabricMSPConfig.parseFrom(mspConfig.getConfig());
 
                 msps.put(name, new MSP(name, fabricMSPConfig));
 
@@ -1086,7 +1090,7 @@ public class Chain {
             instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
             instantiateProposalbuilder.chaincodEndorsementPolicy(instantiateProposalRequest.getChaincodeEndorsementPolicy());
 
-            FabricProposal.Proposal instantiateProposal = instantiateProposalbuilder.build();
+            Proposal instantiateProposal = instantiateProposalbuilder.build();
             SignedProposal signedProposal = getSignedProposal(instantiateProposal);
 
 
@@ -1137,7 +1141,7 @@ public class Chain {
             installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
             installProposalbuilder.setChaincodeSource(installProposalRequest.getChaincodeSourceLocation());
 
-            FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
+            Proposal deploymentProposal = installProposalbuilder.build();
             SignedProposal signedProposal = getSignedProposal(deploymentProposal);
 
 
@@ -1181,7 +1185,7 @@ public class Chain {
             upgradeProposalBuilder.chaincodeVersion(upgradeProposalRequest.getChaincodeVersion());
             upgradeProposalBuilder.chaincodEndorsementPolicy(upgradeProposalRequest.getChaincodeEndorsementPolicy());
 
-            FabricProposal.Proposal updradeProposal = upgradeProposalBuilder.build();
+            Proposal updradeProposal = upgradeProposalBuilder.build();
             SignedProposal signedProposal = getSignedProposal(updradeProposal);
 
 
@@ -1192,7 +1196,7 @@ public class Chain {
     }
 
 
-    private SignedProposal getSignedProposal(FabricProposal.Proposal proposal) throws CryptoException {
+    private SignedProposal getSignedProposal(Proposal proposal) throws CryptoException {
         byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), proposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
@@ -1203,7 +1207,7 @@ public class Chain {
         return signedProposal.build();
     }
 
-    private SignedProposal signTransActionEnvelope(FabricProposal.Proposal deploymentProposal) throws CryptoException {
+    private SignedProposal signTransActionEnvelope(Proposal deploymentProposal) throws CryptoException {
         byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), deploymentProposal.toByteArray());
         SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
 
@@ -1617,9 +1621,9 @@ public class Chain {
 
         class Pair {
             private final Peer peer;
-            private final Future<FabricProposalResponse.ProposalResponse> future;
+            private final Future<ProposalResponsePackage.ProposalResponse> future;
 
-            private Pair(Peer peer, Future<FabricProposalResponse.ProposalResponse> future) {
+            private Pair(Peer peer, Future<ProposalResponsePackage.ProposalResponse> future) {
                 this.peer = peer;
                 this.future = future;
             }
@@ -1631,7 +1635,7 @@ public class Chain {
 
         Collection<ProposalResponse> proposalResponses = new ArrayList<>();
         for (Pair peerFuturePair : peerFuturePairs) {
-            FabricProposalResponse.ProposalResponse fabricResponse = null;
+            ProposalResponsePackage.ProposalResponse fabricResponse = null;
             String message;
             int status;
             try {
@@ -1712,8 +1716,8 @@ public class Chain {
             }
 
 
-            List<FabricProposalResponse.Endorsement> ed = new LinkedList<>();
-            FabricProposal.Proposal proposal = null;
+            List<Endorsement> ed = new LinkedList<>();
+            Proposal proposal = null;
             ByteString proposalResponsePayload = null;
             String proposalTransactionID = null;
 

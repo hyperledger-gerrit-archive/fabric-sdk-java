@@ -66,7 +66,7 @@ public class End2endIT {
 
     private final int gossipWaitTime = testConfig.getGossipWaitTime();
 
-    private static final String CHAIN_CODE_NAME = "example_cc.go";
+    private static final String CHAIN_CODE_NAME = "example_cc-go";
     private static final String CHAIN_CODE_PATH = "github.com/example_cc";
     private static final String CHAIN_CODE_VERSION = "1.0";
 

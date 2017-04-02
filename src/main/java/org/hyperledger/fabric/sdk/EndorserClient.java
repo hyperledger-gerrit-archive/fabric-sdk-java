@@ -14,19 +14,20 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.peer.EndorserGrpc;
+import org.hyperledger.fabric.protos.peer.ProposalPackage.SignedProposal;
+import org.hyperledger.fabric.protos.peer.ProposalResponsePackage;
+import org.hyperledger.fabric.sdk.exception.PeerException;
+
 import com.google.common.util.concurrent.ListenableFuture;
+
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.sdk.exception.PeerException;
-import org.hyperledger.fabric.protos.peer.EndorserGrpc;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
-
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * Sample client code that makes gRPC calls to the server.
@@ -52,11 +53,11 @@ public class EndorserClient {
 		channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
 	}
 
-    public ListenableFuture<FabricProposalResponse.ProposalResponse> sendProposalAsync(FabricProposal.SignedProposal proposal) {
+    public ListenableFuture<ProposalResponsePackage.ProposalResponse> sendProposalAsync(SignedProposal proposal) {
         return futureStub.processProposal(proposal);
     }
 
-    public FabricProposalResponse.ProposalResponse sendProposal(FabricProposal.SignedProposal proposal) throws PeerException {
+    public ProposalResponsePackage.ProposalResponse sendProposal(SignedProposal proposal) throws PeerException {
 
 
 		try {
