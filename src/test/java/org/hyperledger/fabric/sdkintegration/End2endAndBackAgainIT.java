@@ -15,7 +15,6 @@
 package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.Hashtable;
@@ -268,8 +267,9 @@ public class End2endAndBackAgainIT {
 
                 ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = null;
                 try {
-                    chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy(new File(TEST_FIXTURES_PATH + "/sdkintegration/e2e-2Orgs/channel/members_from_org1_or_2.policy"));
-                } catch (IOException e) {
+                    chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy();
+                    chaincodeEndorsementPolicy.fromYamlFile(new File(TEST_FIXTURES_PATH + "/sdkintegration/chaincodeendorsementpolicy.yaml"));
+                } catch (Exception e) {
                     throw new AssertionError(e);
                 }
                 upgradeProposalRequest.setChaincodeEndorsementPolicy(chaincodeEndorsementPolicy);
