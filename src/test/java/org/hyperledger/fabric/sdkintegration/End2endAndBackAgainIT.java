@@ -272,8 +272,9 @@ public class End2endAndBackAgainIT {
 
                 ChaincodeEndorsementPolicy chaincodeEndorsementPolicy;
                 try {
-                    chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy(new File(TEST_FIXTURES_PATH + "/sdkintegration/e2e-2Orgs/channel/members_from_org1_or_2.policy"));
-                } catch (IOException e) {
+                    chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy();
+                    chaincodeEndorsementPolicy.fromYamlFile(new File(TEST_FIXTURES_PATH + "/sdkintegration/chaincodeendorsementpolicy.yaml"));
+                } catch (Exception e) {
                     throw new CompletionException(e);
                 }
                 upgradeProposalRequest.setChaincodeEndorsementPolicy(chaincodeEndorsementPolicy);
