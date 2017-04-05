@@ -28,8 +28,10 @@ import javax.net.ssl.SSLException;
 
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslProvider;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -93,7 +95,6 @@ class Endpoint {
                             cnCache.put(cnKey, cn);
                         }
 
-
                     }
                 } catch (Exception e) {
                     /// Mostly a development env. just log it.
@@ -115,10 +116,13 @@ class Endpoint {
             } else {
                 try {
 
-
-                    SslContext sslContext = GrpcSslContexts.forClient().trustManager(new java.io.File(pem)).build();
+                    SslContext sslContext = GrpcSslContexts.forClient()
+                            .trustManager(new java.io.File(pem))
+                            .sslProvider(SslProvider.OPENSSL)
+                            .build();
                     this.channelBuilder = NettyChannelBuilder.forAddress(addr, port)
-                            .sslContext(sslContext);
+                            .sslContext(sslContext)
+                            .negotiationType(NegotiationType.TLS);
                     if (cn != null) {
                         channelBuilder.overrideAuthority(cn);
                     }
