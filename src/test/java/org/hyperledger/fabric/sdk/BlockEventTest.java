@@ -13,12 +13,10 @@
  */
 package org.hyperledger.fabric.sdk;
 
-import static java.nio.charset.StandardCharsets.*;
-import static org.junit.Assert.*;
-
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.common.Common.BlockData;
 import org.hyperledger.fabric.protos.common.Common.BlockHeader;
@@ -31,8 +29,12 @@ import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class BlockEventTest {
     private static Block block, badBlock ;

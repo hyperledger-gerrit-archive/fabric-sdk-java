@@ -14,12 +14,9 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.io.File;
-
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class ChainTest {

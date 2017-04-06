@@ -23,8 +23,8 @@ import org.bouncycastle.crypto.digests.SHA3Digest;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.junit.Assert;
-import org.junit.Test;
 import org.junit.Ignore;
+import org.junit.Test;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
