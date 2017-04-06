@@ -31,7 +31,6 @@ import org.hyperledger.fabric.protos.common.Policies;
 import org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
 import org.hyperledger.fabric.protos.msp.MspPrincipal.MSPPrincipal;
 import org.hyperledger.fabric.protos.msp.MspPrincipal.MSPRole;
-
 import org.hyperledger.fabric.sdk.exception.ChaincodeEndorsementPolicyParseException;
 import org.yaml.snakeyaml.Yaml;
 
@@ -98,7 +97,7 @@ public class ChaincodeEndorsementPolicy {
                     }
                     if (((List) vo).size() < matchNo) {
 
-                        throw new ChaincodeEndorsementPolicyParseException(format("%s expected to have at least %d to match found %d.", key, matchNo, ((List) vo).size()));
+                        throw new ChaincodeEndorsementPolicyParseException(format("%s expected to have at least %d items to match but only found %d.", key, matchNo, ((List) vo).size()));
                     }
 
                     SignaturePolicy.NOutOf.Builder spBuilder = SignaturePolicy.NOutOf.newBuilder()
