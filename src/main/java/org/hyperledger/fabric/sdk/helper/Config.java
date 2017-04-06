@@ -13,13 +13,13 @@
  */
 package org.hyperledger.fabric.sdk.helper;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 /**
  * Config allows for a global config of the toolkit. Central location for all

@@ -14,9 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.util.ArrayList;
-import java.util.Properties;
-
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 import io.netty.util.internal.StringUtil;
@@ -26,6 +23,9 @@ import org.hyperledger.fabric.protos.peer.EventsGrpc;
 import org.hyperledger.fabric.protos.peer.PeerEvents;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+
+import java.util.ArrayList;
+import java.util.Properties;
 
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 

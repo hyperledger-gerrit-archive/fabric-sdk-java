@@ -14,10 +14,10 @@
 
 package org.hyperledger.fabric_ca.sdk;
 
-import java.net.MalformedURLException;
-
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.net.MalformedURLException;
 
 public class HFCAClientTest {
     public static class MemberServicesFabricCAImplTest {

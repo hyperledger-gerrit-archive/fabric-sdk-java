@@ -14,9 +14,6 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,6 +29,9 @@ import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeHeaderExtensio
 import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeProposalPayload;
 import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;

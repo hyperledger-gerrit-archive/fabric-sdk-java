@@ -14,10 +14,10 @@
 
 package org.hyperledger.fabric.sdk;
 
+import org.hyperledger.fabric.sdk.helper.Config;
+
 import java.util.ArrayList;
 import java.util.Arrays;
-
-import org.hyperledger.fabric.sdk.helper.Config;
 
 /**
  * A base transaction request common for InstallProposalRequest,trRequest, and QueryRequest.

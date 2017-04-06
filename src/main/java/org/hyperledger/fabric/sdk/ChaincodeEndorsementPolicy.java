@@ -14,6 +14,15 @@
 
 package org.hyperledger.fabric.sdk;
 
+import io.netty.util.internal.StringUtil;
+import org.apache.commons.io.IOUtils;
+import org.hyperledger.fabric.protos.common.Policies;
+import org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
+import org.hyperledger.fabric.protos.msp.MspPrincipal.MSPPrincipal;
+import org.hyperledger.fabric.protos.msp.MspPrincipal.MSPRole;
+import org.hyperledger.fabric.sdk.exception.ChaincodeEndorsementPolicyParseException;
+import org.yaml.snakeyaml.Yaml;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -24,16 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.netty.util.internal.StringUtil;
-import org.apache.commons.io.IOUtils;
-import org.hyperledger.fabric.protos.common.Policies;
-import org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
-import org.hyperledger.fabric.protos.msp.MspPrincipal.MSPPrincipal;
-import org.hyperledger.fabric.protos.msp.MspPrincipal.MSPRole;
-
-import org.hyperledger.fabric.sdk.exception.ChaincodeEndorsementPolicyParseException;
-import org.yaml.snakeyaml.Yaml;
 
 import static java.lang.String.format;
 

@@ -14,12 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.util.List;
-
 import org.apache.commons.compress.utils.IOUtils;
 import org.hyperledger.fabric.protos.common.Policies;
 import org.hyperledger.fabric.protos.common.Policies.SignaturePolicy.TypeCase;
@@ -28,6 +22,12 @@ import org.hyperledger.fabric.protos.msp.MspPrincipal;
 import org.hyperledger.fabric.protos.msp.MspPrincipal.MSPPrincipal;
 import org.hyperledger.fabric.sdk.exception.ChaincodeEndorsementPolicyParseException;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.List;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertArrayEquals;

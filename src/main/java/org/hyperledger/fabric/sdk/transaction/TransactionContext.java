@@ -14,10 +14,6 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import java.nio.Buffer;
-import java.time.Instant;
-import java.util.List;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import org.apache.commons.codec.binary.Hex;
@@ -37,6 +33,10 @@ import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+
+import java.nio.Buffer;
+import java.time.Instant;
+import java.util.List;
 
 
 /**

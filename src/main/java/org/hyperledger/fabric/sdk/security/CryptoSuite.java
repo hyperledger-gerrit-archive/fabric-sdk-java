@@ -13,14 +13,14 @@
  */
 package org.hyperledger.fabric.sdk.security;
 
-import java.security.cert.Certificate;
-import java.security.KeyPair;
-import java.security.PrivateKey;
-import java.util.Collection;
-import java.util.Properties;
-
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.util.Collection;
+import java.util.Properties;
 
 /**
  * All packages for PKI key creation/signing/verification implement this interface

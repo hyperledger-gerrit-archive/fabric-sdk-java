@@ -13,18 +13,18 @@
  */
 package org.hyperledger.fabric.sdk;
 
+import org.bouncycastle.crypto.digests.SHA3Digest;
+import org.bouncycastle.util.encoders.Hex;
+import org.hyperledger.fabric.sdk.helper.SDKUtil;
+import org.junit.Assert;
+import org.junit.Ignore;
+import org.junit.Test;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.bouncycastle.crypto.digests.SHA3Digest;
-import org.bouncycastle.util.encoders.Hex;
-import org.hyperledger.fabric.sdk.helper.SDKUtil;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.Ignore;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 

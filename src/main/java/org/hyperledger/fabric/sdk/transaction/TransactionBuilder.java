@@ -14,9 +14,6 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
-import java.util.Arrays;
-import java.util.Collection;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
@@ -25,6 +22,9 @@ import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.protos.peer.FabricTransaction;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 
 public class TransactionBuilder {

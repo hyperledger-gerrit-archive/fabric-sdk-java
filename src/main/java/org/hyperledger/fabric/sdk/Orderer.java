@@ -15,8 +15,6 @@
 package org.hyperledger.fabric.sdk;
 
 
-import java.util.Properties;
-
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,6 +23,8 @@ import org.hyperledger.fabric.protos.orderer.Ab;
 import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
+
+import java.util.Properties;
 
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 

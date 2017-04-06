@@ -1,7 +1,5 @@
 package org.hyperledger.fabric.sdk;
 
-import javax.xml.bind.DatatypeConverter;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
@@ -13,6 +11,8 @@ import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+
+import javax.xml.bind.DatatypeConverter;
 
 public class ProposalResponse extends ChainCodeResponse {
 

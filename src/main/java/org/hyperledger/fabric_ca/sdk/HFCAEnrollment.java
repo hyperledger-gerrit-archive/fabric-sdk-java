@@ -14,11 +14,11 @@
 
 package org.hyperledger.fabric_ca.sdk;
 
+import org.hyperledger.fabric.sdk.Enrollment;
+
 import java.io.Serializable;
 import java.security.KeyPair;
 import java.security.PrivateKey;
-
-import org.hyperledger.fabric.sdk.Enrollment;
 
 // Enrollment metadata
 public class HFCAEnrollment implements Enrollment, Serializable {

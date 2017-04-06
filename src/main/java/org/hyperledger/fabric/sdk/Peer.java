@@ -14,9 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.util.Objects;
-import java.util.Properties;
-
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
@@ -25,6 +22,9 @@ import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
+
+import java.util.Objects;
+import java.util.Properties;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;

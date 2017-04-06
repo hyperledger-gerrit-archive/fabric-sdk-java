@@ -13,10 +13,8 @@
  */
 package org.hyperledger.fabric.sdk;
 
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.List;
-
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.Block;
@@ -30,8 +28,8 @@ import org.hyperledger.fabric.protos.common.Common.Payload;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.Transaction;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A wrapper for the Block returned in an Event

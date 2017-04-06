@@ -16,7 +16,6 @@ limitations under the License.
 
 package org.hyperledger.fabric.sdk.shim;
 
-import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
@@ -30,12 +29,11 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
-import org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage;
-import org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type;
 import org.hyperledger.fabric.protos.peer.ChaincodeSupportGrpc;
 import org.hyperledger.fabric.protos.peer.ChaincodeSupportGrpc.ChaincodeSupportStub;
+import org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage;
+import org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
-import org.hyperledger.fabric.sdk.ChainCodeResponse;
 
 import javax.net.ssl.SSLException;
 import java.io.File;

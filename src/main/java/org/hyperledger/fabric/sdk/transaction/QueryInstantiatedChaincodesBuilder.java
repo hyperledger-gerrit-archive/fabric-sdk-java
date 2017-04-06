@@ -15,11 +15,11 @@
 package org.hyperledger.fabric.sdk.transaction;
 
 
+import com.google.protobuf.ByteString;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.google.protobuf.ByteString;
 
 public class QueryInstantiatedChaincodesBuilder extends LCCCProposalBuilder {
 

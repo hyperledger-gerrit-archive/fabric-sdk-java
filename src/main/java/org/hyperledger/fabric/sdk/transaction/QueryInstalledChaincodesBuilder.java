@@ -15,13 +15,13 @@
 package org.hyperledger.fabric.sdk.transaction;
 
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-
 import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 public class QueryInstalledChaincodesBuilder extends LCCCProposalBuilder {
     private static final Log logger = LogFactory.getLog(QueryInstalledChaincodesBuilder.class);
