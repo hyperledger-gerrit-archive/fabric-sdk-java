@@ -12,9 +12,6 @@
 
 package org.hyperledger.fabric_ca.sdkintegration;
 
-import java.io.File;
-import java.net.MalformedURLException;
-
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
@@ -26,6 +23,9 @@ import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.File;
+import java.net.MalformedURLException;
 
 import static org.junit.Assert.fail;
 

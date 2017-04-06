@@ -14,17 +14,6 @@
 
 package org.hyperledger.fabric.sdkintegration;
 
-import java.io.File;
-import java.net.MalformedURLException;
-import java.util.Collection;
-import java.util.Hashtable;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
-
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.Chain;
@@ -48,6 +37,17 @@ import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.File;
+import java.net.MalformedURLException;
+import java.util.Collection;
+import java.util.Hashtable;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;

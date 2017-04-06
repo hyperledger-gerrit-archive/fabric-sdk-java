@@ -14,15 +14,12 @@
 
 package org.hyperledger.fabric.sdk.helper;
 
-import static org.junit.Assert.assertEquals;
-
-import java.util.Properties;
-
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class ConfigTest {
 

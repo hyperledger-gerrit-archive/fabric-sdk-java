@@ -20,16 +20,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-//import org.hyperledger.protos.peer.Chaincode.ChaincodeSecurityContext;
-//import org.hyperledger.protos.peer.TableProto;
-import org.hyperledger.fabric.protos.peer.Chaincode;
+import org.hyperledger.fabric.protos.peer.Chaincodeshim;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Response;
 import org.hyperledger.fabric.sdk.shim.crypto.signature.EcdsaSignatureVerifier;
-import org.hyperledger.fabric.protos.peer.Chaincodeshim;
 
-import com.google.protobuf.ByteString;
+//import org.hyperledger.protos.peer.Chaincode.ChaincodeSecurityContext;
+//import org.hyperledger.protos.peer.TableProto;
 
 //import static org.hyperledger.protos.TableProto.ColumnDefinition.Type.STRING;
 
