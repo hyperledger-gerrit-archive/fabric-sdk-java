@@ -46,58 +46,58 @@ public class ClientTest {
             Assert.fail("Unexpected Exception " + e.getMessage());
         }
     }
-    
-    @Test
-	public void testSetNullChain() {
-		try {
-			Chain testChain = hfclient.newChain(null);
-			Assert.fail("Expected null chain to throw exception.");
 
-		} catch (Exception e) {
-			Assert.assertTrue( e.getClass() == InvalidArgumentException.class);
-		}
-	}
+    @Test
+    public void testSetNullChain() {
+        try {
+            Chain testChain = hfclient.newChain(null);
+            Assert.fail("Expected null chain to throw exception.");
+
+        } catch (Exception e) {
+            Assert.assertTrue(e.getClass() == InvalidArgumentException.class);
+        }
+    }
 
     @Test
     public void testNewPeer() {
         try {
-            Peer peer = hfclient.newPeer("peer_" , "grpc://localhost:7051");
+            Peer peer = hfclient.newPeer("peer_", "grpc://localhost:7051");
             Assert.assertTrue(peer != null);
         } catch (Exception e) {
             e.printStackTrace();
             Assert.fail("Unexpected Exception " + e.getMessage());
         }
     }
-    
+
     @Test
-	public void testBadURL() {
-		try {
-			Peer peer = hfclient.newPeer("peer_", " ");
-			Assert.fail("Expected peer with no chain throw exception");
-		} catch (Exception e) {
-			Assert.assertTrue( e.getClass() == InvalidArgumentException.class);
-		}
-	}
+    public void testBadURL() {
+        try {
+            Peer peer = hfclient.newPeer("peer_", " ");
+            Assert.fail("Expected peer with no chain throw exception");
+        } catch (Exception e) {
+            Assert.assertTrue(e.getClass() == InvalidArgumentException.class);
+        }
+    }
 
     @Test
     public void testNewOrderer() {
-    	try {
+        try {
             Orderer orderer = hfclient.newOrderer("xx", "grpc://localhost:5005");
             Assert.assertTrue(orderer != null);
-    	} catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Unexpected Exception " + e.getMessage()); 
-    	}    
+            Assert.fail("Unexpected Exception " + e.getMessage());
+        }
     }
-    
-    @Test 
+
+    @Test
     public void testBadAddress() {
-         try {
-              Orderer orderer= hfclient.newOrderer("xx","xxxxxx");
-              Assert.fail("Orderer did not allow setting bad URL.");
-         } catch (Exception e) {
-              Assert.assertTrue( e.getClass() == InvalidArgumentException.class);
-         }  
+        try {
+            Orderer orderer = hfclient.newOrderer("xx", "xxxxxx");
+            Assert.fail("Orderer did not allow setting bad URL.");
+        } catch (Exception e) {
+            Assert.assertTrue(e.getClass() == InvalidArgumentException.class);
+        }
     }
 
 }

@@ -16,10 +16,6 @@ limitations under the License.
 
 package example;
 
-import static org.hyperledger.java.shim.ChaincodeHelper.newBadRequestResponse;
-import static org.hyperledger.java.shim.ChaincodeHelper.newInternalServerErrorResponse;
-import static org.hyperledger.java.shim.ChaincodeHelper.newSuccessResponse;
-
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
@@ -32,6 +28,10 @@ import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.ProposalResponsePackage.Response;
 import org.hyperledger.java.shim.ChaincodeBase;
 import org.hyperledger.java.shim.ChaincodeStub;
+
+import static org.hyperledger.java.shim.ChaincodeHelper.newBadRequestResponse;
+import static org.hyperledger.java.shim.ChaincodeHelper.newInternalServerErrorResponse;
+import static org.hyperledger.java.shim.ChaincodeHelper.newSuccessResponse;
 
 /**
  * @author Sergey Pomytkin spomytkin@gmail.com

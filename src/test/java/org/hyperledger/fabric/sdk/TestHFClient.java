@@ -18,9 +18,9 @@ package org.hyperledger.fabric.sdk;
 import java.io.File;
 import java.security.PrivateKey;
 
+import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdkintegration.SampleStore;
 import org.hyperledger.fabric.sdkintegration.SampleUser;
-import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 
 public class TestHFClient {
@@ -99,7 +99,7 @@ public class TestHFClient {
             try {
                 tempFile.delete();
             } catch (Exception e) {
-               // // now harm done.
+                // now harm done.
             }
         }
     }

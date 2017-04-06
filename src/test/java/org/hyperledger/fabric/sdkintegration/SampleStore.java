@@ -87,7 +87,9 @@ public class SampleStore {
             logger.warn(String.format("Could not save the keyvalue store, reason:%s", e.getMessage()));
         }
     }
+
     private final Map<String, SampleUser> members = new HashMap<>();
+
     /**
      * Get the user with a given name
      *

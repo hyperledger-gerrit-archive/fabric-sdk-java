@@ -90,7 +90,6 @@ public class End2endJavaChaincodeIT {
             }
 
 
-
             //////////////////////////// TODo Needs to be made out of bounds and here chain just retrieved
             //Construct the chain
             //
@@ -329,7 +328,7 @@ public class End2endJavaChaincodeIT {
 
         Chain newChain = client.newChain(CHAIN_NAME);
 
-        int i=0;
+        int i = 0;
 
         for (String peerloc : PEER_LOCATIONS) {
             Peer peer = client.newPeer("peer_" + i++, peerloc);

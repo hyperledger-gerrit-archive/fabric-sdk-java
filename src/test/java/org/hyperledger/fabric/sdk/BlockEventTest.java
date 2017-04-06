@@ -13,12 +13,10 @@
  */
 package org.hyperledger.fabric.sdk;
 
-import static java.nio.charset.StandardCharsets.*;
-import static org.junit.Assert.*;
-
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.common.Common.BlockData;
 import org.hyperledger.fabric.protos.common.Common.BlockHeader;
@@ -31,14 +29,19 @@ import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class BlockEventTest {
-    private static Block block, badBlock ;
+    private static Block block, badBlock;
     private static BlockHeader blockHeader;
     private static BlockData blockData;
     private static BlockMetadata blockMetadata;
+
     /**
      * @throws java.lang.Exception
      */
@@ -136,23 +139,24 @@ public class BlockEventTest {
             List<BlockEvent.TransactionEvent> txList = be.getTransactionEvents();
             assertEquals(txList.size(), 3);
             BlockEvent.TransactionEvent te = txList.get(1);
-            assertFalse(te.isValid()) ;
+            assertFalse(te.isValid());
             assertEquals(te.validationCode(), (byte) TxValidationCode.INVALID_OTHER_REASON_VALUE);
             te = txList.get(2);
             assertTrue(te.isValid());
         } catch (InvalidProtocolBufferException e) {
-            fail("did not parse Block correctly.Error: " + e.getMessage()) ;
+            fail("did not parse Block correctly.Error: " + e.getMessage());
         }
     }
 
     /**
      * Test method for {@link org.hyperledger.fabric.sdk.BlockEvent#BlockEvent(org.hyperledger.fabric.protos.common.Common.Block)}.
      * With bad block inputted, BlockEvent ctor will throw an exception
+     *
      * @throws InvalidProtocolBufferException
      */
-    @Test(expected=InvalidProtocolBufferException.class)
+    @Test(expected = InvalidProtocolBufferException.class)
     public void testBlockEventBadBlock() throws InvalidProtocolBufferException {
-            BlockEvent be = new BlockEvent(badBlock);
+        BlockEvent be = new BlockEvent(badBlock);
     }
 
 }

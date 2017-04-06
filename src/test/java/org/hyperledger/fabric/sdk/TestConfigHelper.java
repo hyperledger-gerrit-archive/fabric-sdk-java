@@ -17,7 +17,6 @@ import org.hyperledger.fabric.sdk.helper.Config;
 
 /**
  * Container for methods to set SDK environment before running unit+integration tests
- *
  */
 public class TestConfigHelper {
 
@@ -27,11 +26,11 @@ public class TestConfigHelper {
      * clearConfig "resets" Config so that the Config testcases can run without interference from other test suites.
      * Depending on what order JUnit decides to run the tests, Config could have been instantiated earlier and could
      * contain values that make the tests here fail.
+     *
      * @throws SecurityException
      * @throws NoSuchFieldException
      * @throws IllegalAccessException
      * @throws IllegalArgumentException
-     *
      */
     public void clearConfig() throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
         Config config = Config.getConfig();

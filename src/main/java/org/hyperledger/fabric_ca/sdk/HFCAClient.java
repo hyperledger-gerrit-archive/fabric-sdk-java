@@ -14,13 +14,13 @@
 
 package org.hyperledger.fabric_ca.sdk;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.URL;
@@ -88,7 +88,9 @@ import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
-import org.hyperledger.fabric_ca.sdk.exception.*;
+import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
+import org.hyperledger.fabric_ca.sdk.exception.RegistrationException;
+import org.hyperledger.fabric_ca.sdk.exception.RevocationException;
 import sun.security.util.DerValue;
 import sun.security.x509.AuthorityKeyIdentifierExtension;
 import sun.security.x509.KeyIdentifier;
@@ -362,9 +364,10 @@ public class HFCAClient implements MemberServices {
 
     /**
      * revoke one enrollment of user
-     * @param revoker admin user who has revoker attribute configured in CA-server
+     *
+     * @param revoker    admin user who has revoker attribute configured in CA-server
      * @param enrollment the user enrollment to be revoked
-     * @param reason revoke reason, see RFC 5280
+     * @param reason     revoke reason, see RFC 5280
      * @throws RevocationException
      * @throws InvalidArgumentException
      */
@@ -395,7 +398,7 @@ public class HFCAClient implements MemberServices {
             // 2.5.29.35 : AuthorityKeyIdentifier
             byte[] var3 = new DerValue(certificate.getExtensionValue("2.5.29.35")).getOctetString();
             AuthorityKeyIdentifierExtension var4 = new AuthorityKeyIdentifierExtension(Boolean.FALSE, var3);
-            String aki = DatatypeConverter.printHexBinary(((KeyIdentifier)var4.get("key_id")).getIdentifier());
+            String aki = DatatypeConverter.printHexBinary(((KeyIdentifier) var4.get("key_id")).getIdentifier());
             factory.add("aki", aki);
 
             // add reason
@@ -424,9 +427,10 @@ public class HFCAClient implements MemberServices {
 
     /**
      * revoke one user (including his all enrollments)
+     *
      * @param revoker amdin user who has revoker attribute configured in CA-server
      * @param revokee user who is to be revoked
-     * @param reason revoke reason, see RFC 5280
+     * @param reason  revoke reason, see RFC 5280
      * @throws RevocationException
      * @throws InvalidArgumentException
      */

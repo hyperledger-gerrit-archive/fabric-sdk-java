@@ -29,10 +29,9 @@ public class HFCAEnrollment implements Enrollment, Serializable {
 
     HFCAEnrollment(KeyPair signingKeyPair, String publicKey, String signedPem) {
         key = signingKeyPair;
-        this. publicKey = publicKey;
+        this.publicKey = publicKey;
         this.cert = signedPem;
     }
-
 
 
     public PrivateKey getKey() {

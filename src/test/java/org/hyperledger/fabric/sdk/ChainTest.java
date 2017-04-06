@@ -14,18 +14,14 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.io.File;
-
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class ChainTest {
     private static final String CHAIN_NAME = "chain1";
     static HFClient hfclient = null;
-
 
 
     @BeforeClass
@@ -69,7 +65,7 @@ public class ChainTest {
 
             final String CHAIN_NAME = "chain3";
             final Chain testchain = new Chain(CHAIN_NAME, hfclient);
-            final Peer peer = hfclient.newPeer("peer_" , "grpc://localhost:7051");
+            final Peer peer = hfclient.newPeer("peer_", "grpc://localhost:7051");
 
             testchain.addPeer(peer);
 
@@ -135,7 +131,7 @@ public class ChainTest {
 
             final String CHAIN_NAME = "chain3";
             testchain = new Chain(CHAIN_NAME, hfclient);
-            final Peer peer = hfclient.newPeer(null , "grpc://localhost:7051");
+            final Peer peer = hfclient.newPeer(null, "grpc://localhost:7051");
 
             testchain.addPeer(peer);
             Assert.fail("Expected no named peer to throw exception.");
@@ -174,21 +170,21 @@ public class ChainTest {
 
         try {
 
-            class MockChain extends Chain{
+            class MockChain extends Chain {
 
                 MockChain(String name, HFClient client) throws InvalidArgumentException {
                     super(name, client);
                 }
 
                 @Override
-                protected void parseConfigBlock(){
+                protected void parseConfigBlock() {
 
                 }
             }
 
             final String CHAIN_NAME = "chain3";
             final Chain testchain = new MockChain(CHAIN_NAME, hfclient);
-            final Peer peer = hfclient.newPeer("peer_" , "grpc://localhost:7051");
+            final Peer peer = hfclient.newPeer("peer_", "grpc://localhost:7051");
 
 
             testchain.addPeer(peer);

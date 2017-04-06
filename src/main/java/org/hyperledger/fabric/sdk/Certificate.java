@@ -23,9 +23,9 @@ public class Certificate {
     private PrivacyLevel privLevel;
 
     public Certificate(byte[] cert,
-                PrivateKey privateKey,
-                /** Denoting if the Certificate is anonymous or carrying its owner's identity. */
-                PrivacyLevel privLevel) {
+                       PrivateKey privateKey,
+                       /** Denoting if the Certificate is anonymous or carrying its owner's identity. */
+                       PrivacyLevel privLevel) {
         this.cert = cert;
         this.privateKey = privateKey;
         this.privLevel = privLevel;

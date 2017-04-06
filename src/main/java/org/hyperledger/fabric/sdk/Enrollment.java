@@ -23,18 +23,21 @@ public interface Enrollment {
 
     /**
      * Key is the user's private key
+     *
      * @return private key.
      */
     public PrivateKey getKey();
 
     /**
      * Certificate is the users signed certificate.
+     *
      * @return
      */
     public String getCert();
 
     /**
      * The users public key.
+     *
      * @return
      */
     public String getPublicKey();

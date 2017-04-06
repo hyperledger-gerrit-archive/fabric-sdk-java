@@ -14,25 +14,26 @@
 
 package org.hyperledger.fabric.sdk.security;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.*;
-
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.security.*;
-import java.security.spec.*;
+import java.security.KeyFactory;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -40,7 +41,6 @@ import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.io.FileUtils;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
-import org.bouncycastle.util.io.pem.PemReader;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
@@ -49,6 +49,15 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class CryptoPrimitivesTest {
 
@@ -73,7 +82,7 @@ public class CryptoPrimitivesTest {
 
     private static Certificate testCACert;
 
-    private static Config config ;
+    private static Config config;
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
@@ -111,15 +120,15 @@ public class CryptoPrimitivesTest {
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(bcKeyPair.getPrivateKeyInfo().getEncoded());
         PrivateKey key = kf.generatePrivate(keySpec);
 
-        Certificate[] chain = new Certificate[] { cert, testCACert };
+        Certificate[] chain = new Certificate[]{cert, testCACert};
         crypto.getTrustStore().setKeyEntry("key", key, "123456".toCharArray(), chain);
         pem.close();
     }
 
     @Test
     public void testGetSetProperties() {
-        CryptoPrimitives testCrypto = new CryptoPrimitives() ;
-        Properties cryptoProps = testCrypto.getProperties() ;
+        CryptoPrimitives testCrypto = new CryptoPrimitives();
+        Properties cryptoProps = testCrypto.getProperties();
         String hashAlg = config.getHashAlgorithm();
         assertEquals(cryptoProps.getProperty(Config.HASH_ALGORITHM), hashAlg);
         Properties propsIn = new Properties();
@@ -137,21 +146,21 @@ public class CryptoPrimitivesTest {
         }
     }
 
-    @Test(expected=InvalidArgumentException.class)
+    @Test(expected = InvalidArgumentException.class)
     public void testSecurityLevel() throws InvalidArgumentException {
-        CryptoPrimitives testCrypto = new CryptoPrimitives() ;
+        CryptoPrimitives testCrypto = new CryptoPrimitives();
         testCrypto.setSecurityLevel(2001);
     }
 
-    @Test(expected=InvalidArgumentException.class)
+    @Test(expected = InvalidArgumentException.class)
     public void testSetHashAlgorithm() throws InvalidArgumentException {
-        CryptoPrimitives testCrypto = new CryptoPrimitives() ;
+        CryptoPrimitives testCrypto = new CryptoPrimitives();
         testCrypto.setHashAlgorithm(null);
     }
 
-    @Test(expected=InvalidArgumentException.class)
+    @Test(expected = InvalidArgumentException.class)
     public void testSetHashAlgorithmBadArg() throws InvalidArgumentException {
-        CryptoPrimitives testCrypto = new CryptoPrimitives() ;
+        CryptoPrimitives testCrypto = new CryptoPrimitives();
         testCrypto.setHashAlgorithm("FAKE");
     }
 
@@ -163,7 +172,7 @@ public class CryptoPrimitivesTest {
             CryptoPrimitives myCrypto = new CryptoPrimitives();
             assertNotNull(myCrypto.getTrustStore());
         } catch (CryptoException e) {
-            fail("getTrustStore() fails with : "+ e.getMessage());
+            fail("getTrustStore() fails with : " + e.getMessage());
         }
     }
 
@@ -192,15 +201,15 @@ public class CryptoPrimitivesTest {
     @Test
     public void testSetTrustStore() {
 
-            try {
-                CryptoPrimitives myCrypto = new CryptoPrimitives();
-                KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-                keyStore.load(null, null);
-                myCrypto.setTrustStore(keyStore);
-                assertSame(keyStore, myCrypto.getTrustStore());
-            } catch (CryptoException | KeyStoreException | NoSuchAlgorithmException | CertificateException | InvalidArgumentException | IOException e) {
-                fail("testSetTrustStore() should not have thrown Exception. Error: " + e.getMessage());
-            }
+        try {
+            CryptoPrimitives myCrypto = new CryptoPrimitives();
+            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            keyStore.load(null, null);
+            myCrypto.setTrustStore(keyStore);
+            assertSame(keyStore, myCrypto.getTrustStore());
+        } catch (CryptoException | KeyStoreException | NoSuchAlgorithmException | CertificateException | InvalidArgumentException | IOException e) {
+            fail("testSetTrustStore() should not have thrown Exception. Error: " + e.getMessage());
+        }
     }
 
     @Test
@@ -212,7 +221,7 @@ public class CryptoPrimitivesTest {
         }
     }
 
-    @Test(expected=InvalidArgumentException.class)
+    @Test(expected = InvalidArgumentException.class)
     public void testAddCACertificateToTrustStoreNoAlias() throws InvalidArgumentException {
         try {
             crypto.addCACertificateToTrustStore(new File("something"), null);
@@ -221,7 +230,7 @@ public class CryptoPrimitivesTest {
         }
     }
 
-    @Test(expected=CryptoException.class)
+    @Test(expected = CryptoException.class)
     public void testAddCACertificateToTrustStoreNoFile() throws CryptoException {
         try {
             crypto.addCACertificateToTrustStore(new File("does/not/exist"), "abc");
@@ -230,21 +239,21 @@ public class CryptoPrimitivesTest {
         }
     }
 
-    @Test(expected=InvalidArgumentException.class)
+    @Test(expected = InvalidArgumentException.class)
     public void testAddCACertificateToTrustStoreNoCert() throws InvalidArgumentException {
-                try {
-                    crypto.addCACertificateToTrustStore((Certificate) null, "abc");
-                } catch (CryptoException e) {
-                    fail("testAddCACertificateToTrustStoreNoCert should not have thrown CryptoException. Error " + e.getMessage());
-                }
+        try {
+            crypto.addCACertificateToTrustStore((Certificate) null, "abc");
+        } catch (CryptoException e) {
+            fail("testAddCACertificateToTrustStoreNoCert should not have thrown CryptoException. Error " + e.getMessage());
+        }
     }
 
-    @Test(expected=CryptoException.class)
+    @Test(expected = CryptoException.class)
     public void testLoadCACertsBadInput() throws CryptoException {
         crypto.loadCACertificates(null);
     }
 
-    @Test(expected=CryptoException.class)
+    @Test(expected = CryptoException.class)
     public void testLoadCACertsBytesBadInput() throws CryptoException {
         crypto.loadCACertificatesAsBytes(null);
     }
@@ -268,7 +277,7 @@ public class CryptoPrimitivesTest {
                 certIDs.add(Integer.toString(cf.generateCertificate(bis).hashCode()));
             }
             crypto.loadCACertificatesAsBytes(certBytesList);
-            assertEquals(crypto.getTrustStore().size(), numStore+numFiles);
+            assertEquals(crypto.getTrustStore().size(), numStore + numFiles);
             for (String cID : certIDs) {
                 assertTrue(crypto.getTrustStore().containsAlias(cID));
             }
@@ -277,6 +286,7 @@ public class CryptoPrimitivesTest {
             e.printStackTrace();
         }
     }
+
     @Test
     public void testValidateNullCertificateByteArray() {
         assertFalse(crypto.validateCertificate((byte[]) null));
@@ -342,21 +352,21 @@ public class CryptoPrimitivesTest {
         }
     } // testVerifyNullInput
 
-    @Test(expected=CryptoException.class)
+    @Test(expected = CryptoException.class)
     public void testVerifyBadCert() throws CryptoException {
-        byte[] badCert = new byte[] { (byte) 0x00 };
+        byte[] badCert = new byte[]{(byte) 0x00};
         crypto.verify(plainText, sig, badCert);
     } // testVerifyBadCert
 
-    @Test(expected=CryptoException.class)
+    @Test(expected = CryptoException.class)
     public void testVerifyBadSig() throws CryptoException {
-        byte[] badSig = new byte[] { (byte) 0x00 };
+        byte[] badSig = new byte[]{(byte) 0x00};
         crypto.verify(plainText, badSig, pemCert);
     } // testVerifyBadSign
 
     @Test
     public void testVerifyBadPlaintext() {
-        byte[] badPlainText = new byte[] { (byte) 0x00 };
+        byte[] badPlainText = new byte[]{(byte) 0x00};
         try {
             assertFalse(crypto.verify(badPlainText, sig, pemCert));
         } catch (CryptoException e) {
@@ -376,7 +386,7 @@ public class CryptoPrimitivesTest {
     @Test
     public void testSignNullKey() {
         try {
-            crypto.sign(null, new byte[] { (byte) 0x00 });
+            crypto.sign(null, new byte[]{(byte) 0x00});
             Assert.fail("sign() should have thrown an exception");
         } catch (CryptoException e) {
         }
@@ -407,13 +417,13 @@ public class CryptoPrimitivesTest {
             signature = crypto.sign(key, plainText);
 
             BufferedInputStream bis = new BufferedInputStream(
-                            this.getClass().getResourceAsStream("/keypair-signed.crt"));
+                    this.getClass().getResourceAsStream("/keypair-signed.crt"));
             byte[] cert = IOUtils.toByteArray(bis);
             bis.close();
 
             assertTrue(crypto.verify(plainText, signature, cert));
         } catch (KeyStoreException | CryptoException | IOException | UnrecoverableKeyException
-                        | NoSuchAlgorithmException e) {
+                | NoSuchAlgorithmException e) {
             fail("Could not verify signature. Error: " + e.getMessage());
         }
     }

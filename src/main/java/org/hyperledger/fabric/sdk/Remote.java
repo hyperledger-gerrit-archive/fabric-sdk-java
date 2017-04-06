@@ -14,6 +14,12 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.net.ssl.SSLException;
+
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.netty.GrpcSslContexts;
@@ -21,12 +27,7 @@ import io.grpc.netty.NettyChannelBuilder;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.internal.StringUtil;
 
-import javax.net.ssl.SSLException;
-import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-abstract  class  Remote {
+abstract class Remote {
 
     private String addr;
     private int port;
@@ -38,14 +39,13 @@ abstract  class  Remote {
 
     private ManagedChannelBuilder<?> channelBuilder = null;
 
-    Remote( String url, String pem) {
-        
+    Remote(String url, String pem) {
+
 
         Properties purl = parseUrl(url);
         String protocol = purl.getProperty("protocol");
         this.addr = purl.getProperty("host");
         this.port = Integer.parseInt(purl.getProperty("port"));
-
 
 
         if (protocol.equalsIgnoreCase("grpc")) {//
@@ -108,18 +108,15 @@ abstract  class  Remote {
 
     //  private static final Log logger = LogFactory.getLog(EndorserClient.class);
 
-   // private final ManagedChannel channel;
-   // abstract EndorserGrpc.EndorserBlockingStub blockingStub;
+    // private final ManagedChannel channel;
+    // abstract EndorserGrpc.EndorserBlockingStub blockingStub;
 
     /**
      * Construct client for accessing Peer server using the existing channel.
      */
     //       private static final Log logger = LogFactory.getLog(EndorserClient.class);
-
-
-
     public void shutdown() throws InterruptedException {
-  //      channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+        //      channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
 
@@ -131,8 +128,6 @@ abstract  class  Remote {
 //            logger.debug("Failed to shutdown the PeerClient");
         }
     }
-
-
 
 
 }

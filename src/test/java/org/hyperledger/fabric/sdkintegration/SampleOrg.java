@@ -28,9 +28,8 @@ import org.hyperledger.fabric_ca.sdk.HFCAClient;
 
 /**
  * Sample Organization Representation
- *
+ * <p>
  * Keeps track which resources are defined for the Organization it represents.
- *
  */
 public class SampleOrg {
     final String name;
@@ -44,7 +43,7 @@ public class SampleOrg {
     Set<Peer> peers = new HashSet<>();
     private SampleUser admin;
     private String caLocation;
-    private Properties caProperties= null;
+    private Properties caProperties = null;
 
 
     public SampleOrg(String name, String mspid) {

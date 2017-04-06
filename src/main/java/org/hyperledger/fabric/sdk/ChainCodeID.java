@@ -105,7 +105,7 @@ public class ChainCodeID {
     }
 
     /**
-     *  Chaincode builder
+     * Chaincode builder
      *
      * @return ChaincodeID builder.
      */

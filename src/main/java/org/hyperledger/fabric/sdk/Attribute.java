@@ -20,27 +20,27 @@ import javax.json.JsonObjectBuilder;
 
 // An attribute name and value which is used when registering a new user
 public class Attribute {
-	private String name;
-	private String value;
+    private String name;
+    private String value;
 
-	public Attribute(String name, String value) {
-		this.name = name;
-		this.value = value;
-	}
+    public Attribute(String name, String value) {
+        this.name = name;
+        this.value = value;
+    }
 
-	public String getName() {
-		return this.name;
-	}
+    public String getName() {
+        return this.name;
+    }
 
-	public String getValue() {
-		return this.value;
-	}
+    public String getValue() {
+        return this.value;
+    }
 
-	public JsonObject toJsonObject() {
-		JsonObjectBuilder ob = Json.createObjectBuilder();
-		ob.add("name", this.name);
-		ob.add("value", this.value);
-		return ob.build();
-	}
+    public JsonObject toJsonObject() {
+        JsonObjectBuilder ob = Json.createObjectBuilder();
+        ob.add("name", this.name);
+        ob.add("value", this.value);
+        return ob.build();
+    }
 
 }

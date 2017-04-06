@@ -14,8 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-import org.hyperledger.fabric.sdk.BlockEvent;
-
 /**
  * BlockListener  implemented by classes needing to receive block events.
  */

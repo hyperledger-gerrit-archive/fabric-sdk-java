@@ -14,18 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-//import java.security.cert.CertificateException;
-//import java.util.ArrayList;
-//import java.util.Arrays;
-//import java.util.concurrent.TimeUnit;
-//
-//import org.hyperledger.fabric.sdk.exception.ChainCodeException;
-//import org.hyperledger.fabric.sdk.exception.ProposalException;
-//import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
-//import org.hyperledger.fabric_ca.sdk.exception.RegistrationException;
-//import org.junit.BeforeClass;
-//import org.junit.Test;
-
 public class PeerClientTest {
 
 //	static Chain testChain = null;

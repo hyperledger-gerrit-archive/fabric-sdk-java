@@ -14,12 +14,12 @@
 
 package org.hyperledger.fabric.sdk;
 
-import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.GetTCertBatchException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
-import org.hyperledger.fabric_ca.sdk.exception.RegistrationException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
+import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
+import org.hyperledger.fabric_ca.sdk.exception.RegistrationException;
 import org.hyperledger.fabric_ca.sdk.exception.RevocationException;
 
 public interface MemberServices {
@@ -36,7 +36,8 @@ public interface MemberServices {
 
     /**
      * Register the user and return an enrollment secret.
-     * @param req Registration request with the following fields: name, role
+     *
+     * @param req       Registration request with the following fields: name, role
      * @param registrar The identity of the registar (i.e. who is performing the registration)
      * @return enrollment secret
      */
@@ -44,15 +45,16 @@ public interface MemberServices {
 
     /**
      * Enroll the user and return an opaque user object
-     * @param userName Name of usr to enroll
-     * @param secret enrollmentSecret
      *
+     * @param userName Name of usr to enroll
+     * @param secret   enrollmentSecret
      * @return enrollment details
      */
     Enrollment enroll(String userName, String secret) throws EnrollmentException, InvalidArgumentException;
 
     /**
      * Re-enroll the user and return a new Enrollment of the user
+     *
      * @param user usr to be re-enroll
      * @return enrollment details
      */
@@ -60,25 +62,28 @@ public interface MemberServices {
 
     /**
      * Revoke one enrollment of user
-     * @param revoker admin user who has revoker attribute configured in CA-server
+     *
+     * @param revoker    admin user who has revoker attribute configured in CA-server
      * @param enrollment the user enrollment to be revoked
-     * @param reason revoke reason, see RFC 5280
+     * @param reason     revoke reason, see RFC 5280
      */
     void revoke(User revoker, Enrollment enrollment, int reason) throws RevocationException, InvalidArgumentException;
 
     /**
      * Revoke all enrollment of user
-     * @param revoker amdin user who has revoker attribute configured in CA-server
+     *
+     * @param revoker     amdin user who has revoker attribute configured in CA-server
      * @param revokeeName name of user who to be revoked
-     * @param reason revoke reason, see RFC 5280
+     * @param reason      revoke reason, see RFC 5280
      */
     void revoke(User revoker, String revokeeName, int reason) throws RevocationException, InvalidArgumentException;
+
     /**
      * Get an array of transaction certificates (tcerts).
+     *
      * @param req A GetTCertBatchRequest
      */
     void getTCertBatch(GetTCertBatchRequest req) throws GetTCertBatchException;
-
 
 
 }

@@ -17,7 +17,6 @@ import org.hyperledger.fabric.protos.common.Common.Block;
 
 /**
  * BlockInfo contains the data from a {@link Block}
- *
  */
 public class BlockInfo {
     private final Block block;
@@ -37,14 +36,14 @@ public class BlockInfo {
      * @return the {@link Block} previousHash value
      */
     public byte[] getPreviousHash() {
-        return block.getHeader().getPreviousHash().toByteArray() ;
+        return block.getHeader().getPreviousHash().toByteArray();
     }
 
     /**
      * @return the {@link Block} index number
      */
     public long getBlockNumber() {
-        return block.getHeader().getNumber() ;
+        return block.getHeader().getNumber();
     }
 
 }

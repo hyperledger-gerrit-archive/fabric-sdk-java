@@ -71,7 +71,7 @@ public class ProposalResponse extends ChainCodeResponse {
         return this.isVerified;
     } // verify
 
-    private  FabricProposal.Proposal proposal;
+    private FabricProposal.Proposal proposal;
 
     public FabricProposal.Proposal getProposal() {
         return proposal;

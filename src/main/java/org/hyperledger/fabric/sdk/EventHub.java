@@ -96,9 +96,8 @@ public class EventHub {
     /**
      * Event hub properties
      *
-     * @see HFClient#newEventHub(String, String, Properties)
-     *
      * @return Event hub properties
+     * @see HFClient#newEventHub(String, String, Properties)
      */
     public Properties getProperties() {
         return properties == null ? null : (Properties) properties.clone();

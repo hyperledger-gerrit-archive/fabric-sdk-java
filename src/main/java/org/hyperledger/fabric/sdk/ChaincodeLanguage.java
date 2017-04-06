@@ -15,6 +15,6 @@
 package org.hyperledger.fabric.sdk;
 
 public enum ChaincodeLanguage {
-	GO_LANG,
-	JAVA
+    GO_LANG,
+    JAVA
 }

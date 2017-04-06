@@ -47,7 +47,7 @@ class OrdererClient {
     }
 
     private void shutdown() {
-        if(!channel.isShutdown()) {
+        if (!channel.isShutdown()) {
             channel.shutdownNow();
         }
     }
@@ -116,7 +116,7 @@ class OrdererClient {
         return ret[0];
     }
 
-    public DeliverResponse[] sendDeliver(Common.Envelope envelope) throws TransactionException{
+    public DeliverResponse[] sendDeliver(Common.Envelope envelope) throws TransactionException {
 
         final CountDownLatch finishLatch = new CountDownLatch(1);
         AtomicBroadcastGrpc.AtomicBroadcastStub broadcast = AtomicBroadcastGrpc.newStub(channel);
@@ -179,7 +179,7 @@ class OrdererClient {
             logger.error(e);
         }
 
-        if(!throwableList.isEmpty()){
+        if (!throwableList.isEmpty()) {
             Throwable throwable = throwableList.get(0);
             TransactionException e = new TransactionException(throwable.getMessage(), throwable);
             logger.error(e.getMessage(), e);

@@ -52,9 +52,9 @@ public class SampleUser implements User, Serializable {
         this.organization = org;
         this.keyValStoreName = toKeyValStoreName(this.name, org);
         String memberStr = keyValStore.getValue(keyValStoreName);
-        if(null == memberStr){
+        if (null == memberStr) {
             saveState();
-        }else {
+        } else {
             restoreState();
         }
 

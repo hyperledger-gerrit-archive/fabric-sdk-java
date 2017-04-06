@@ -151,18 +151,18 @@ public class TestConfig {
 
 
                 sampleOrg.setCALocation(httpTLSify(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".ca_location"))));
-                if(runningTLS){
+                if (runningTLS) {
                     String cert = tlsbase + "/cas/" + sampleOrg.getName() + "/cert.pem";
                     File cf = new File(cert);
                     if (!cf.exists() || !cf.isFile()) {
                         throw new RuntimeException("TEST is missing cert file " + cf.getAbsolutePath());
                     }
-                    Properties properties =new Properties();
+                    Properties properties = new Properties();
                     properties.setProperty("pemFile", cf.getAbsolutePath());
 
                     properties.setProperty("allowAllHostNames", "true");//testing environment only NOT FOR PRODUCTION!
 
-                    sampleOrg.setCAProperties( properties);
+                    sampleOrg.setCAProperties(properties);
                 }
             }
 
@@ -284,7 +284,7 @@ public class TestConfig {
 
     public Properties getOrdererProperties(String name) {
 
-        return getTLSProperties( "orderer/cert.pem");
+        return getTLSProperties("orderer/cert.pem");
     }
 
     public Properties getEventHubProperties(String name) {
@@ -313,7 +313,7 @@ public class TestConfig {
     private Properties getTLSProperties(String cert) {
         Properties ret = null;
         if (runningTLS) {
-         //   String cert = tlsbase + "/" + type + "/" + name + "/ca.pem";
+            //   String cert = tlsbase + "/" + type + "/" + name + "/ca.pem";
             File cf = new File(tlsbase + cert);
             if (!cf.exists() || !cf.isFile()) {
                 throw new RuntimeException("TEST error missing cert file " + cf.getAbsolutePath());

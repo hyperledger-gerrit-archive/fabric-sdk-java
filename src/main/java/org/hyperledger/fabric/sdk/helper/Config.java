@@ -192,6 +192,7 @@ public class Config {
 
     /**
      * getGenesisBlockWaiTime time to wait for genesis block
+     *
      * @return
      */
     public long getGenesisBlockWaitTime() {

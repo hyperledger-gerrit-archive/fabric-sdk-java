@@ -26,6 +26,7 @@ public class InstallProposalRequest extends TransactionRequest {
     public File getChaincodeSourceLocation() {
         return chaincodeSourceLocation;
     }
+
     public void setChaincodeSourceLocation(File chaincodeSourceLocation) {
         this.chaincodeSourceLocation = chaincodeSourceLocation;
     }

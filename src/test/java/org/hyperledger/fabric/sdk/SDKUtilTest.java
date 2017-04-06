@@ -23,50 +23,50 @@ import org.bouncycastle.crypto.digests.SHA3Digest;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.junit.Assert;
-import org.junit.Test;
 import org.junit.Ignore;
+import org.junit.Test;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Ignore
 public class SDKUtilTest {
 
-	@Test
-	public void testGenerateParameterHash() {
-		List<String> args = new ArrayList<>();
-		args.add("a");
-		args.add("b");
-		String hash = SDKUtil.generateParameterHash("mypath", "myfunc", args);
-		Assert.assertEquals(Hex.toHexString(SDKUtil.hash("mypathmyfuncab".getBytes(UTF_8), new SHA3Digest())), hash);
-	}
+    @Test
+    public void testGenerateParameterHash() {
+        List<String> args = new ArrayList<>();
+        args.add("a");
+        args.add("b");
+        String hash = SDKUtil.generateParameterHash("mypath", "myfunc", args);
+        Assert.assertEquals(Hex.toHexString(SDKUtil.hash("mypathmyfuncab".getBytes(UTF_8), new SHA3Digest())), hash);
+    }
 
-	@Test
-	@Ignore //TODO NEED to bring back ?
-	public void testGenerateDirectoryHash() throws IOException {
-		// valid hash
-		String hash = SDKUtil.generateDirectoryHash(System.getenv("GOPATH"), "/src/github.com/hyperledger/fabric/examples/chaincode/java/Example", "");
-		Assert.assertEquals("3c08029b52176eacf802dee93129a9f1fd115008950e1bb968465dcd51bbbb9d", hash);
+    @Test
+    @Ignore //TODO NEED to bring back ?
+    public void testGenerateDirectoryHash() throws IOException {
+        // valid hash
+        String hash = SDKUtil.generateDirectoryHash(System.getenv("GOPATH"), "/src/github.com/hyperledger/fabric/examples/chaincode/java/Example", "");
+        Assert.assertEquals("3c08029b52176eacf802dee93129a9f1fd115008950e1bb968465dcd51bbbb9d", hash);
 
-		// non-existing directory
-		try {
-			SDKUtil.generateDirectoryHash(null, "/src/github.com/hyperledger/fabric/examples/chaincode/java/Example", "");
-			Assert.fail("Should have failed as the directory does not exist");
-		} catch(IOException iex) {
-			Assert.assertEquals(String.format("The chaincode path \"%s\" is invalid", Paths.get("/src/github.com/hyperledger/fabric/examples/chaincode/java/Example")), iex.getMessage());
-		}
+        // non-existing directory
+        try {
+            SDKUtil.generateDirectoryHash(null, "/src/github.com/hyperledger/fabric/examples/chaincode/java/Example", "");
+            Assert.fail("Should have failed as the directory does not exist");
+        } catch (IOException iex) {
+            Assert.assertEquals(String.format("The chaincode path \"%s\" is invalid", Paths.get("/src/github.com/hyperledger/fabric/examples/chaincode/java/Example")), iex.getMessage());
+        }
 
-		//create an empty directory and test on that
-		File file = new File(System.getProperty("java.io.tmpdir")+File.separator+"testdir");
-		file.mkdir();
+        //create an empty directory and test on that
+        File file = new File(System.getProperty("java.io.tmpdir") + File.separator + "testdir");
+        file.mkdir();
 
-		try {
-			SDKUtil.generateDirectoryHash(null, file.getAbsolutePath(), "");
-			Assert.fail("Should have failed as the directory is empty");
-		} catch(IOException iex) {
-			Assert.assertEquals(String.format("The chaincode directory \"%s\" has no files", file.getAbsolutePath()), iex.getMessage());
-		} finally {
-			file.delete();
-		}
-	}
+        try {
+            SDKUtil.generateDirectoryHash(null, file.getAbsolutePath(), "");
+            Assert.fail("Should have failed as the directory is empty");
+        } catch (IOException iex) {
+            Assert.assertEquals(String.format("The chaincode directory \"%s\" has no files", file.getAbsolutePath()), iex.getMessage());
+        } finally {
+            file.delete();
+        }
+    }
 
 }

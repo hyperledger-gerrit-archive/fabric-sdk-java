@@ -21,13 +21,13 @@ import java.util.Stack;
 // There is one class per set of attributes requested by each user.
 public class TCertGetter {
 
- //   private Chain chain;
+    //   private Chain chain;
     private User user;
     private List<String> attrs;
     private String key;
     private MemberServices memberServices;
     private Stack<TCert> tcerts;
-//TODO implement stats
+    //TODO implement stats
 //    private stats.Rate arrivalRate = new stats.Rate();
 //    private stats.ResponseTime getTCertResponseTime = new stats.ResponseTime();
 //    private getTCertWaiters:GetTCertCallback[] = [];
@@ -61,8 +61,8 @@ public class TCertGetter {
     }
 
     /**
-    * Get the next available transaction certificate.
-    */
+     * Get the next available transaction certificate.
+     */
     public TCert getNextTCert() {
 
 //TODO    	self.arrivalRate.tick();
@@ -81,11 +81,11 @@ public class TCertGetter {
 
     // Determine if we should issue a request to get more tcerts now.
     private boolean shouldGetTCerts() {
-    	return false;        //TODO implement shouldGetTCerts
+        return false;        //TODO implement shouldGetTCerts
 
 
     	/*
-    	let self = this;
+        let self = this;
         // Do nothing if we are already getting more tcerts
         if (self.gettingTCerts) {
             debug("shouldGetTCerts: no, already getting tcerts");
@@ -123,7 +123,7 @@ public class TCertGetter {
 
     // Call user services to get more tcerts
     private void getTCerts() {
-    	//TODO implement getTCerts
+        //TODO implement getTCerts
     	/*
     	let self = this;
         let req = {

@@ -23,6 +23,7 @@ public interface User {
 
     /**
      * Name - what identifies the user.
+     *
      * @return - User's name.
      */
 
@@ -30,32 +31,36 @@ public interface User {
 
     /**
      * The roles
+     *
      * @return
      */
     ArrayList<String> getRoles();
 
     /**
      * Users account
+     *
      * @return
      */
     String getAccount();
 
     /**
      * Users affliation
+     *
      * @return
      */
     String getAffiliation();
 
     /**
      * Enrollment
-     * @see Enrollment
      *
      * @return {Enrollment} The enrollment.
+     * @see Enrollment
      */
     Enrollment getEnrollment();
 
     /**
      * An ID provided by the users organization
+     *
      * @return mspid
      */
     String getMSPID();

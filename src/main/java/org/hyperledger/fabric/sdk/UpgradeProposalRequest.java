@@ -14,11 +14,9 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.io.File;
-
 /**
  * Upgrade chaincode proposal request.
  */
 public class UpgradeProposalRequest extends TransactionRequest {
 
- }
+}

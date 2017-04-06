@@ -15,7 +15,7 @@
 package org.hyperledger.fabric.sdk.exception;
 
 
-public class InvalidTransactionException extends BaseException{
+public class InvalidTransactionException extends BaseException {
 
 
     public InvalidTransactionException(String message, Exception parent) {

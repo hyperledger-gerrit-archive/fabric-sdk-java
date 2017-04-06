@@ -61,7 +61,7 @@ public class TransactionBuilder {
     }
 
 
-    private Common.Payload createTransactionCommonPayload(FabricProposal.Proposal chaincodeProposal,  ByteString proposalResponsePayload,
+    private Common.Payload createTransactionCommonPayload(FabricProposal.Proposal chaincodeProposal, ByteString proposalResponsePayload,
                                                           Collection<FabricProposalResponse.Endorsement> endorsements) throws InvalidProtocolBufferException {
 
 
@@ -76,9 +76,9 @@ public class TransactionBuilder {
         //We need to remove any transient fields - they are not part of what the peer uses to calculate hash.
         FabricProposal.ChaincodeProposalPayload.Builder chaincodeProposalPayloadNoTransBuilder = FabricProposal.ChaincodeProposalPayload.newBuilder();
         chaincodeProposalPayloadNoTransBuilder.mergeFrom(chaincodeProposal.getPayload());
-       // chaincodeProposalPayloadNoTransBuilder.clearTransient();
+        // chaincodeProposalPayloadNoTransBuilder.clearTransient();
 
-       // chaincodeActionPayloadBuilder.setChaincodeProposalPayload(chaincodeProposalPayloadNoTransBuilder.build().toByteString());
+        // chaincodeActionPayloadBuilder.setChaincodeProposalPayload(chaincodeProposalPayloadNoTransBuilder.build().toByteString());
         chaincodeActionPayloadBuilder.setChaincodeProposalPayload(chaincodeProposal.getPayload());
 
         FabricTransaction.TransactionAction.Builder transactionActionBuilder = FabricTransaction.TransactionAction.newBuilder();
