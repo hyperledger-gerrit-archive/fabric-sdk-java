@@ -14,12 +14,6 @@
 
 package org.hyperledger.fabric.sdkintegration;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.concurrent.TimeUnit;
-
 import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeID;
 import org.hyperledger.fabric.sdk.EventHub;
@@ -37,6 +31,12 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.io.File;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Test end to end scenario

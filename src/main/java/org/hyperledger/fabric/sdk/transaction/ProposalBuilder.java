@@ -14,6 +14,11 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
+import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.logString;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,11 +37,6 @@ import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeHeaderExtensio
 import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeProposalPayload;
 import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
-
-import static java.lang.String.format;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.logString;
-import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
 
 
 public class ProposalBuilder {

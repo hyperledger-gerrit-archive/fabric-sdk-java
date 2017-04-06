@@ -17,10 +17,11 @@ package org.hyperledger.fabric.sdk;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
-//import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+//import org.hyperledger.fabric.protos.peer.FabricProposal;
 
 public class PeerTest {
 	private static final String CHAIN_NAME = "chain1";

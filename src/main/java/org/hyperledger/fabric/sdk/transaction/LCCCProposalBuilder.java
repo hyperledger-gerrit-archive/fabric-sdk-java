@@ -13,11 +13,11 @@
  */
 package org.hyperledger.fabric.sdk.transaction;
 
+import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type.GOLANG;
+
 import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
-
-import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type.GOLANG;
 
 
 public class LCCCProposalBuilder extends ProposalBuilder {

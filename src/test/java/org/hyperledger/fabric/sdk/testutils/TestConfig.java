@@ -13,6 +13,11 @@
  */
 package org.hyperledger.fabric.sdk.testutils;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.sdk.helper.SDKUtil;
+import org.hyperledger.fabric.sdkintegration.SampleOrg;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -23,11 +28,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.sdk.helper.SDKUtil;
-import org.hyperledger.fabric.sdkintegration.SampleOrg;
 
 /**
  * Config allows for a global config of the toolkit. Central location for all

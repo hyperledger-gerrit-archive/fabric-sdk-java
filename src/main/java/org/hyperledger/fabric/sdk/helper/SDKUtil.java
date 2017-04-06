@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk.helper;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -49,8 +51,6 @@ import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.SHA3Digest;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class SDKUtil {
     private static final Log logger = LogFactory.getLog(SDKUtil.class);

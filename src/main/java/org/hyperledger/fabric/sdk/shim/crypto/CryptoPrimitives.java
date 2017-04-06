@@ -14,6 +14,9 @@
 
 package org.hyperledger.fabric.sdk.shim.crypto;
 
+import java.io.IOException;
+import java.security.Security;
+
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.DERSequence;
@@ -23,9 +26,6 @@ import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-
-import java.io.IOException;
-import java.security.Security;
 
 public class CryptoPrimitives {
     private int keyLength;

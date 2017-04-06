@@ -13,9 +13,9 @@
  */
 package org.hyperledger.fabric.sdk.security;
 
-import java.security.cert.Certificate;
 import java.security.KeyPair;
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.util.Collection;
 import java.util.Properties;
 

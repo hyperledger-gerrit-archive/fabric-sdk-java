@@ -14,6 +14,9 @@
 
 package org.hyperledger.fabric.sdk;
 
+import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
+
 import java.util.Objects;
 import java.util.Properties;
 
@@ -25,9 +28,6 @@ import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
-
-import static java.lang.String.format;
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 
 /**
  * The Peer class represents a peer to which SDK sends deploy, or query proposals requests.

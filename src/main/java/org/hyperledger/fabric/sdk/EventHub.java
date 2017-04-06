@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk;
 
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
+
 import java.util.ArrayList;
 import java.util.Properties;
 
@@ -26,8 +28,6 @@ import org.hyperledger.fabric.protos.peer.EventsGrpc;
 import org.hyperledger.fabric.protos.peer.PeerEvents;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
-
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 
 /**
  * Class to manage fabric events.

@@ -14,6 +14,9 @@
 
 package org.hyperledger.fabric.sdk.transaction;
 
+import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createDeploymentSpec;
+
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -30,9 +33,6 @@ import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
-
-import static java.lang.String.format;
-import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createDeploymentSpec;
 
 
 public class InstallProposalBuilder extends LCCCProposalBuilder {

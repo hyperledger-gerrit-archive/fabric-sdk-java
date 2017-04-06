@@ -14,6 +14,19 @@
 
 package org.hyperledger.fabric.sdk;
 
+import static java.lang.String.format;
+import static org.hyperledger.fabric.protos.common.Common.HeaderType;
+import static org.hyperledger.fabric.protos.common.Common.SignatureHeader;
+import static org.hyperledger.fabric.protos.common.Common.Status;
+import static org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
+import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
+import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvelope;
+import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -97,19 +110,6 @@ import org.hyperledger.fabric.sdk.transaction.QueryPeerChannelsBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 import org.hyperledger.fabric.sdk.transaction.UpgradeProposalBuilder;
-
-import static java.lang.String.format;
-import static org.hyperledger.fabric.protos.common.Common.HeaderType;
-import static org.hyperledger.fabric.protos.common.Common.SignatureHeader;
-import static org.hyperledger.fabric.protos.common.Common.Status;
-import static org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
-import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
-import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvelope;
-import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
-import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
 
 
 /**

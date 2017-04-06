@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk;
 
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.parseGrpcUrl;
+
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,8 +42,6 @@ import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
-
-import static org.hyperledger.fabric.sdk.helper.SDKUtil.parseGrpcUrl;
 
 class Endpoint {
     private static final Log logger = LogFactory.getLog(Endpoint.class);

@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk;
 
+import static org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse.TypeCase.STATUS;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -29,8 +31,6 @@ import org.hyperledger.fabric.protos.orderer.Ab;
 import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
 import org.hyperledger.fabric.protos.orderer.AtomicBroadcastGrpc;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
-
-import static org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse.TypeCase.STATUS;
 
 /**
  * Sample client code that makes gRPC calls to the server.

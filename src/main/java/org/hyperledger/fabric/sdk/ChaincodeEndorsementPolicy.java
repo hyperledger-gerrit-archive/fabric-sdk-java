@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk;
 
+import static java.lang.String.format;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -31,11 +33,8 @@ import org.hyperledger.fabric.protos.common.Policies;
 import org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
 import org.hyperledger.fabric.protos.msp.MspPrincipal.MSPPrincipal;
 import org.hyperledger.fabric.protos.msp.MspPrincipal.MSPRole;
-
 import org.hyperledger.fabric.sdk.exception.ChaincodeEndorsementPolicyParseException;
 import org.yaml.snakeyaml.Yaml;
-
-import static java.lang.String.format;
 
 /**
  * A wrapper for the Hyperledger Fabric Policy object

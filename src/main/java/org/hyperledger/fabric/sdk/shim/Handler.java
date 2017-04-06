@@ -16,6 +16,19 @@ limitations under the License.
 
 package org.hyperledger.fabric.sdk.shim;
 
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.COMPLETED;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.DEL_STATE;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.ERROR;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.GET_STATE;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.GET_STATE_BY_RANGE;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.INIT;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.INVOKE_CHAINCODE;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.PUT_STATE;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.READY;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.REGISTERED;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.RESPONSE;
+import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.TRANSACTION;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,9 +41,9 @@ import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
+import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
 import org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage;
 import org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Builder;
-import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec;
 import org.hyperledger.fabric.protos.peer.Chaincodeshim.GetStateByRange;
 import org.hyperledger.fabric.protos.peer.Chaincodeshim.PutStateInfo;
 import org.hyperledger.fabric.protos.peer.Chaincodeshim.QueryStateResponse;
@@ -44,19 +57,6 @@ import org.hyperledger.fabric.sdk.shim.fsm.EventDesc;
 import org.hyperledger.fabric.sdk.shim.fsm.FSM;
 import org.hyperledger.fabric.sdk.shim.fsm.exceptions.CancelledException;
 import org.hyperledger.fabric.sdk.shim.fsm.exceptions.NoTransitionException;
-
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.COMPLETED;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.DEL_STATE;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.ERROR;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.GET_STATE;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.GET_STATE_BY_RANGE;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.INIT;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.INVOKE_CHAINCODE;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.PUT_STATE;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.READY;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.REGISTERED;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.RESPONSE;
-import static org.hyperledger.fabric.protos.peer.Chaincodeshim.ChaincodeMessage.Type.TRANSACTION;
 
 public class Handler {
 
