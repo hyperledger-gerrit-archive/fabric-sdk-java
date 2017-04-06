@@ -105,7 +105,6 @@ import static org.hyperledger.fabric.protos.common.Common.Status;
 import static org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
 import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
 import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvelope;
-import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
@@ -534,20 +533,24 @@ public class Chain {
      * @throws CryptoException
      */
     private void loadCACertificates() throws InvalidArgumentException, CryptoException {
-        if (cryptoSuite == null)
+        if (cryptoSuite == null) {
             throw new InvalidArgumentException("Unable to load CA certificates. Channel " + name + " does not have a CryptoSuite.");
-        if (msps == null)
+        }
+        if (msps == null) {
             throw new InvalidArgumentException("Unable to load CA certificates. Channel " + name + " does not have any MSPs.");
+        }
 
         List<byte[]> certList;
         for (MSP msp : msps.values()) {
             logger.debug("loading certificates for MSP : " + msp.getID());
             certList = Arrays.asList(msp.getRootCerts());
-            if (certList.size() > 0)
+            if (certList.size() > 0) {
                 cryptoSuite.loadCACertificatesAsBytes(certList);
+            }
             certList = Arrays.asList(msp.getIntermediateCerts());
-            if (certList.size() > 0)
+            if (certList.size() > 0) {
                 cryptoSuite.loadCACertificatesAsBytes(certList);
+            }
             // not adding admin certs. Admin certs should be signed by the CA
         }
     }
@@ -1345,12 +1348,13 @@ public class Chain {
             Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
             proposalResponse = proposalResponses.iterator().next();
 
-            if (proposalResponse.getStatus().getStatus() != 200)
+            if (proposalResponse.getStatus().getStatus() != 200) {
                 throw new PeerException(format("Unable to query block by hash %s %n.... for channel %s from peer %s \n    with message %s",
                         Hex.encodeHexString(blockHash),
                         name,
                         peer.getName(),
                         proposalResponse.getMessage()));
+            }
             responseBlock = new BlockInfo(Block.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload()));
         } catch (Exception e) {
             String emsg = format("queryBlockByHash hash: %s %npeer %s channel %s %nerror: %s",
@@ -1406,12 +1410,13 @@ public class Chain {
             Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
             proposalResponse = proposalResponses.iterator().next();
 
-            if (proposalResponse.getStatus().getStatus() != 200)
+            if (proposalResponse.getStatus().getStatus() != 200) {
                 throw new PeerException(format("Unable to query block by number %d for channel %s from peer %s with message %s",
                         blockNumber,
                         name,
                         peer.getName(),
                         proposalResponse.getMessage()));
+            }
             responseBlock = new BlockInfo(Block.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload()));
         } catch (Exception e) {
             String emsg = format("queryBlockByNumber blockNumber %d peer %s channel %s error %s",
@@ -1476,12 +1481,13 @@ public class Chain {
             Collection<ProposalResponse> proposalResponses = sendProposal(querySCCRequest, Collections.singletonList(peer));
             proposalResponse = proposalResponses.iterator().next();
 
-            if (proposalResponse.getStatus().getStatus() != 200)
+            if (proposalResponse.getStatus().getStatus() != 200) {
                 throw new PeerException(format("Unable to query block by TxID %s%n    for channel %s from peer %s with message %s",
                         txID,
                         name,
                         peer.getName(),
                         proposalResponse.getMessage()));
+            }
             responseBlock = new BlockInfo(Block.parseFrom(proposalResponse.getProposalResponse().getResponse().getPayload()));
         } catch (Exception e) {
             String emsg = format("QueryBlockByTransactionID TxID %s%n peer %s channel %s error %s",
@@ -2133,7 +2139,7 @@ public class Chain {
 
     class ChainEventQue {
 
-        private final BlockingQueue<Event> events = new LinkedBlockingQueue<>();//Thread safe
+        private final BlockingQueue<BlockEvent> events = new LinkedBlockingQueue<BlockEvent>();//Thread safe
         private long previous = Long.MIN_VALUE;
         private Throwable eventException;
 
@@ -2141,11 +2147,11 @@ public class Chain {
             eventException = t;
         }
 
-        boolean addBEvent(Event event) {
+        boolean addBEvent(BlockEvent event) {
 
             //For now just support blocks --- other types are also reported as blocks.
 
-            if (event.getEventCase() != EventCase.BLOCK) {
+            if (event.getEvent().getEventCase() != EventCase.BLOCK) {
                 return false;
             }
 
@@ -2154,11 +2160,11 @@ public class Chain {
 
             //If being fed by multiple eventhubs make sure we don't add dups here.
             synchronized (this) {
-                if (num <= previous) {
-                    return false; // seen it!
-                }
-                previous = num;
-
+//                if (num <= previous) {
+//                    return false; // seen it!
+//                }
+//                previous = num;
+//
 
                 events.add(event);
             }
@@ -2167,8 +2173,8 @@ public class Chain {
 
         }
 
-        Event getNextEvent() throws EventHubException {
-            Event ret = null;
+        BlockEvent getNextEvent() throws EventHubException {
+            BlockEvent ret = null;
             if (eventException != null) {
                 throw new EventHubException(eventException);
             }
@@ -2207,7 +2213,7 @@ public class Chain {
 
 
             for (; ; ) {
-                final Event event;
+                final BlockEvent event;
                 try {
                     event = chainEventQue.getNextEvent();
                 } catch (EventHubException e) {
@@ -2219,7 +2225,7 @@ public class Chain {
                 }
 
                 try {
-                    final BlockEvent blockEvent = new BlockEvent(event.getBlock());
+                    final BlockEvent blockEvent = event;
 
                     String blockchainID = blockEvent.getChannelID();
 
@@ -2240,7 +2246,7 @@ public class Chain {
                             logger.error("Error trying to call block listener on chain " + blockEvent.getChannelID(), e);
                         }
                     }
-                } catch (InvalidProtocolBufferException e) {
+                } catch (Exception e) {
                     logger.error("Unable to parse event", e);
                     logger.debug("event:\n)");
                     logger.debug(event.toString());
@@ -2403,14 +2409,15 @@ public class Chain {
                 return;
             }
 
-            if (transactionEvent.isValid())
+            if (transactionEvent.isValid()) {
                 es.execute(() -> future.complete(transactionEvent));
-            else
+            } else {
                 es.execute(() -> future.completeExceptionally(
                         new TransactionEventException(format("Received invalid transaction event. Transaction ID %s status %s",
                                 transactionEvent.getTransactionID(),
                                 transactionEvent.validationCode()),
                                 transactionEvent)));
+            }
         }
 
         //KEEP THIS FOR NOW in case in the future we decide we want it.

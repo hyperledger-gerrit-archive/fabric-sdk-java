@@ -14,9 +14,10 @@
 package org.hyperledger.fabric.sdk;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.Block;
@@ -30,8 +31,7 @@ import org.hyperledger.fabric.protos.common.Common.Payload;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.Transaction;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.TxValidationCode;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
+import static org.hyperledger.fabric.protos.peer.PeerEvents.Event;
 
 /**
  * A wrapper for the Block returned in an Event
@@ -42,6 +42,9 @@ public class BlockEvent {
     private static final Log logger = LogFactory.getLog(BlockEvent.class);
 
     private final Block block ;
+    private final EventHub eventHub;
+    private final Event event;
+
     private BlockData blockData;
     private BlockMetadata blockMetadata;
 
@@ -50,16 +53,21 @@ public class BlockEvent {
     private byte[] txResults;   // mapping of Block.Metadata[TRANSACTIONS_FILTER] which is an array of Golang uint8
     private int transactionsInBlock;
 
+    public Event getEvent() {
+        return event;
+    }
 
     /**
      * creates a BlockEvent object by parsing the input Block and retrieving its constituent Transactions
-     * @param block a Hyperledger Fabric Block message
+     * @param eventHub a Hyperledger Fabric Block message
      *
      * @throws InvalidProtocolBufferException
      * @see Block
      */
-    BlockEvent(Block block) throws InvalidProtocolBufferException {
-        this.block = block ;
+    BlockEvent(EventHub eventHub, Event event) throws InvalidProtocolBufferException {
+        this.event = event;
+        this.block = event.getBlock();
+        this.eventHub = eventHub;
         blockMetadata = this.block.getMetadata();
         getChannelIDFromBlock();
         populateResultsMap();
