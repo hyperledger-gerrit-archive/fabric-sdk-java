@@ -14,12 +14,14 @@
 
 package org.hyperledger.fabric.sdk;
 
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,10 +51,21 @@ public class HFClient {
         }
     }
 
+    private final ExecutorService executorService = Executors.newCachedThreadPool(new ThreadFactory() {
+        public Thread newThread(Runnable r) {
+            Thread t = Executors.defaultThreadFactory().newThread(r);
+            t.setDaemon(true);
+            return t;
+        }
+    });
+
+    ExecutorService getExecutorService() {
+        return executorService;
+    }
+
     private static final Log logger = LogFactory.getLog(HFClient.class);
 
     private final Map<String, Chain> chains = new HashMap<>();
-
 
     public User getUserContext() {
         return userContext;
@@ -163,7 +176,6 @@ public class HFClient {
         return Peer.createNewInstance(name, grpcURL, null);
     }
 
-
     /**
      * Get the member service associated this chain.
      *
@@ -183,7 +195,6 @@ public class HFClient {
         this.memberServices = memberServices;
         this.memberServices.setCryptoSuite(this.cryptoSuite);
     }
-
 
     /**
      * getChain by name
@@ -214,7 +225,6 @@ public class HFClient {
     public InstantiateProposalRequest newInstantiationProposalRequest() {
         return new InstantiateProposalRequest();
     }
-
 
     public UpgradeProposalRequest newUpgradeProposalRequest() {
         return new UpgradeProposalRequest();
@@ -310,9 +320,8 @@ public class HFClient {
      */
 
     public EventHub newEventHub(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
-        return EventHub.createNewInstance(name, grpcURL, properties);
+        return EventHub.createNewInstance(name, grpcURL, executorService, properties);
     }
-
 
     /**
      * Create a new event hub

@@ -53,7 +53,6 @@ class Endpoint {
     private final Properties properties;
     private ManagedChannelBuilder<?> channelBuilder = null;
 
-
     private final static Map<String, String> cnCache = Collections.synchronizedMap(new HashMap<>());
 
     Endpoint(String url, Properties properties) {
@@ -88,7 +87,6 @@ class Endpoint {
 
                             CryptoPrimitives cp = new CryptoPrimitives();
 
-
                             X500Name x500name = new JcaX509CertificateHolder((X509Certificate) cp.bytesToCertificate(data)).getSubject();
                             RDN rdn = x500name.getRDNs(BCStyle.CN)[0];
                             //   cnn =  cn +"";
@@ -105,20 +103,23 @@ class Endpoint {
                 }
 
                 sslp = properties.getProperty("sslProvider");
-                if (sslp == null)
+                if (sslp == null) {
                     throw new RuntimeException("Property of sslProvider expected");
-                if (!sslp.equals("openSSL") && !sslp.equals("JDK"))
+                }
+                if (!sslp.equals("openSSL") && !sslp.equals("JDK")) {
                     throw new RuntimeException("Property of sslProvider has to be either openSSL or JDK");
+                }
 
                 nt = properties.getProperty("negotiationType");
-                if (nt == null)
+                if (nt == null) {
                     throw new RuntimeException("Property of negotiationType expected");
-                if (!nt.equals("TLS") && !sslp.equals("plainText"))
+                }
+                if (!nt.equals("TLS") && !sslp.equals("plainText")) {
                     throw new RuntimeException("Property of negotiationType has to be either TLS or plainText");
+                }
             }
 
         }
-
 
         if (protocol.equalsIgnoreCase("grpc")) {
             this.channelBuilder = ManagedChannelBuilder.forAddress(addr, port)
@@ -160,7 +161,6 @@ class Endpoint {
     String getHost() {
         return this.addr;
     }
-
 
     int getPort() {
         return this.port;

@@ -31,7 +31,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -158,9 +157,13 @@ public class Chain {
     }
 
     private final Collection<EventHub> eventHubs = new LinkedList<>();
-    private final ExecutorService es = Executors.newCachedThreadPool();
+    private final ExecutorService executorService;
     private Block genesisBlock;
     private final boolean systemChain;
+
+    ExecutorService getChainExecutorService() {
+        return executorService;
+    }
 
     Chain(String name, HFClient hfClient, Orderer orderer, ChainConfiguration chainConfiguration) throws InvalidArgumentException, TransactionException {
         this(name, hfClient, false);
@@ -222,6 +225,7 @@ public class Chain {
     Chain(String name, HFClient client, final boolean systemChain) throws InvalidArgumentException {
 
         this.systemChain = systemChain;
+        this.executorService = client.getExecutorService();
 
         if (systemChain) {
             name = SYSTEM_CHAIN_NAME;///It's special !
@@ -2194,7 +2198,7 @@ public class Chain {
 
                     for (BL l : blcopy) {
                         try {
-                            es.execute(() -> l.listener.received(blockEvent));
+                            executorService.execute(() -> l.listener.received(blockEvent));
                         } catch (Throwable e) { //Don't let one register stop rest.
                             logger.error("Error trying to call block listener on chain " + blockEvent.getChannelID(), e);
                         }
@@ -2374,9 +2378,9 @@ public class Chain {
             }
 
             if (transactionEvent.isValid()) {
-                es.execute(() -> future.complete(transactionEvent));
+                executorService.execute(() -> future.complete(transactionEvent));
             } else {
-                es.execute(() -> future.completeExceptionally(
+                executorService.execute(() -> future.completeExceptionally(
                         new TransactionEventException(format("Received invalid transaction event. Transaction ID %s status %s",
                                 transactionEvent.getTransactionID(),
                                 transactionEvent.validationCode()),
@@ -2410,7 +2414,7 @@ public class Chain {
 //                return false;
 //            }
 //
-//            es.execute(() -> {
+//            executorService.execute(() -> {
 //                future.completeExceptionally(new TimeoutException("Transaction " + txID + " timed out."));
 //            });
 //
