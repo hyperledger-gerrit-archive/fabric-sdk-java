@@ -36,8 +36,9 @@ import static org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse.TypeCase.
  * Sample client code that makes gRPC calls to the server.
  */
 class OrdererClient {
+    boolean shutdown = false;
     private static final Log logger = LogFactory.getLog(OrdererClient.class);
-    private final ManagedChannel channel;
+    private ManagedChannel channel;
 
     /**
      * Construct client for accessing Orderer server using the existing channel.
@@ -46,18 +47,31 @@ class OrdererClient {
         channel = channelBuilder.build();
     }
 
-    private void shutdown() {
-        if(!channel.isShutdown()) {
-            channel.shutdownNow();
+    synchronized void shutdown(boolean force) {
+
+        if (shutdown) {
+            return;
         }
+        shutdown = true;
+        ManagedChannel lchannel = channel;
+        channel = null;
+        if (lchannel == null) {
+            return;
+        }
+        lchannel.shutdownNow();
+
     }
 
     @Override
     public void finalize() {
-        shutdown();
+        shutdown(true);
     }
 
     Ab.BroadcastResponse sendTransaction(Common.Envelope envelope) throws Exception {
+
+        if (shutdown) {
+            throw new TransactionException("Orderer client is shutdown");
+        }
 
         final CountDownLatch finishLatch = new CountDownLatch(1);
         AtomicBroadcastGrpc.AtomicBroadcastStub broadcast = AtomicBroadcastGrpc.newStub(channel);
@@ -65,7 +79,7 @@ class OrdererClient {
         bsc.withDeadlineAfter(2, TimeUnit.MINUTES);
 
         final Ab.BroadcastResponse[] ret = new Ab.BroadcastResponse[1];
-        final Throwable[] throwable = new Throwable[]{null};
+        final Throwable[] throwable = new Throwable[] {null};
 
         StreamObserver<Ab.BroadcastResponse> so = new StreamObserver<Ab.BroadcastResponse>() {
             @Override
@@ -90,7 +104,6 @@ class OrdererClient {
             }
         };
 
-
         StreamObserver<Common.Envelope> nso = broadcast.broadcast(so);
 
         nso.onNext(envelope);
@@ -109,14 +122,16 @@ class OrdererClient {
         } catch (InterruptedException e) {
             logger.error(e);
 
-        } finally {
-            shutdown();
         }
 
         return ret[0];
     }
 
-    public DeliverResponse[] sendDeliver(Common.Envelope envelope) throws TransactionException{
+    public DeliverResponse[] sendDeliver(Common.Envelope envelope) throws TransactionException {
+
+        if (shutdown) {
+            throw new TransactionException("Orderer client is shutdown");
+        }
 
         final CountDownLatch finishLatch = new CountDownLatch(1);
         AtomicBroadcastGrpc.AtomicBroadcastStub broadcast = AtomicBroadcastGrpc.newStub(channel);
@@ -179,7 +194,7 @@ class OrdererClient {
             logger.error(e);
         }
 
-        if(!throwableList.isEmpty()){
+        if (!throwableList.isEmpty()) {
             Throwable throwable = throwableList.get(0);
             TransactionException e = new TransactionException(throwable.getMessage(), throwable);
             logger.error(e.getMessage(), e);
