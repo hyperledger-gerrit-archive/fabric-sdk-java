@@ -22,6 +22,7 @@ import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdkintegration.SampleStore;
 import org.hyperledger.fabric.sdkintegration.SampleUser;
+import org.hyperledger.fabric_ca.sdk.Attribute;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
@@ -156,6 +157,8 @@ public class HFCAClientEnrollIT {
 
             if (!user3.isRegistered()) {
                 RegistrationRequest rr = new RegistrationRequest(user3.getName(), TEST_USER1_AFFILIATION);
+                rr.addAttribute(new Attribute("user.role", "department lead"));
+                rr.addAttribute(new Attribute("hf.revoker", "true"));
                 user3.setEnrollmentSecret(client.register(rr, admin)); //Admin can register other users.
             }
 
