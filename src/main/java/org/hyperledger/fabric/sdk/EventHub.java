@@ -17,6 +17,7 @@ package org.hyperledger.fabric.sdk;
 import java.util.ArrayList;
 import java.util.Properties;
 
+import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 import io.netty.util.internal.StringUtil;
@@ -24,8 +25,10 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.EventsGrpc;
 import org.hyperledger.fabric.protos.peer.PeerEvents;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 
@@ -45,7 +48,7 @@ public class EventHub {
     private ManagedChannel channel;
     private boolean connected = false;
     private EventsGrpc.EventsStub events;
-    private StreamObserver<PeerEvents.Event> sender;
+    private StreamObserver<PeerEvents.SignedEvent> sender;
     /**
      * Event queue for all events from eventhubs in the chain
      */
@@ -104,7 +107,7 @@ public class EventHub {
         return properties == null ? null : (Properties) properties.clone();
     }
 
-    void connect() throws EventHubException {
+    void connect(final TransactionContext transactionContext) throws EventHubException {
         if (connected) {
             logger.warn("Event Hub already connected.");
             return;
@@ -142,7 +145,11 @@ public class EventHub {
 
 
         sender = events.chat(eventStream);
-        blockListen();
+        try {
+            blockListen(transactionContext);
+        } catch (CryptoException e) {
+           throw new EventHubException(e);
+        }
 
         //
 
@@ -159,15 +166,20 @@ public class EventHub {
 
     }
 
-    private void blockListen() {
+    private void blockListen(TransactionContext transactionContext) throws CryptoException {
 
 
         PeerEvents.Register register = PeerEvents.Register.newBuilder()
                 .addEvents(PeerEvents.Interest.newBuilder()
                         .setEventType(PeerEvents.EventType.BLOCK).build()).build();
 
-        PeerEvents.Event blockEvent = PeerEvents.Event.newBuilder().setRegister(register).build();
-        sender.onNext(blockEvent);
+        ByteString blockEventByteString = PeerEvents.Event.newBuilder().setRegister(register).build().toByteString();
+
+        PeerEvents.SignedEvent signedBlockEvent = PeerEvents.SignedEvent.newBuilder()
+                .setEventBytes(blockEventByteString)
+                .setSignature(transactionContext.signByteString(blockEventByteString.toByteArray()))
+                .build();
+        sender.onNext(signedBlockEvent);
 
 
     }
