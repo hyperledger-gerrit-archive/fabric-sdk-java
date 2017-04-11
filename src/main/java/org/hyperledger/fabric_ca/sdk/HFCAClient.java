@@ -84,11 +84,10 @@ import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.GetTCertBatchRequest;
 import org.hyperledger.fabric.sdk.MemberServices;
 import org.hyperledger.fabric.sdk.User;
-import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
-import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric_ca.sdk.exception.*;
+import org.hyperledger.fabric_ca.sdk.helper.Config;
 import sun.security.util.DerValue;
 import sun.security.x509.AuthorityKeyIdentifierExtension;
 import sun.security.x509.KeyIdentifier;
@@ -196,11 +195,11 @@ public class HFCAClient implements MemberServices {
         setUpSSL();
 
         if (StringUtil.isNullOrEmpty(req.getEnrollmentID())) {
-            throw new IllegalArgumentException("EntrollmentID cannot be null or empty");
+            throw new InvalidArgumentException("EntrollmentID cannot be null or empty");
         }
 
         if (registrar == null) {
-            throw new IllegalArgumentException("Registrar should be a valid member");
+            throw new InvalidArgumentException("Registrar should be a valid member");
         }
 
 
