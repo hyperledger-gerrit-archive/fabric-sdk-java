@@ -24,8 +24,6 @@ import javax.json.JsonObjectBuilder;
 import javax.json.JsonArrayBuilder;
 import javax.json.JsonWriter;
 
-import org.hyperledger.fabric.sdk.Attribute;
-
 /**
  * A registration request is information required to register a user, peer, or other
  * type of member.
@@ -98,7 +96,15 @@ public class RegistrationRequest {
 	public void setAffiliation(String affiliation) {
 		this.affiliation = affiliation;
 	}
-	
+
+	public ArrayList<Attribute> getAttrbutes() {
+		return attrs;
+	}
+
+	public void addAttribute(Attribute attr) {
+		this.attrs.add(attr);
+	}
+
 	// Convert the registration request to a JSON string
 	public String toJson() {
 	    StringWriter stringWriter = new StringWriter();
@@ -118,11 +124,11 @@ public class RegistrationRequest {
         }
         ob.add("max_enrollments",  this.maxEnrollments);
         ob.add("affiliation",  this.affiliation);
-        ob.add("group",  this.affiliation);  // TODO: REMOVE THIS WHEN API IS CHANGED  (See https://jira.hyperledger.org/browse/FAB-2534)
         JsonArrayBuilder ab = Json.createArrayBuilder();
         for (Attribute attr: this.attrs) {
         	ab.add(attr.toJsonObject());
         }
+        ob.add("attrs", ab.build());
         return ob.build();
 	}
 
