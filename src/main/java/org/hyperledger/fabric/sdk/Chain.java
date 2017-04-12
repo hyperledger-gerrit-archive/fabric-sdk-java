@@ -238,10 +238,6 @@ public class Chain {
         this.name = name;
         this.client = client;
 
-        if (null == client.getMemberServices()) {
-            throw new InvalidArgumentException(format("MemberServices value in chain %s can not be null", name));
-        }
-
         cryptoSuite = client.getCryptoSuite();
 
         if (null == cryptoSuite) {
