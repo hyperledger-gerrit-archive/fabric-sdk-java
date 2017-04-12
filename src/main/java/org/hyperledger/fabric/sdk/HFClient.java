@@ -14,7 +14,6 @@
 
 package org.hyperledger.fabric.sdk;
 
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,15 +52,11 @@ public class HFClient {
 
     private final Map<String, Chain> chains = new HashMap<>();
 
-
     public User getUserContext() {
         return userContext;
     }
 
     private User userContext;
-
-    // The member services used for this chain
-    private MemberServices memberServices;
 
     private HFClient() {
 
@@ -163,28 +158,6 @@ public class HFClient {
         return Peer.createNewInstance(name, grpcURL, null);
     }
 
-
-    /**
-     * Get the member service associated this chain.
-     *
-     * @return MemberServices associated with the chain, or undefined if not set.
-     */
-    public MemberServices getMemberServices() {
-        return this.memberServices;
-    }
-
-    /**
-     * Set the member service
-     *
-     * @param memberServices The MemberServices instance
-     * @throws CryptoException
-     */
-    public void setMemberServices(MemberServices memberServices) {
-        this.memberServices = memberServices;
-        this.memberServices.setCryptoSuite(this.cryptoSuite);
-    }
-
-
     /**
      * getChain by name
      *
@@ -214,7 +187,6 @@ public class HFClient {
     public InstantiateProposalRequest newInstantiationProposalRequest() {
         return new InstantiateProposalRequest();
     }
-
 
     public UpgradeProposalRequest newUpgradeProposalRequest() {
         return new UpgradeProposalRequest();
@@ -312,7 +284,6 @@ public class HFClient {
     public EventHub newEventHub(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
         return EventHub.createNewInstance(name, grpcURL, properties);
     }
-
 
     /**
      * Create a new event hub

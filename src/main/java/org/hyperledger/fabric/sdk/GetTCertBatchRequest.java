@@ -17,7 +17,7 @@ package org.hyperledger.fabric.sdk;
 import java.util.List;
 
 // A request to get a batch of TCerts
-public class GetTCertBatchRequest {
+class GetTCertBatchRequest {
 
 	private String name;
 	private Enrollment enrollment;
