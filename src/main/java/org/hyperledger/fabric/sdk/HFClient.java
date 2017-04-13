@@ -31,12 +31,19 @@ import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory;
 
 import static java.lang.String.format;
 
 public class HFClient {
 
     private CryptoSuite cryptoSuite;
+
+    public CryptoSuiteFactory getCryptoSuiteFactory() {
+        return cryptoSuiteFactory;
+    }
+
+    private CryptoSuiteFactory cryptoSuiteFactory;
 
     static {
 
@@ -51,6 +58,7 @@ public class HFClient {
     private static final Log logger = LogFactory.getLog(HFClient.class);
 
     private final Map<String, Chain> chains = new HashMap<>();
+
 
     public User getUserContext() {
         return userContext;
@@ -67,8 +75,13 @@ public class HFClient {
     }
 
     public void setCryptoSuite(CryptoSuite cryptoSuite) throws CryptoException, InvalidArgumentException {
-        this.cryptoSuite = cryptoSuite;
-        this.cryptoSuite.init();
+          this.cryptoSuite = cryptoSuite;
+            this.cryptoSuite.init();
+    }
+
+    public void setCryptoSuiteFactory(CryptoSuiteFactory cryptoSuiteFactory) {
+        this.cryptoSuiteFactory = cryptoSuiteFactory;
+
     }
 
     /**

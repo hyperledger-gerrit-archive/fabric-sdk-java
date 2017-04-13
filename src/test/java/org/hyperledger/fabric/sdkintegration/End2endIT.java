@@ -42,6 +42,7 @@ import org.hyperledger.fabric.sdk.TransactionInfo;
 import org.hyperledger.fabric.sdk.TransactionProposalRequest;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
@@ -113,6 +114,8 @@ public class End2endIT {
             HFClient client = HFClient.createNewInstance();
 
             client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
+            client.setCryptoSuiteFactory(CryptoSuiteFactory.getDefault());
+
 
             // client.setMemberServices(peerOrg1FabricCA);
 

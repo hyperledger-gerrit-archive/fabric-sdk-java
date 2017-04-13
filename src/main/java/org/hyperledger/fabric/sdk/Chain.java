@@ -87,6 +87,7 @@ import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
@@ -143,6 +144,7 @@ public class Chain {
 
     // The crypto primitives object
     private CryptoSuite cryptoSuite;
+    private CryptoSuiteFactory cryptoSuiteFactory;
     private final Collection<Orderer> orderers = new LinkedList<>();
     HFClient client;
     private boolean initialized = false;
@@ -239,6 +241,7 @@ public class Chain {
         this.client = client;
 
         cryptoSuite = client.getCryptoSuite();
+        cryptoSuiteFactory = client.getCryptoSuiteFactory();
 
         if (null == cryptoSuite) {
             throw new InvalidArgumentException(format("CryptoPrimitives value in chain %s can not be null", name));
