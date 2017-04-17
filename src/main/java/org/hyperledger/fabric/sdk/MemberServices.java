@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.security.KeyPair;
+
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric.sdk.exception.GetTCertBatchException;
 import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
@@ -50,6 +52,16 @@ public interface MemberServices {
      * @return enrollment details
      */
     Enrollment enroll(String userName, String secret) throws EnrollmentException, InvalidArgumentException;
+
+    /**
+     * Enroll the user and return an opaque user object
+     * @param userName Name of usr to enroll
+     * @param secret enrollmentSecret
+     * @param keypair public/private key pair for certificate request
+     *
+     * @return enrollment details
+     */
+    Enrollment enroll(String userName, String secret, KeyPair keypair) throws EnrollmentException, InvalidArgumentException;
 
     /**
      * Re-enroll the user and return a new Enrollment of the user
