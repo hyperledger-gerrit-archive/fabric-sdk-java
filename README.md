@@ -3,28 +3,28 @@ Welcome to Java SDK for Hyperledger project. The SDK helps facilitate Java appli
  Hyperledger channels  (*often referred to as chains*) and user chaincode. The SDK also provides a means to execute
   user chaincode, query blocks
  and transactions on the chain, and monitor events on the chain.
- 
+
 THe SDK acts on behave of a particular User which is defined by the embedding application through the implementation
  of the SDK's `User` interface.
- 
-Note, the SDK does ***not*** provide a means of persistence 
+
+Note, the SDK does ***not*** provide a means of persistence
   for the application defined channels and user artifacts on the client. This is left for the embedding application to best manage.
-  
+
 The SDK also provides a client for Hyperledger's certificate authority.  The SDK is however not dependent on this
-particular implementation of a certificate authority.  Other Certificate authority's maybe use by implementing the 
+particular implementation of a certificate authority.  Other Certificate authority's maybe use by implementing the
 SDK's `Enrollment` interface.
- 
+
  This provides a summary of steps required to get you started with building and using the Java SDK.
  Please note that this is not the API documentation or a tutorial for the SDK, this will
   only help you familiarize to get started with the SDK if you are new in this domain.
 
- The 1.0 sdk is currently under development and the ***API is still subject to change****. It is likely any code depending 
+ The 1.0 sdk is currently under development and the ***API is still subject to change****. It is likely any code depending
  on this 1.0 version `preview` may need updating
  with subsequent updates of the SDK.
- 
+
 ## Known limitations
 
-* TCerts are not supported: JIRA FAB-1401 
+* TCerts are not supported: JIRA FAB-1401
 
 
 ## Valid builds of Fabric and Fabric-ca
@@ -39,20 +39,20 @@ You should use the following commit levels of the Hyperledger projects:
 
 | Project        | Commit level                               | Date                       |
 |:---------------|:------------------------------------------:|---------------------------:|
-| fabric         | 18ec851546e13b9d7d2c010d41f3670f404e2934   | Apr 13 06:01:03 2017 +0000 |
-| fabric-ca      | d67841e1e7139dd19e297558788d41bdf1b6809c   | Apr 11 19:47:13 2017 +0000 |
+| fabric         | 7f336b902e6c9a061f134a5c945233c87f101d2b   | Apr 18 07:57:32 2017 +0000 |
+| fabric-ca      | 28197b0f07d629d1bbf3ffc8ed8f12d9f4b9e202   | Apr 14 21:14:35 2017 +0000 |
 
  You can clone these projects by going to the [Hyperledger repository](https://gerrit.hyperledger.org/r/#/admin/projects/).
 
  As SDK developement continues, this file will be updated with compatible Hyperledger Fabric and Fabric-ca commit levels.
 
  Once you have cloned `fabric` and `fabric-ca`, use the `git reset --hard commitlevel` to set your repositories to the correct commit.
- 
+
 ## Working with the Fabric Vagrant environment
  Do the following if you want to run the Fabric components ( peer, orderer, fabric-ca ) in Vagrant:
 
  * Follow the instructions <a href="https://github.com/hyperledger/fabric/blob/master/docs/dev-setup/devenv.md">here</a> to setup the development environment.
- 
+
  * Open the file `Vagrantfile` and verify that the following `config.vm.network` statements are set. If not, then add them:
 ```
   config.vm.network :forwarded_port, guest: 7050, host: 7050 # fabric orderer service
@@ -68,18 +68,17 @@ You should use the following commit levels of the Hyperledger projects:
   config.vm.network :forwarded_port, guest: 8054, host: 8054
   config.vm.network :forwarded_port, guest: 8056, host: 8056
   config.vm.network :forwarded_port, guest: 8058, host: 8058
- 
+
 ```
 
-Add to your Vagrant file a folder for referencing the sdkintegration folder 
+Add to your Vagrant file a folder for referencing the sdkintegration folder
 
-  
   config.vm.synced_folder "..", "/opt/gopath/src/github.com/hyperledger/fabric"</br>
-  
+
   ***config.vm.synced_folder "/home/user/fabric-sdk-java/src/test/fixture/sdkintegration", "/opt/gopath/src/github.com/hyperledger/fabric/sdkintegration"***</br>
-  
+
   config.vm.synced_folder ENV.fetch('LOCALDEVDIR', ".."), "#{LOCALDEV}"</br>
-  
+
  * Start the vagrant virtual machine
 ```
 vagrant up
@@ -263,5 +262,3 @@ JIRA Fields should be:
 </dl>
 
 Pleases provide as much information that you can with the issue you're experiencing: stack traces  logs.
-
-
