@@ -13,13 +13,12 @@
  */
 package org.hyperledger.fabric.sdk.helper;
 
+import org.apache.log4j.Logger;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 /**
  * Config allows for a global config of the toolkit. Central location for all
@@ -32,7 +31,7 @@ import org.apache.commons.logging.LogFactory;
  */
 
 public class Config {
-    private static final Log logger = LogFactory.getLog(Config.class);
+    private static final Logger logger = Logger.getLogger(Config.class);
 
     private static final String DEFAULT_CONFIG = "config.properties";
     public static final String ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION = "org.hyperledger.fabric.sdk.configuration";

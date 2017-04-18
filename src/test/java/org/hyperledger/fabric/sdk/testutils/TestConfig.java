@@ -13,21 +13,16 @@
  */
 package org.hyperledger.fabric.sdk.testutils;
 
+import org.apache.log4j.Logger;
+import org.hyperledger.fabric.sdk.helper.SDKUtil;
+import org.hyperledger.fabric.sdkintegration.SampleOrg;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.sdk.helper.SDKUtil;
-import org.hyperledger.fabric.sdkintegration.SampleOrg;
 
 /**
  * Config allows for a global config of the toolkit. Central location for all
@@ -44,7 +39,7 @@ import org.hyperledger.fabric.sdkintegration.SampleOrg;
  */
 
 public class TestConfig {
-    private static final Log logger = LogFactory.getLog(TestConfig.class);
+    private static final Logger logger = Logger.getLogger(TestConfig.class);
 
     private static final String DEFAULT_CONFIG = "src/test/java/org/hyperledger/fabric/sdk/testutils.properties";
     private static final String ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION = "org.hyperledger.fabric.sdktest.configuration";
