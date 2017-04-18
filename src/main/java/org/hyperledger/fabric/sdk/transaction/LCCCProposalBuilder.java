@@ -21,7 +21,7 @@ import static org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeSpec.Type.GO
 
 
 public class LCCCProposalBuilder extends ProposalBuilder {
-    private static final String LCCC_CHAIN_NAME = "lccc";
+    private static final String LCCC_CHAIN_NAME = "lscc";
     private static final Chaincode.ChaincodeID CHAINCODE_ID_LCCC =
             Chaincode.ChaincodeID.newBuilder().setName(LCCC_CHAIN_NAME).build();
 
