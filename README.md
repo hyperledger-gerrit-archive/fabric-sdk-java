@@ -39,20 +39,20 @@ You should use the following commit levels of the Hyperledger projects:
 
 | Project        | Commit level                               | Date                       |
 |:---------------|:------------------------------------------:|---------------------------:|
-| fabric         | 18ec851546e13b9d7d2c010d41f3670f404e2934   | Apr 13 06:01:03 2017 +0000 |
-| fabric-ca      | d67841e1e7139dd19e297558788d41bdf1b6809c   | Apr 11 19:47:13 2017 +0000 |
+| fabric         | 7f336b902e6c9a061f134a5c945233c87f101d2b   | Apr 18 07:57:32 2017 +0000 |
+| fabric-ca      | 28197b0f07d629d1bbf3ffc8ed8f12d9f4b9e202   | Apr 14 21:14:35 2017 +0000 |
 
  You can clone these projects by going to the [Hyperledger repository](https://gerrit.hyperledger.org/r/#/admin/projects/).
 
  As SDK developement continues, this file will be updated with compatible Hyperledger Fabric and Fabric-ca commit levels.
 
  Once you have cloned `fabric` and `fabric-ca`, use the `git reset --hard commitlevel` to set your repositories to the correct commit.
- 
+
 ## Working with the Fabric Vagrant environment
  Do the following if you want to run the Fabric components ( peer, orderer, fabric-ca ) in Vagrant:
 
  * Follow the instructions <a href="https://github.com/hyperledger/fabric/blob/master/docs/dev-setup/devenv.md">here</a> to setup the development environment.
- 
+
  * Open the file `Vagrantfile` and verify that the following `config.vm.network` statements are set. If not, then add them:
 ```
   config.vm.network :forwarded_port, guest: 7050, host: 7050 # fabric orderer service
@@ -68,18 +68,17 @@ You should use the following commit levels of the Hyperledger projects:
   config.vm.network :forwarded_port, guest: 8054, host: 8054
   config.vm.network :forwarded_port, guest: 8056, host: 8056
   config.vm.network :forwarded_port, guest: 8058, host: 8058
- 
+
 ```
 
-Add to your Vagrant file a folder for referencing the sdkintegration folder 
+Add to your Vagrant file a folder for referencing the sdkintegration folder
 
-  
   config.vm.synced_folder "..", "/opt/gopath/src/github.com/hyperledger/fabric"</br>
-  
+
   ***config.vm.synced_folder "/home/user/fabric-sdk-java/src/test/fixture/sdkintegration", "/opt/gopath/src/github.com/hyperledger/fabric/sdkintegration"***</br>
-  
+
   config.vm.synced_folder ENV.fetch('LOCALDEVDIR', ".."), "#{LOCALDEV}"</br>
-  
+
  * Start the vagrant virtual machine
 ```
 vagrant up
@@ -263,5 +262,3 @@ JIRA Fields should be:
 </dl>
 
 Pleases provide as much information that you can with the issue you're experiencing: stack traces  logs.
-
-
