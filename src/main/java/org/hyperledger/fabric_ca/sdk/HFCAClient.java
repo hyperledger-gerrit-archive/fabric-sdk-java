@@ -138,7 +138,7 @@ public class HFCAClient {
         logger.debug(format("new HFCAClient %s", url));
         this.url = url;
 
-        this.name= name; //name maybe null
+         this.name = name; //name may be null
 
         URL purl = new URL(url);
         final String proto = purl.getProtocol();
