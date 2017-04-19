@@ -1155,6 +1155,7 @@ public class Chain {
             instantiateProposalbuilder.chaincodePath(instantiateProposalRequest.getChaincodePath());
             instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
             instantiateProposalbuilder.chaincodEndorsementPolicy(instantiateProposalRequest.getChaincodeEndorsementPolicy());
+            instantiateProposalbuilder.setTransientMap(instantiateProposalRequest.getTransientMap());
 
             FabricProposal.Proposal instantiateProposal = instantiateProposalbuilder.build();
             SignedProposal signedProposal = getSignedProposal(instantiateProposal);
