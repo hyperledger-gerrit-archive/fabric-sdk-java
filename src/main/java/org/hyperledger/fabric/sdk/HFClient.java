@@ -113,15 +113,16 @@ public class HFClient {
      * @param name               The chains name
      * @param orderer            Order to create the chain with.
      * @param chainConfiguration Chain configuration data.
+     * @param signers            array of byte array of signers
      * @return
      * @throws TransactionException
      * @throws InvalidArgumentException
      */
 
-    public Chain newChain(String name, Orderer orderer, ChainConfiguration chainConfiguration) throws TransactionException, InvalidArgumentException {
+    public Chain newChain(String name, Orderer orderer, ChainConfiguration chainConfiguration, byte[]... signers) throws TransactionException, InvalidArgumentException {
 
         logger.trace("Creating chain :" + name);
-        Chain newChain = Chain.createNewInstance(name, this, orderer, chainConfiguration);
+        Chain newChain = Chain.createNewInstance(name, this, orderer, chainConfiguration, signers);
         chains.put(name, newChain);
         return newChain;
     }
@@ -259,9 +260,9 @@ public class HFClient {
         if (null == enrollment.getKey()) {
             throw new InvalidArgumentException(format("setUserContext for user %s has Enrollment missing signing key", userName));
         }
-        if (StringUtil.isNullOrEmpty(enrollment.getPublicKey())) {
-            throw new InvalidArgumentException(format("setUserContext for user %s  Enrollment missing user public key.", userName));
-        }
+//        if (StringUtil.isNullOrEmpty(enrollment.getPublicKey())) {
+//            throw new InvalidArgumentException(format("setUserContext for user %s  Enrollment missing user public key.", userName));
+//        }
 
         this.userContext = userContext;
     }
@@ -417,6 +418,22 @@ public class HFClient {
             logger.error(format("queryInstalledChaincodes for peer %s failed." + e.getMessage(), peer.getName()), e);
             throw e;
         }
+
+    }
+
+    /**
+     * Get signature for chain configuration
+     *
+     * @param chainConfiguration
+     * @param signer
+     * @return byte array with the signature
+     * @throws InvalidArgumentException
+     */
+
+    public byte[] getChainConfigurationSignature(ChainConfiguration chainConfiguration, User signer) throws InvalidArgumentException {
+
+        Chain systemChain = Chain.newSystemChain(this);
+        return systemChain.getChainConfigurationSignature(chainConfiguration, signer);
 
     }
 
