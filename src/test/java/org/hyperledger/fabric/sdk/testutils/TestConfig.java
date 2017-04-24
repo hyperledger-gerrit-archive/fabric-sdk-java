@@ -91,12 +91,12 @@ public class TestConfig {
             defaultProperty(DEPLOYWAITTIME, "120000");
 
             //////
-            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.mspid", "Org1MSP");
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.mspid", "Org0MSP");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.ca_location", "http://localhost:7054");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.peer_locations", "peer0@grpc://localhost:7051, peer1@grpc://localhost:7056");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.orderer_locations", "orderer0@grpc://localhost:7050");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.eventhub_locations", "peer0@grpc://localhost:7053,peer1@grpc://localhost:7058");
-            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.mspid", "Org2MSP");
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.mspid", "Org1MSP");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.ca_location", "http://localhost:8054");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.peer_locations", "peer2@grpc://localhost:8051,peer3@grpc://localhost:8056");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.orderer_locations", "orderer0@grpc://localhost:7050");
