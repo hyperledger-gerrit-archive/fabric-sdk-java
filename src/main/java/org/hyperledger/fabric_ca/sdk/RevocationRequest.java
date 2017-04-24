@@ -14,8 +14,6 @@
 
 package org.hyperledger.fabric_ca.sdk;
 
-import io.netty.util.internal.StringUtil;
-
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
@@ -24,11 +22,14 @@ import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonWriter;
 
+import io.netty.util.internal.StringUtil;
+
 /**
  * A RevocationRequest defines the attributes required to revoke credentials with member service.
  */
 class RevocationRequest {
 
+    private final String caName;
     // Enrollment ID whose certificates are to be revoked
     private String enrollmentID;
     // Serial number of certificate to be revoked
@@ -39,7 +40,7 @@ class RevocationRequest {
     private int reason;
 
     // Constructor
-    RevocationRequest(String id, String serial, String aki, int reason) throws Exception {
+    RevocationRequest(String caNmae, String id, String serial, String aki, int reason) throws Exception {
         if (StringUtil.isNullOrEmpty(id)) {
             if (StringUtil.isNullOrEmpty(serial) || StringUtil.isNullOrEmpty(aki)) {
                 throw new Exception("Enrollment ID is empty, thus both aki and serial must have non-empty values");
@@ -49,6 +50,7 @@ class RevocationRequest {
         this.serial = serial;
         this.aki = aki;
         this.reason = reason;
+        this.caName = caNmae;
     }
 
     String getUser() {
@@ -102,6 +104,10 @@ class RevocationRequest {
             // revoke one particular enrollment
             factory.add("serial", "0" + serial);
             factory.add("aki", aki);
+        }
+
+        if(caName != null){
+            factory.add( HFCAClient.FABRIC_CA_REQPROP, caName);
         }
         factory.add("reason", reason);
         return factory.build();
