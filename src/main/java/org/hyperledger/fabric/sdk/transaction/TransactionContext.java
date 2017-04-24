@@ -37,7 +37,6 @@ import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.SDKUtil;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
-
 /**
  * A transaction context emits events 'submitted', 'complete', and 'error'.
  * Each transaction context uses exactly one tcert.
@@ -48,8 +47,8 @@ public class TransactionContext {
     //TODO right now the server does not care need to figure out
     private final ByteString nonce = ByteString.copyFromUtf8(SDKUtil.generateUUID());
 
-
     private boolean verify = true;
+    private User[] signers;
 
     public CryptoSuite getCryptoPrimitives() {
         return cryptoPrimitives;
@@ -67,7 +66,6 @@ public class TransactionContext {
 
     public TransactionContext(Chain chain, User user, CryptoSuite cryptoPrimitives) {
 
-
         this.user = user;
         this.chain = chain;
         //TODO clean up when public classes are interfaces.
@@ -76,11 +74,7 @@ public class TransactionContext {
         //  this.txID = transactionID;
         this.cryptoPrimitives = cryptoPrimitives;
 
-
-        identity = Identities.SerializedIdentity.newBuilder()
-                .setIdBytes(ByteString.copyFromUtf8(getCreator()))
-                .setMspid(getMSPID()).build();
-
+        identity = ProtoUtils.createSerializedIdentity(getUser());
 
         ByteString no = getNonce();
         ByteString comp = no.concat(identity.toByteString());
@@ -96,11 +90,9 @@ public class TransactionContext {
 
     }
 
-
     public long getEpoch() {
         return 0;
     }
-
 
     /**
      * Get the user with which this transaction context is associated.
@@ -120,7 +112,6 @@ public class TransactionContext {
         return this.chain;
     }
 
-
     /**
      * Emit a specific event provided an event listener is already registered.
      */
@@ -137,7 +128,6 @@ public class TransactionContext {
        }, 0);
 */
     }
-
 
     /**
      * Get the attribute names associated
@@ -171,7 +161,6 @@ public class TransactionContext {
         this.proposalWaitTime = proposalWaitTime;
     }
 
-
     private void decryptResult(Buffer ct) {
         /* TODO implement decryptResult function
         let key = new Buffer(
@@ -187,10 +176,8 @@ public class TransactionContext {
 
     Timestamp currentTimeStamp = null;
 
-
     public Timestamp getFabricTimestamp() {
         if (currentTimeStamp == null) {
-
 
             Timestamp.Builder ts = Timestamp.newBuilder();
             ts.setSeconds(Instant.now().toEpochMilli());
@@ -211,6 +198,10 @@ public class TransactionContext {
 
     public boolean getVerify() {
         return verify;
+    }
+
+    public void setSigners(User[] signers) {
+        this.signers = signers;
     }
 
     private static class SerializedIdentity {
@@ -234,7 +225,6 @@ public class TransactionContext {
 
         }
 
-
         @Override
         public ASN1Primitive toASN1Primitive() {
 
@@ -247,7 +237,6 @@ public class TransactionContext {
         }
     }
 
-
     String getMSPID() {
         return user.getMSPID();
     }
@@ -256,7 +245,6 @@ public class TransactionContext {
         return getUser().getEnrollment().getCert();
 
     }
-
 
     public boolean isDevMode() {
         return chain.isDevMode();
@@ -270,8 +258,7 @@ public class TransactionContext {
         return txID;
     }
 
-
-    public byte[] sign(byte[] b) throws CryptoException {
+    byte[] sign(byte[] b) throws CryptoException {
         return cryptoPrimitives.sign(getUser().getEnrollment().getKey(), b);
     }
 
@@ -279,5 +266,49 @@ public class TransactionContext {
         return ByteString.copyFrom(sign(b));
     }
 
+    public ByteString signByteStrings(ByteString... bs) throws CryptoException {
+        assert bs != null;
+        if (bs == null) {
+            return null;
+        }
+        assert bs.length != 0;
+        if (bs.length == 0) {
+            return null;
+        }
+
+        ByteString f = bs[0];
+        for (int i = 1; i < bs.length; ++i) {
+            f = f.concat(bs[i]);
+
+        }
+        return ByteString.copyFrom(sign(f.toByteArray()));
+    }
+
+    public ByteString[] signByteStrings(User[] users, ByteString... bs) throws CryptoException {
+        assert bs != null;
+        if (bs == null) {
+            return null;
+        }
+        assert bs.length != 0;
+        if (bs.length == 0) {
+            return null;
+        }
+
+        ByteString f = bs[0];
+        for (int i = 1; i < bs.length; ++i) {
+            f = f.concat(bs[i]);
+
+        }
+
+        final byte[] signbytes = f.toByteArray();
+
+        ByteString[] ret = new ByteString[users.length];
+
+        int i = -1;
+        for (User user : users) {
+            ret[++i] = ByteString.copyFrom(cryptoPrimitives.sign(user.getEnrollment().getKey(), signbytes));
+        }
+        return ret;
+    }
 
 }  // end TransactionContext
