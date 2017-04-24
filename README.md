@@ -200,9 +200,9 @@ This is created with the Hyperledger Fabric `configtxgen` tool.
 
 For End2endIT.java the commands are
 
- * build/bin/configtxgen -outputCreateChannelTx foo.tx -profile TwoOrgs -channelID foo
- * build/bin/configtxgen -outputCreateChannelTx bar.tx -profile TwoOrgs -channelID bar
- * build/bin/configtxgen -outputBlock twoorgs.orderer.block -profile TwoOrgs
+ * build/bin/configtxgen -outputCreateChannelTx foo.tx -profile TwoOrgsChannel -channelID foo
+ * build/bin/configtxgen -outputCreateChannelTx bar.tx -profile TwoOrgsChannel -channelID bar
+ * build/bin/configtxgen -outputBlock orderer.block -profile TwoOrgsOrdererGenesis
 
 with the configtxgen config file _src/test/fixture/sdkintegration/e2e-2Orgs/channel/configtx.yaml_
 

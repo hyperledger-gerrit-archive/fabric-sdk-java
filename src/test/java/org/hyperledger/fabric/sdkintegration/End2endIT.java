@@ -15,13 +15,16 @@
 package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.net.MalformedURLException;
+import java.security.PrivateKey;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.IOUtils;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
@@ -29,6 +32,7 @@ import org.hyperledger.fabric.sdk.Chain;
 import org.hyperledger.fabric.sdk.ChainCodeID;
 import org.hyperledger.fabric.sdk.ChainConfiguration;
 import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
+import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
@@ -40,7 +44,9 @@ import org.hyperledger.fabric.sdk.QueryByChaincodeRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.TransactionInfo;
 import org.hyperledger.fabric.sdk.TransactionProposalRequest;
+import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
+import org.hyperledger.fabric.sdk.helper.PemParserUtil;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
@@ -145,8 +151,9 @@ public class End2endIT {
 
                     admin.setEnrollment(ca.enroll(admin.getName(), "adminpw"));
                     admin.setMPSID(mspid);
-                    sampleOrg.setAdmin(admin); // The admin of this org.
+
                 }
+                sampleOrg.setAdmin(admin); // The admin of this org.
 
                 SampleUser user = sampleStore.getMember(TESTUSER_1_NAME, sampleOrg.getName());
                 if (!user.isRegistered()) {  // users need to be registered AND enrolled
@@ -474,6 +481,77 @@ public class End2endIT {
         Chain newChain = client.newChain(name, anOrderer, chainConfiguration);
 
         out("Created chain %s", name);
+
+
+
+
+        //e2e-2Orgs/channel/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/signcerts/Admin@org1.example.com-cert.pem
+        //e2e-2Orgs/channel/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/keystore/78f50c6aec2ee47f936374da94df455d39f57873ab45b7cbed4e0fcb85226676_sk
+        byte[] cb = IOUtils.toByteArray(new FileInputStream("src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/signcerts/Admin@org1.example.com-cert.pem"));
+     //   byte[] keybytes = IOUtils.toByteArray(new FileInputStream("src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/keystore/78f50c6aec2ee47f936374da94df455d39f57873ab45b7cbed4e0fcb85226676_sk"));
+
+        PrivateKey pkey = PemParserUtil.bcc4();
+
+        String creator = new String(cb, "UTF-8");
+        System.out.println("creator: "+ creator);
+
+
+
+        SampleUser.AfakeEnrollmentImplementation enrollment = new SampleUser.AfakeEnrollmentImplementation("xxx", pkey, creator);
+
+        User cadmin = new User( ) {
+
+            @Override
+            public String getName() {
+                return "rickdidthis";
+            }
+
+            @Override
+            public Set<String> getRoles() {
+                return null;
+            }
+
+            @Override
+            public String getAccount() {
+                return null;
+            }
+
+            @Override
+            public String getAffiliation() {
+                return null;
+            }
+
+            @Override
+            public Enrollment getEnrollment() {
+                return enrollment;
+            }
+
+            @Override
+            public String getMSPID() {
+                return "Org0MSP";
+            }
+        };
+
+         client.setUserContext(cadmin);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         for (String peerName : sampleOrg.getPeerNames()) {
             String peerLocation = sampleOrg.getPeerLocation(peerName);
