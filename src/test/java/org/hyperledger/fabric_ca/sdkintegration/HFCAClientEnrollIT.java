@@ -31,8 +31,8 @@ import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdkintegration.SampleStore;
 import org.hyperledger.fabric.sdkintegration.SampleUser;
 import org.hyperledger.fabric_ca.sdk.Attribute;
-import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
+import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
@@ -46,13 +46,13 @@ public class HFCAClientEnrollIT {
     // public static class MemberServicesFabricCAImplTest {
     private static final String TEST_ADMIN_NAME = "admin";
     private static final String TEST_ADMIN_PW = "adminpw";
-    private static final String TEST_ADMIN_ORG = "org0";
+    private static final String TEST_ADMIN_ORG = "org1";
     private static final String TEST_USER2_NAME = "user2";
     private static final String TEST_USER2_PW = "user2pw";
     private static final String TEST_USER3_NAME = "user3";
     private static final String TEST_USER3_PW = "user3pw";
     private static final String TEST_USER1_NAME = "user1";
-    private static final String TEST_USER1_ORG = "Org1";
+    private static final String TEST_USER1_ORG = "Org2";
     private static final String TEST_USER1_AFFILIATION = "org1.department1";
     private static final String CA_LOCATION = "http://localhost:7054";
     private static final String tlsbase = "src/test/fixture/sdkintegration/e2e-2Orgs/tls/";

@@ -118,10 +118,10 @@ public class HFClient {
      * @throws InvalidArgumentException
      */
 
-    public Chain newChain(String name, Orderer orderer, ChainConfiguration chainConfiguration) throws TransactionException, InvalidArgumentException {
+    public Chain newChain(String name, Orderer orderer, ChainConfiguration chainConfiguration, User ... signers) throws TransactionException, InvalidArgumentException {
 
         logger.trace("Creating chain :" + name);
-        Chain newChain = Chain.createNewInstance(name, this, orderer, chainConfiguration);
+        Chain newChain = Chain.createNewInstance(name, this, orderer, chainConfiguration, signers);
         chains.put(name, newChain);
         return newChain;
     }
@@ -259,9 +259,9 @@ public class HFClient {
         if (null == enrollment.getKey()) {
             throw new InvalidArgumentException(format("setUserContext for user %s has Enrollment missing signing key", userName));
         }
-        if (StringUtil.isNullOrEmpty(enrollment.getPublicKey())) {
-            throw new InvalidArgumentException(format("setUserContext for user %s  Enrollment missing user public key.", userName));
-        }
+//        if (StringUtil.isNullOrEmpty(enrollment.getPublicKey())) {
+//            throw new InvalidArgumentException(format("setUserContext for user %s  Enrollment missing user public key.", userName));
+//        }
 
         this.userContext = userContext;
     }

@@ -16,8 +16,12 @@ package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
 import java.net.MalformedURLException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -40,6 +44,7 @@ import org.hyperledger.fabric.sdk.QueryByChaincodeRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.TransactionInfo;
 import org.hyperledger.fabric.sdk.TransactionProposalRequest;
+import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
@@ -142,11 +147,11 @@ public class End2endIT {
                 ca.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
                 SampleUser admin = sampleStore.getMember(TEST_ADMIN_NAME, orgName);
                 if (!admin.isEnrolled()) {  //Preregistered admin only needs to be enrolled with Fabric caClient.
-
                     admin.setEnrollment(ca.enroll(admin.getName(), "adminpw"));
                     admin.setMPSID(mspid);
-                    sampleOrg.setAdmin(admin); // The admin of this org.
                 }
+
+                sampleOrg.setAdmin(admin); // The admin of this org --
 
                 SampleUser user = sampleStore.getMember(TESTUSER_1_NAME, sampleOrg.getName());
                 if (!user.isRegistered()) {  // users need to be registered AND enrolled
@@ -158,6 +163,18 @@ public class End2endIT {
                     user.setMPSID(mspid);
                 }
                 sampleOrg.addUser(user);//Remember user belongs to this Org
+
+                SampleUser peerOrg1Admin = sampleStore.getMember("peerOrg1Admin", sampleOrg.getName(), "Org1MSP",
+                        Paths.get(testConfig.getTestChannlePath(), "crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/keystore/a26e0e9033e41632261fecfe79d148029f881c48f0a04cc7ec3fb7d8820d24db_sk").toFile(),
+                        Paths.get(testConfig.getTestChannlePath(), "crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/signcerts/Admin@org1.example.com-cert.pem").toFile());
+
+                sampleOrg.setPeerAdmin(peerOrg1Admin);
+
+//                SampleUser peerOrg2Admin = sampleStore.getMember("peerOrg2Admin", sampleOrg.getName(), "Org2MSP",
+//                        Paths.get(testConfig.getTestChannlePath(), "crypto-config/peerOrganizations/org2.example.com/users/Admin@org2.example.com/keystore/b4485361034b9f71990d174cec5751a52d821e85f0fc74a2a5d9e198fffdce5d_sk").toFile(),
+//                        Paths.get(testConfig.getTestChannlePath(), "crypto-config/peerOrganizations/org2.example.com/users/Admin@org2.example.com/signcerts/Admin@org2.example.com-cert.pem").toFile());
+//
+//     //           sampleOrg.addPeerAdmins(peerOrg2Admin);
 
             }
 
@@ -207,6 +224,8 @@ public class End2endIT {
                 // Install Proposal Request
                 //
 
+                client.setUserContext(sampleOrg.getUser(TESTUSER_1_NAME));
+
                 out("Creating install proposal");
 
                 InstallProposalRequest installProposalRequest = client.newInstallProposalRequest();
@@ -243,6 +262,8 @@ public class End2endIT {
                     fail("Not enough endorsers for install :" + successful.size() + ".  " + first.getMessage());
                 }
             }
+
+            client.setUserContext(sampleOrg.getUser(TESTUSER_1_NAME));
             //  final ChainCodeID chainCodeID = firstInstallProposalResponse.getChainCodeID();
             // Note install chain code does not require transaction no need to
             // send to Orderers
@@ -427,18 +448,6 @@ public class End2endIT {
             TransactionInfo txInfo = chain.queryTransactionByID(queryPeer, testTxID);
             out("QueryTransactionByID returned TransactionInfo: txID " + txInfo.getTransactionID()
                     + "\n     validation code " + txInfo.getValidationCode().getNumber());
-            /*
-             * TODO printing out too many error messages right now
-            boolean shouldNotFail = true;
-            try {
-                txInfo = chain.queryTransactionByID("fake", peer);
-            } catch (Exception ee) {
-                shouldNotFail = false;
-            }
-            if (shouldNotFail) {
-                fail("Should have failed on queryTransactionByID using fake txID");
-            }
-            */
 
             out("Running for Chain %s done", chainName);
 
@@ -470,8 +479,15 @@ public class End2endIT {
 
         ChainConfiguration chainConfiguration = new ChainConfiguration(new File(TEST_FIXTURES_PATH + "/sdkintegration/e2e-2Orgs/channel/" + name + ".tx"));
 
-        client.setUserContext(sampleOrg.getAdmin());
-        Chain newChain = client.newChain(name, anOrderer, chainConfiguration);
+        //Only peer Admin org
+        client.setUserContext(sampleOrg.getPeerAdmin());
+
+        //final List<User> signers = new ArrayList<>( Arrays.asList(new User[] {sampleOrg.getAdmin(), sampleOrg.getOrdererAdmin()}));
+        final List<User> signers = new ArrayList<>(Arrays.asList(new User[] {}));
+
+        signers.add(sampleOrg.getPeerAdmin());
+
+        Chain newChain = client.newChain(name, anOrderer, chainConfiguration, signers.toArray(new User[signers.size()]));
 
         out("Created chain %s", name);
 

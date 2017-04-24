@@ -328,4 +328,11 @@ public class TestConfig {
         return ret;
     }
 
+
+    public String getTestChannlePath(){
+
+       return "src/test/fixture/sdkintegration/e2e-2Orgs/channel";
+
+    }
+
 }
