@@ -53,6 +53,8 @@ import org.hyperledger.fabric.protos.common.Common.Metadata;
 import org.hyperledger.fabric.protos.common.Common.Payload;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigEnvelope;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigGroup;
+import org.hyperledger.fabric.protos.common.Configtx.ConfigSignature;
+import org.hyperledger.fabric.protos.common.Configtx.ConfigUpdateEnvelope;
 import org.hyperledger.fabric.protos.common.Ledger;
 import org.hyperledger.fabric.protos.common.Policies.Policy;
 import org.hyperledger.fabric.protos.msp.Identities;
@@ -90,6 +92,7 @@ import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 import org.hyperledger.fabric.sdk.transaction.QueryInstalledChaincodesBuilder;
 import org.hyperledger.fabric.sdk.transaction.QueryInstantiatedChaincodesBuilder;
 import org.hyperledger.fabric.sdk.transaction.QueryPeerChannelsBuilder;
@@ -107,13 +110,16 @@ import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvel
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.checkGrpcUrl;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.getNonce;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.nullOrEmptyString;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.toHexString;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.getSignatureHeaderAsByteString;
 
 /**
  * The class representing a chain/channel with which the client SDK interacts.
  */
 public class Chain {
     private static final Log logger = LogFactory.getLog(Chain.class);
+    private final static boolean isDebugLevel = logger.isDebugEnabled();
     private static final Config config = Config.getConfig();
     static final String SYSTEM_CHAIN_NAME = "";
 
@@ -166,13 +172,83 @@ public class Chain {
         return executorService;
     }
 
-    Chain(String name, HFClient hfClient, Orderer orderer, ChainConfiguration chainConfiguration) throws InvalidArgumentException, TransactionException {
+    Chain(String name, HFClient hfClient, Orderer orderer, ChainConfiguration chainConfiguration, User... signers) throws InvalidArgumentException, TransactionException {
         this(name, hfClient, false);
 
-        try {
-            Envelope envelope = Envelope.parseFrom(chainConfiguration.getChainConfigurationAsBytes());
+        logger.debug(format("Creating new chain %s on the Fabric", name));
 
-            BroadcastResponse trxResult = orderer.sendTransaction(envelope);
+        try {
+            Envelope ccEnvelope = Envelope.parseFrom(chainConfiguration.getChainConfigurationAsBytes());
+
+            final Payload ccPayload = Payload.parseFrom(ccEnvelope.getPayload());
+            final ChannelHeader ccChannelHeader = ChannelHeader.parseFrom(ccPayload.getHeader().getChannelHeader());
+
+            if (ccChannelHeader.getType() != HeaderType.CONFIG_UPDATE.getNumber()) {
+                throw new InvalidArgumentException(format("Creating chain; %s expected config block type %s, but got: %s",
+                        name,
+                        HeaderType.CONFIG_UPDATE.name(),
+                        HeaderType.forNumber(ccChannelHeader.getType())));
+            }
+
+            if (!name.equals(ccChannelHeader.getChannelId())) {
+
+                throw new InvalidArgumentException(format("Expected config block for chain: %s, but got: %s", name,
+                        ccChannelHeader.getChannelId()));
+            }
+
+            TransactionContext transactionContext = getTransactionContext();
+
+            if (signers == null || signers.length == 0) {
+                signers = new User[] {transactionContext.getUser()};
+
+            }
+
+            final ConfigUpdateEnvelope configUpdateEnv = ConfigUpdateEnvelope.parseFrom(ccPayload.getData());
+            final ByteString configUpdate = configUpdateEnv.getConfigUpdate();
+            final ConfigUpdateEnvelope.Builder configUpdateEnvBuilder = configUpdateEnv.toBuilder();
+
+            configUpdateEnvBuilder.clearSignatures();
+
+            for (User signer : signers) {
+
+                ByteString sigHeaderByteString = getSignatureHeaderAsByteString(signer, transactionContext);
+                ByteString signatureByteSting = transactionContext.signByteStrings(new User[] {signer},
+                        sigHeaderByteString, configUpdate)[0];
+
+                configUpdateEnvBuilder.addSignatures(
+                        ConfigSignature.newBuilder()
+                                .setSignatureHeader(sigHeaderByteString)
+                                .setSignature(signatureByteSting)
+                                .build());
+            }
+
+            //--------------
+            // Construct Payload Envelope.
+
+            final ByteString sigHeaderByteString = getSignatureHeaderAsByteString(transactionContext);
+
+            final ChannelHeader payloadChannelHeader = ProtoUtils.createChannelHeader(HeaderType.CONFIG_UPDATE,
+                    transactionContext.getTxID(), name, transactionContext.getEpoch(), null);
+
+            final Header payloadHeader = Header.newBuilder().setChannelHeader(payloadChannelHeader.toByteString())
+                    .setSignatureHeader(sigHeaderByteString).build();
+
+            final ByteString payloadByteString = Payload.newBuilder()
+                    .setHeader(payloadHeader)
+                    .setData(configUpdateEnvBuilder.build().toByteString())
+                    .build().toByteString();
+
+            ByteString payloadSignature = transactionContext.signByteStrings(payloadByteString);
+
+            if (isDebugLevel) {
+                logger.debug(format("Sending to orderer payloadSignature: 0x%s ", toHexString(payloadSignature)));
+            }
+
+            Envelope payloadEnv = Envelope.newBuilder()
+                    .setSignature(payloadSignature)
+                    .setPayload(payloadByteString).build();
+
+            BroadcastResponse trxResult = orderer.sendTransaction(payloadEnv);
             if (200 != trxResult.getStatusValue()) {
                 throw new TransactionException(format("New chain %s error. StatusValue %d. Status %s", name,
                         trxResult.getStatusValue(), "" + trxResult.getStatus()));
@@ -183,12 +259,16 @@ public class Chain {
                 throw new TransactionException(format("New chain %s error. Genesis bock returned null", name));
             }
             addOrderer(orderer);
+            logger.debug(format("Created new chain %s on the Fabric done.", name));
         } catch (TransactionException e) {
-            logger.error(e.getMessage(), e);
+
+            logger.error(format("Chain %s error: %s", name, e.getMessage()), e);
             throw e;
         } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-            throw new TransactionException(e.getMessage(), e);
+            String msg = format("Chain %s error: %s", name, e.getMessage());
+
+            logger.error(msg, e);
+            throw new TransactionException(msg, e);
         }
 
     }
@@ -259,6 +339,7 @@ public class Chain {
         if (null == client.getUserContext().getEnrollment()) {
             throw new InvalidArgumentException(format("User context %s is not enrolled.", name));
         }
+        logger.debug(format("Creating chain: %s, client context %s", name, client.getUserContext().getName()));
 
     }
 
@@ -305,6 +386,8 @@ public class Chain {
 
     public Chain joinPeer(Peer peer) throws ProposalException {
 
+        logger.debug(format("Chain %s joining peer %s, url: %s", name, peer.getName(), peer.getUrl()));
+
         if (shutdown) {
             throw new ProposalException(format("Chain %s has been shutdown.", name));
         }
@@ -322,6 +405,7 @@ public class Chain {
         try {
 
             genesisBlock = getGenesisBlock(orderers.iterator().next());
+            logger.debug(format("Chain %s got genesis block", name));
 
             final Chain systemChain = newSystemChain(client); //channel is not really created and this is targeted to system chain
 
@@ -332,7 +416,9 @@ public class Chain {
                     .genesisBlock(genesisBlock)
                     .build();
 
+            logger.debug("Getting signed proposal.");
             SignedProposal signedProposal = getSignedProposal(joinProposal);
+            logger.debug("Got signed proposal.");
 
             Collection<ProposalResponse> resp = sendProposalToPeers(new ArrayList<>(Arrays.asList(new Peer[] {peer})),
                     signedProposal, transactionContext);
@@ -382,6 +468,8 @@ public class Chain {
             throw new InvalidArgumentException("Peer added to chan has invalid url.", e);
         }
 
+        logger.debug(format("Chain %s adding orderer%s, url: %s", name, orderer.getName(), orderer.getUrl()));
+
         orderer.setChain(this);
         this.orderers.add(orderer);
         return this;
@@ -408,6 +496,8 @@ public class Chain {
         if (e != null) {
             throw new InvalidArgumentException("Peer added to chan has invalid url.", e);
         }
+
+        logger.debug(format("Chain %s adding event hub %s, url: %s", name, eventHub.getName(), eventHub.getUrl()));
         eventHub.setChain(this);
         eventHub.setEventQue(chainEventQue);
         eventHubs.add(eventHub);
@@ -500,6 +590,8 @@ public class Chain {
 
     public Chain initialize() throws InvalidArgumentException, TransactionException {
 
+        logger.debug(format("Chain %s initialize shutdown %b", name, shutdown));
+
         if (shutdown) {
             throw new InvalidArgumentException(format("Chain %s has been shutdown.", name));
         }
@@ -529,17 +621,24 @@ public class Chain {
             loadCACertificates();  // put all MSP certs into cryptoSuite
 
             startEventQue(); //Run the event for event messages from event hubs.
+            logger.debug(format("Eventque started %s", "" + eventQueueThread));
 
             for (EventHub eh : eventHubs) { //Connect all event hubs
                 eh.connect(getTransactionContext());
             }
 
+            logger.debug(format("%d eventhubs initialized", getEventHubs().size()));
+
             registerTransactionListenerProcessor(); //Manage transactions.
+            logger.debug(format("Chain %s registerTransactionListenerProcessor completed", name));
 
             this.initialized = true;
 
+            logger.debug(format("Chain %s initialized", name));
+
             return this;
         } catch (TransactionException e) {
+            logger.error(e.getMessage(), e);
             throw e;
 
         } catch (Exception e) {
@@ -558,6 +657,7 @@ public class Chain {
      * @throws CryptoException
      */
     private void loadCACertificates() throws InvalidArgumentException, CryptoException {
+        logger.debug(format("Chain %s loadCACertificates", name));
         if (cryptoSuite == null) {
             throw new InvalidArgumentException("Unable to load CA certificates. Channel " + name + " does not have a CryptoSuite.");
         }
@@ -578,11 +678,15 @@ public class Chain {
             }
             // not adding admin certs. Admin certs should be signed by the CA
         }
+        logger.debug(format("Chain %s loadCACertificates completed ", name));
     }
 
     private Block getGenesisBlock(Orderer order) throws TransactionException {
         try {
-            if (null == genesisBlock) {
+            if (genesisBlock != null) {
+                logger.debug(format("Chain %s getGenesisBlock already present", name));
+
+            } else {
 
                 final long start = System.currentTimeMillis();
 
@@ -649,6 +753,7 @@ public class Chain {
                     } else {
 
                         DeliverResponse status = deliver[0];
+                        logger.debug(format("Chain %s getGenesisBlock deliver status: %d", name, status.getStatusValue()));
                         if (status.getStatusValue() == 404) {
                             logger.warn(format("Bad deliver expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
                             // keep trying...
@@ -701,6 +806,8 @@ public class Chain {
             throw exp;
 
         }
+
+        logger.debug(format("Chain %s getGenesisBlock done.", name));
         return genesisBlock;
     }
 
@@ -810,7 +917,7 @@ public class Chain {
 
             final Block configBlock = getConfigurationBlock();
 
-            logger.trace("Got config block getting MSP data and anchorPeers data");
+            logger.debug(format("Chain %s Got config block getting MSP data and anchorPeers data", name));
 
             Envelope envelope = Envelope.parseFrom(configBlock.getData().getData(0));
             Payload payload = Payload.parseFrom(envelope.getPayload());
@@ -875,7 +982,7 @@ public class Chain {
 
     private Block getConfigurationBlock() throws TransactionException {
 
-        logger.trace(format("getConfigurationBlock for chain %s", name));
+        logger.debug(format("getConfigurationBlock for chain %s", name));
 
         try {
             if (orderers.isEmpty()) {
@@ -996,7 +1103,7 @@ public class Chain {
 
     private Block getLatestBlock(Orderer orderer) throws CryptoException, TransactionException {
 
-        logger.trace(format("getConfigurationBlock for chain %s", name));
+        logger.debug(format("getConfigurationBlock for chain %s", name));
 
         SeekPosition seekPosition = SeekPosition.newBuilder()
                 .setNewest(Ab.SeekNewest.getDefaultInstance())
@@ -1041,6 +1148,7 @@ public class Chain {
         } else {
 
             DeliverResponse status = deliver[0];
+            logger.debug(format("Chain %s getLatestBlock returned status %s", name, status.getStatusValue()));
             if (status.getStatusValue() != 200) {
                 throw new TransactionException(format("Bad newest block expected status 200  got  %d, Chain %s", status.getStatusValue(), name));
             } else {
@@ -1093,9 +1201,9 @@ public class Chain {
         return new Chain(name, clientContext);
     }
 
-    static Chain createNewInstance(String name, HFClient hfClient, Orderer orderer, ChainConfiguration chainConfiguration) throws InvalidArgumentException, TransactionException {
+    static Chain createNewInstance(String name, HFClient hfClient, Orderer orderer, ChainConfiguration chainConfiguration, User... signers) throws InvalidArgumentException, TransactionException {
 
-        return new Chain(name, hfClient, orderer, chainConfiguration);
+        return new Chain(name, hfClient, orderer, chainConfiguration, signers);
 
     }
 
@@ -2003,6 +2111,8 @@ public class Chain {
         }
         List<Pair> peerFuturePairs = new ArrayList<>();
         for (Peer peer : peers) {
+            logger.debug(format("Chain %s send proposal to peer %s at url %s",
+                    name, peer.getName(), peer.getUrl()));
             peerFuturePairs.add(new Pair(peer, peer.sendProposalAsync(signedProposal)));
         }
 
@@ -2015,6 +2125,8 @@ public class Chain {
                 fabricResponse = peerFuturePair.future.get(transactionContext.getProposalWaitTime(), TimeUnit.MILLISECONDS);
                 message = fabricResponse.getResponse().getMessage();
                 status = fabricResponse.getResponse().getStatus();
+                logger.debug(format("Chain %s got back from peer %s status: %d, message: %s",
+                        name, peerFuturePair.peer.getName(), status, message));
             } catch (InterruptedException e) {
                 message = "Sending proposal to " + peerFuturePair.peer.getName() + " failed because of interruption";
                 status = 500;
@@ -2394,6 +2506,7 @@ public class Chain {
         BL(BlockListener listener) {
 
             handle = SDKUtil.generateUUID();
+            logger.debug(format("Chain %s blockListener %s starting", name, handle));
 
             this.listener = listener;
             synchronized (blockListeners) {
@@ -2414,6 +2527,7 @@ public class Chain {
      */
 
     private String registerTransactionListenerProcessor() throws InvalidArgumentException {
+        logger.debug(format("Chain %s registerTransactionListenerProcessor starting", name));
 
         // Transaction listener is internal Block listener for transactions
 

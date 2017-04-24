@@ -19,6 +19,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.InvalidAlgorithmParameterException;
@@ -64,6 +65,7 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.x500.X500Principal;
 import javax.xml.bind.DatatypeConverter;
 
+import io.netty.util.internal.StringUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -100,12 +102,10 @@ import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.io.pem.PemObject;
-
+import org.bouncycastle.util.io.pem.PemReader;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
-
-import io.netty.util.internal.StringUtil;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -842,6 +842,20 @@ public class CryptoPrimitives implements CryptoSuite {
         properties.setProperty(Config.CERTIFICATE_FORMAT, CERTIFICATE_FORMAT);
         properties.setProperty(Config.SIGNATURE_ALGORITHM, DEFAULT_SIGNATURE_ALGORITHM);
         return properties ;
+    }
+
+    public byte[] certificateToDER(String certricatePEM){
+
+        final PemReader pemReader = new PemReader(new StringReader(certricatePEM));
+        try {
+            final PemObject pemObject = pemReader.readPemObject();
+            return pemObject.getContent();
+
+        } catch (IOException e) {
+           // best attempt
+        }
+        return  null;
+
     }
 
 }
