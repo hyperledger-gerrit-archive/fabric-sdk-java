@@ -21,6 +21,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.HeaderType;
+import org.hyperledger.fabric.protos.common.Common.SignatureHeader;
+import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeDeploymentSpec;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeID;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
@@ -31,6 +33,7 @@ import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeHeaderExtensio
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hyperledger.fabric.sdk.helper.SDKUtil.logString;
+import static org.hyperledger.fabric.sdk.helper.SDKUtil.toHexString;
 
 public class ProtoUtils {
 
@@ -166,5 +169,51 @@ public class ProtoUtils {
                 .setInput(chaincodeInput)
                 .build();
 
+    }
+
+
+   // static CryptoSuite suite = null;
+
+
+    public static ByteString getSignatureHeaderAsByteString(TransactionContext transactionContext) {
+
+        final Identities.SerializedIdentity identity = transactionContext.getIdentity();
+
+
+        if(isDebugLevel){
+
+
+            byte[] ident=  identity.getIdBytes().toByteArray();
+
+
+//            if(null == suite) {
+//
+//                try {
+//                    suite = CryptoSuite.Factory.getCryptoSuite();
+//                    suite.init();
+//                } catch (Exception e) {
+//                   //best try.
+//                }
+//
+//            }
+//            if( null != suite){
+//                ident = suite.hash(ident);
+//            }
+
+
+            logger.debug(format("SignatureHeader: nonce: %s,  User:%s, MSPID: %s, idBytes: 0x%s",
+                    toHexString(transactionContext.getNonce()),
+                    transactionContext.getUser().getName(),
+                    identity.getMspid(),
+
+                    //logString( new String (identity.getIdBytes().toByteArray()))
+                    toHexString(ident)
+                    ));
+
+        }
+        return SignatureHeader.newBuilder()
+                        .setCreator(identity.toByteString())
+                        .setNonce(transactionContext.getNonce())
+                        .build().toByteString();
     }
 }
