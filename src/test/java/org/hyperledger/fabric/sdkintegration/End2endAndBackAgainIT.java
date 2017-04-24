@@ -101,7 +101,7 @@ public class End2endAndBackAgainIT {
 
         for (SampleOrg sampleOrg : testSampleOrgs) {
             String caURL = sampleOrg.getCALocation();
-            sampleOrg.setCAClient(new HFCAClient(caURL, null));
+            sampleOrg.setCAClient(HFCAClient.createNewInstance(caURL, null));
         }
     }
 
