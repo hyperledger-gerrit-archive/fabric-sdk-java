@@ -18,6 +18,7 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -225,7 +226,7 @@ public class End2endIT {
                 client.setUserContext(sampleOrg.getAdmin());
                 Set<Peer> peersFromOrg = sampleOrg.getPeers();
                 numInstallProposal = numInstallProposal + peersFromOrg.size();
-                responses = chain.sendInstallProposal(installProposalRequest, peersFromOrg);
+                responses = client.sendInstallProposal(installProposalRequest, peersFromOrg);
 
                 for (ProposalResponse response : responses) {
                     if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
@@ -477,7 +478,15 @@ public class End2endIT {
 
         for (String peerName : sampleOrg.getPeerNames()) {
             String peerLocation = sampleOrg.getPeerLocation(peerName);
-            Peer peer = client.newPeer(peerName, peerLocation, testConfig.getPeerProperties(peerName));
+
+            Properties peerProperties = testConfig.getPeerProperties(peerName);//test properties for peer.. if any.
+            if (peerProperties == null) {
+                peerProperties = new Properties();
+            }
+            //Example of setting specific options on grpc's ManagedChannelBuilder
+            peerProperties.put("grpc.ManagedChannelBuilderOption.maxInboundMessageSize", 9000000);
+
+            Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
             newChain.joinPeer(peer);
             out("Peer %s joined chain %s", peerName, name);
             sampleOrg.addPeer(peer);
