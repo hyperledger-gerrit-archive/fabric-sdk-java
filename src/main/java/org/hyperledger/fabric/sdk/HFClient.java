@@ -14,6 +14,7 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -147,6 +148,11 @@ public class HFClient {
      *                   If the pemFile does not represent the server certificate, use this property to specify the URI authority
      *                   (a.k.a hostname) expected in the target server's certificate. This is required to get past default server
      *                   hostname verifications during TLS handshake.
+     *                   </li>
+     *                   <li>
+     *                   grpc.ManagedChannelBuilderOption.&lt;methodName&gt;  where methodName is any method on
+     *                   grpc ManagedChannelBuilder.  If more than one argument to the method is needed then the
+     *                   parameters need to be supplied in an array of Objects.
      *                   </li>
      *                   </ul>
      * @return Peer
@@ -288,6 +294,11 @@ public class HFClient {
      *                   (a.k.a hostname) expected in the target server's certificate. This is required to get past default server
      *                   hostname verifications during TLS handshake.
      *                   </li>
+     *                   <li>
+     *                   grpc.ManagedChannelBuilderOption.&lt;methodName&gt;  where methodName is any method on
+     *                   grpc ManagedChannelBuilder.  If more than one argument to the method is needed then the
+     *                   parameters need to be supplied in an array of Objects.
+     *                   </li>
      *                   </ul>
      * @return The orderer.
      * @throws InvalidArgumentException
@@ -343,6 +354,11 @@ public class HFClient {
      *                   If the pemFile does not represent the server certificate, use this property to specify the URI authority
      *                   (a.k.a hostname) expected in the target server's certificate. This is required to get past default server
      *                   hostname verifications during TLS handshake.
+     *                   </li>
+     *                   <li>
+     *                   grpc.ManagedChannelBuilderOption.&lt;methodName&gt;  where methodName is any method on
+     *                   grpc ManagedChannelBuilder.  If more than one argument to the method is needed then the
+     *                   parameters need to be supplied in an array of Objects.
      *                   </li>
      *                   </ul>
      * @return The orderer.
@@ -417,6 +433,24 @@ public class HFClient {
             logger.error(format("queryInstalledChaincodes for peer %s failed." + e.getMessage(), peer.getName()), e);
             throw e;
         }
+
+    }
+
+    /**
+     * Send install chaincode request proposal to peers.
+     *
+     * @param installProposalRequest
+     * @param peers                  Collection of peers to install on.
+     * @return
+     * @throws Exception
+     */
+
+    public Collection<ProposalResponse> sendInstallProposal(InstallProposalRequest installProposalRequest, Collection<Peer> peers)
+            throws ProposalException, InvalidArgumentException {
+
+        Chain systemChain = Chain.newSystemChain(this);
+
+        return systemChain.sendInstallProposal(installProposalRequest, peers);
 
     }
 

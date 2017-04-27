@@ -15,6 +15,8 @@
 package org.hyperledger.fabric.sdk;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,9 +25,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.net.ssl.SSLException;
 
+import com.google.common.collect.ImmutableMap;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
@@ -120,35 +125,119 @@ class Endpoint {
 
         }
 
-        if (protocol.equalsIgnoreCase("grpc")) {
-            this.channelBuilder = ManagedChannelBuilder.forAddress(addr, port)
-                    .usePlaintext(true);
-        } else if (protocol.equalsIgnoreCase("grpcs")) {
-            if (StringUtil.isNullOrEmpty(pem)) {
-                // use root certificate
-                this.channelBuilder = ManagedChannelBuilder.forAddress(addr, port);
-            } else {
-                try {
+        try {
+            if (protocol.equalsIgnoreCase("grpc")) {
+                this.channelBuilder = ManagedChannelBuilder.forAddress(addr, port)
+                        .usePlaintext(true);
+                addNettyBuilderProps(channelBuilder, properties);
+            } else if (protocol.equalsIgnoreCase("grpcs")) {
+                if (StringUtil.isNullOrEmpty(pem)) {
+                    // use root certificate
+                    this.channelBuilder = ManagedChannelBuilder.forAddress(addr, port);
+                    addNettyBuilderProps(channelBuilder, properties);
+                } else {
+                    try {
 
-                    SslProvider sslprovider = sslp.equals("openSSL") ? SslProvider.OPENSSL : SslProvider.JDK;
-                    NegotiationType ntype = nt.equals("TLS") ? NegotiationType.TLS : NegotiationType.PLAINTEXT;
+                        SslProvider sslprovider = sslp.equals("openSSL") ? SslProvider.OPENSSL : SslProvider.JDK;
+                        NegotiationType ntype = nt.equals("TLS") ? NegotiationType.TLS : NegotiationType.PLAINTEXT;
 
-                    SslContext sslContext = GrpcSslContexts.forClient()
-                            .trustManager(new java.io.File(pem))
-                            .sslProvider(sslprovider)
-                            .build();
-                    this.channelBuilder = NettyChannelBuilder.forAddress(addr, port)
-                            .sslContext(sslContext)
-                            .negotiationType(ntype);
-                    if (cn != null) {
-                        channelBuilder.overrideAuthority(cn);
+                        SslContext sslContext = GrpcSslContexts.forClient()
+                                .trustManager(new File(pem))
+                                .sslProvider(sslprovider)
+                                .build();
+                        this.channelBuilder = NettyChannelBuilder.forAddress(addr, port)
+                                .sslContext(sslContext)
+                                .negotiationType(ntype);
+                        if (cn != null) {
+                            channelBuilder.overrideAuthority(cn);
+                        }
+                        addNettyBuilderProps(channelBuilder, properties);
+                    } catch (SSLException sslex) {
+                        throw new RuntimeException(sslex);
                     }
-                } catch (SSLException sslex) {
-                    throw new RuntimeException(sslex);
                 }
+            } else {
+                throw new RuntimeException("invalid protocol: " + protocol);
             }
-        } else {
-            throw new RuntimeException("invalid protocol: " + protocol);
+        } catch (RuntimeException e) {
+            logger.error(e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e);
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    final static Pattern methodPat = Pattern.compile("grpc\\.ManagedChannelBuilderOption\\.([^.]*)$");
+    private static final Map<Class<?>, Class<?>> WRAPPERS_TO_PRIM
+            = new ImmutableMap.Builder<Class<?>, Class<?>>()
+            .put(Boolean.class, boolean.class)
+            .put(Byte.class, byte.class)
+            .put(Character.class, char.class)
+            .put(Double.class, double.class)
+            .put(Float.class, float.class)
+            .put(Integer.class, int.class)
+            .put(Long.class, long.class)
+            .put(Short.class, short.class)
+            .put(Void.class, void.class)
+            .build();
+
+    private void addNettyBuilderProps(ManagedChannelBuilder<?> channelBuilder, Properties props) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+
+        if (props == null) {
+            return;
+        }
+
+        for (Map.Entry<Object, Object> es : props.entrySet()) {
+
+            Object methodprop = es.getKey();
+            if (methodprop == null) {
+                continue;
+            }
+            String methodprops = methodprop + "";
+
+            Matcher match = methodPat.matcher(methodprops);
+
+            String methodName = null;
+
+            if (match.matches() && match.groupCount() == 1) {
+                methodName = match.group(1).trim();
+
+            }
+            if (null == methodName || "forAddress".equals(methodName)) {
+
+                continue;
+            }
+
+            Object parmsArrayO = es.getValue();
+            Object parmsArray[];
+            if (!(parmsArrayO instanceof Object[])) {
+                parmsArray = new Object[] {parmsArrayO};
+
+            } else {
+                parmsArray = (Object[]) parmsArrayO;
+            }
+
+            Class[] classParms = new Class[parmsArray.length];
+            int i = -1;
+            for (Object oparm : parmsArray) {
+                ++i;
+
+                Class unwrapped = WRAPPERS_TO_PRIM.get(oparm.getClass());
+                if (null != unwrapped) {
+                    classParms[i] = unwrapped;
+                } else {
+
+                    classParms[i] = oparm.getClass();
+
+                }
+
+            }
+
+            final Method method = channelBuilder.getClass().getMethod(methodName, classParms);
+
+            method.invoke(channelBuilder, parmsArray);
         }
 
     }
@@ -164,4 +253,5 @@ class Endpoint {
     int getPort() {
         return this.port;
     }
+
 }
