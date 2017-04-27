@@ -226,7 +226,7 @@ public class End2endAndBackAgainIT {
                     Collection<Peer> peersFromOrg = chain.getPeers();
                     numInstallProposal = numInstallProposal + peersFromOrg.size();
 
-                    responses = chain.sendInstallProposal(installProposalRequest);
+                    responses = client.sendInstallProposal(installProposalRequest, peersFromOrg);
 
                     for (ProposalResponse response : responses) {
                         if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
