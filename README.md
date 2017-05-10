@@ -53,6 +53,7 @@ Vagrant is NOT required if your OS has Docker support and all the requirements n
 environment.  For non Vagrant envrionment, the steps would be the same as below minus those parts involving Vagrant.
  Do the following if you want to run the Fabric components ( peer, orderer, fabric-ca ) in Vagrant:
 
+
   ```
   git clone  https://github.com/hyperledger/fabric.git
   git clone  https://github.com/hyperledger/fabric-ca.git
