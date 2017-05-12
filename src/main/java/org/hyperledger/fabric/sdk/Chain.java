@@ -407,7 +407,7 @@ public class Chain {
             SignedProposal signedProposal = getSignedProposal(joinProposal);
             logger.debug("Got signed proposal.");
 
-            Collection<ProposalResponse> resp = sendProposalToPeers(new ArrayList<>(Arrays.asList(new Peer[] {peer})),
+            Collection<ProposalResponse> resp = sendProposalToPeers(new ArrayList<>(Arrays.asList(peer)),
                     signedProposal, transactionContext);
 
             ProposalResponse pro = resp.iterator().next();
@@ -1339,6 +1339,7 @@ public class Chain {
             installProposalbuilder.chaincodePath(installProposalRequest.getChaincodePath());
             installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
             installProposalbuilder.setChaincodeSource(installProposalRequest.getChaincodeSourceLocation());
+            installProposalbuilder.setChainCodeInputStream(installProposalRequest.getChainCodeInputStream());
 
             FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
             SignedProposal signedProposal = getSignedProposal(deploymentProposal);
