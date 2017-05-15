@@ -8,6 +8,12 @@
     <name>fabric-java-sdk</name>
     <description>Java SDK for Hyperledger fabric project</description>
     <url>https://www.hyperledger.org/community/projects</url>
+    <parent>
+            <groupId>org.hyperledger.sdnc.core</groupId>
+            <artifactId>root</artifactId>
+            <version>1.1.0</version>
+            <relativePath>rootpom/pom.xml</relativePath>
+    </parent>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -294,12 +300,43 @@
         </plugins>
     </build>
     <distributionManagement>
-        <snapshotRepository>
-            <id>hyperledger-bin-publish</id>
-            <url>https://nexus.hyperledger.org/content/repositories/snapshots</url>
-        </snapshotRepository>
+        <site>
+            <id>hyperledger-site</id>
+            <url>dav:https://nexus.hyperledger.org/content/sites/site/org/hyperledger/fabric-sdk-java/${project.artifactId}/${project.version}</url>
+        </site>
     </distributionManagement>
     <profiles>
+        <profile>
+            <id>blackduck</id>
+            <activation>
+                <property>
+                    <name>blackduck-scan</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                         <groupId>com.blackducksoftware.integration</groupId>
+                         <artifactId>hub-maven-plugin</artifactId>
+                         <version>1.4.0</version>
+                         <inherited>false</inherited>
+                         <configuration>
+                              <hubProjectName>${project.name}</hubProjectName>
+                              <outputDirectory>${project.basedir}</outputDirectory>
+                         </configuration>
+                         <executions>
+                              <execution>
+                                   <id>create-bdio-file</id>
+                                   <phase>package</phase>
+                                   <goals>
+                                        <goal>createHubOutput</goal>
+                                   </goals>
+                              </execution>
+                         </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>release</id>
             <build>
