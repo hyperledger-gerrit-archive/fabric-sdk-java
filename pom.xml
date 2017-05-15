@@ -34,6 +34,18 @@
         <skipITs>true</skipITs>
         <alpn-boot-version>8.1.7.v20160121</alpn-boot-version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <hyp.nexus.host>nexus.hyperledger.org</hyp.nexus.host>
+        <hyp.nexus.port>443</hyp.nexus.port>
+        <hyp.nexus.release-url>https://nexus.hyperledger.org/content/repositories/releases/</hyp.nexus.release-url>
+        <hyp.nexus.snapshot-url>https://nexus.hyperledger.org/content/repositories/snapshots/</hyp.nexus.snapshot-url>
+        <hyp.nexus.public-url>https://nexus.hyperledger.org/content/groups/public/</hyp.nexus.public-url>
+        <hyp.nexus.staging.server-id>hyperledger-bin-publish</hyp.nexus.staging.server-id>
+        <hyp.nexus.staging.profile-id>176c31dfe190a</hyp.nexus.staging.profile-id>
+        <hyp.git.host>gerrit.hyperledger.org</hyp.git.host>
+        <hyp.git.port>443</hyp.git.port>
+        <hyp.git.project>fabric-sdk-java</hyp.git.project>
+        <hyp.git.protocol>https</hyp.git.protocol>
     </properties>
 
     <reporting>
@@ -301,12 +313,53 @@
         </plugins>
     </build>
     <distributionManagement>
+        <site>
+            <id>hyperledger-site</id>
+            <url>dav:https://nexus.hyperledger.org/content/sites/site/org/hyperledger/fabric-sdk-java/${project.artifactId}/${project.version}</url>
+        </site>
+        <repository>
+            <id>hyperledger-releases</id>
+            <name>hyperledger-repository-releases</name>
+            <url>${hyp.nexus.release-url}</url>
+        </repository>
         <snapshotRepository>
-            <id>hyperledger-bin-publish</id>
-            <url>https://nexus.hyperledger.org/content/repositories/snapshots</url>
-        </snapshotRepository>
+            <id>hyperledger-snapshots</id>
+            <name>hyperledger-repository-snapshots</name>
+            <url>${hyp.nexus.snapshot-url}</url>
+	</snapshotRepository>
     </distributionManagement>
     <profiles>
+        <profile>
+            <id>blackduck</id>
+            <activation>
+                <property>
+                    <name>blackduck-scan</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                         <groupId>com.blackducksoftware.integration</groupId>
+                         <artifactId>hub-maven-plugin</artifactId>
+                         <version>1.4.0</version>
+                         <inherited>false</inherited>
+                         <configuration>
+                              <hubProjectName>${project.name}</hubProjectName>
+                              <outputDirectory>${project.basedir}</outputDirectory>
+                         </configuration>
+                         <executions>
+                              <execution>
+                                   <id>create-bdio-file</id>
+                                   <phase>package</phase>
+                                   <goals>
+                                        <goal>createHubOutput</goal>
+                                   </goals>
+                              </execution>
+                         </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>release</id>
             <build>
@@ -317,8 +370,9 @@
                         <version>1.6.7</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <serverId>hyperledger-bin-publish</serverId>
-                            <nexusUrl>https://nexus.hyperledger.org/</nexusUrl>
+                            <serverId>${hyp.nexus.staging.server-id}</serverId>
+                            <stagingProfileId>${hyp.nexus.staging.profile-id}</stagingProfileId>
+                            <nexusUrl>https://${hyp.nexus.host}/</nexusUrl>
                             <autoReleaseAfterClose>false</autoReleaseAfterClose>
                         </configuration>
                     </plugin>
