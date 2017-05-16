@@ -22,9 +22,39 @@ SDK's `Enrollment` interface.
  on this 1.0 version `preview` may need updating
  with subsequent updates of the SDK.
 
-## Known limitations
+## Known limitations and restrictions
 
 * TCerts are not supported: JIRA FAB-1401
+* HSM not supported. JIRA FAB-3137
+* Single Crypto strength 256 JIRA FAB-2564
+* Network configuration updates not supported JIRA FAB-3103
+
+
+
+
+<p &nbsp; />
+<p &nbsp; />
+
+`*************************************************`
+## *v1.0.0-Alpha2*
+
+For this tagged release there is no need to build the Fabric and Fabric-ca described below.
+The provided docker-compose.yaml for the integration tests should pull alpha2 images
+from Docker hub.
+
+
+The v1.0.0-Alpha2 level of the JDK is available in Maven and can be referenced in application's
+dependencies to pull automatically without the need of building the JDK.
+
+<p &nbsp; />
+<p &nbsp; />
+
+`*************************************************`
+
+
+
+
+
 
 
 ## Valid builds of Fabric and Fabric-ca
