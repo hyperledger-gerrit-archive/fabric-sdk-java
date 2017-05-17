@@ -13,20 +13,25 @@
  */
 package org.hyperledger.fabric.sdk;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
+import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.DEROctetString;
+import org.bouncycastle.asn1.DERSequenceGenerator;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.ledger.rwset.Rwset.TxReadWriteSet;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
+import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Endorsement;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
 import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 
-import static org.hyperledger.fabric.protos.peer.FabricProposalResponse.Endorsement;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * BlockInfo contains the data from a {@link Block}
@@ -449,7 +454,23 @@ public class BlockInfo {
         ENVELOPE
 
     }
-
+    
+    /**
+     * used asn1 and get hash 
+     * @return
+     * @throws IOException
+     */
+    public byte[] getHash() throws IOException{
+    	ByteArrayOutputStream s = new ByteArrayOutputStream();
+    	DERSequenceGenerator seq = new DERSequenceGenerator(s);
+    	//order by blockNumber,PreviousHash,DataHash 
+        seq.addObject(new ASN1Integer(this.getBlockNumber()));
+        seq.addObject(new DEROctetString (this.getPreviousHash()));
+        seq.addObject(new DEROctetString(this.getDataHash()));
+        seq.close();
+        byte[] ret = s.toByteArray();
+        return ProtoUtils.hash(ret);
+    }
 }
 
 
