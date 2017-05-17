@@ -247,4 +247,9 @@ public class ProtoUtils {
 
     }
 
+    public static byte[] hash(byte[] bytes){
+
+    	return suite.hash(bytes);
+
+    }
 }
