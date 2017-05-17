@@ -1,32 +1,64 @@
 package org.hyperledger.fabric.sdk;
 
+import java.lang.ref.WeakReference;
+
 import javax.xml.bind.DatatypeConverter;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.common.Common;
+import org.hyperledger.fabric.protos.common.Common.Header;
+import org.hyperledger.fabric.protos.ledger.rwset.Rwset.TxReadWriteSet;
 import org.hyperledger.fabric.protos.msp.Identities;
-import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
+import org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeHeaderExtension;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
 public class ProposalResponse extends ChainCodeResponse {
 
-    Config config = Config.getConfig();
-
     private static final Log logger = LogFactory.getLog(ProposalResponse.class);
-
+    Config config = Config.getConfig();
     private FabricProposal.SignedProposal signedProposal;
 
     private boolean isVerified = false;
 
+    private WeakReference<ProposalResponsePayloadDeserializer> proposalResponsePayload;
+    private FabricProposal.Proposal proposal;
+    private FabricProposalResponse.ProposalResponse proposalResponse;
+    private Peer peer = null;
+    private ChainCodeID chaincodeID = null;
+
     ProposalResponse(String transactionID, String chainCodeID, int status, String message) {
         super(transactionID, chainCodeID, status, message);
+
+    }
+
+    private ProposalResponsePayloadDeserializer getProposalResponsePayloadDeserializer() throws InvalidArgumentException {
+        ProposalResponsePayloadDeserializer ret = null;
+
+        if (proposalResponsePayload != null) {
+            ret = proposalResponsePayload.get();
+
+        }
+        if (ret == null) {
+
+            try {
+                ret = new ProposalResponsePayloadDeserializer(proposalResponse.getPayload());
+            } catch (Exception e) {
+                throw new InvalidArgumentException(e);
+            }
+
+            proposalResponsePayload = new WeakReference<>(ret);
+        }
+
+        return ret;
 
     }
 
@@ -77,17 +109,9 @@ public class ProposalResponse extends ChainCodeResponse {
         return this.isVerified;
     } // verify
 
-    private FabricProposal.Proposal proposal;
-
     public FabricProposal.Proposal getProposal() {
         return proposal;
     }
-
-    public FabricProposalResponse.ProposalResponse getProposalResponse() {
-        return proposalResponse;
-    }
-
-    private FabricProposalResponse.ProposalResponse proposalResponse;
 
     public void setProposal(FabricProposal.SignedProposal signedProposal) throws ProposalException {
 
@@ -100,47 +124,43 @@ public class ProposalResponse extends ChainCodeResponse {
         }
     }
 
-    public void setProposalResponse(FabricProposalResponse.ProposalResponse proposalResponse) {
-        this.proposalResponse = proposalResponse;
+    public FabricProposalResponse.ProposalResponse getProposalResponse() {
+        return proposalResponse;
     }
 
-    private Peer peer = null;
-
-    void setPeer(Peer peer) {
-        this.peer = peer;
+    public void setProposalResponse(FabricProposalResponse.ProposalResponse proposalResponse) {
+        this.proposalResponse = proposalResponse;
     }
 
     public Peer getPeer() {
         return this.peer;
     }
 
+    void setPeer(Peer peer) {
+        this.peer = peer;
+    }
+
     public ByteString getPayload() {
         return proposalResponse.getPayload();
     }
 
-    // public ByteString getPayload2(){
-    // ByteString x = proposalResponse.getPayload();
-    // return proposalResponse.getPayload();
-    // }
+    public ChainCodeID getChainCodeID() throws InvalidArgumentException {
 
-    public ChainCodeID getChainCodeID() {
-
-        Chaincode.ChaincodeID chaincodeID = null; // TODO NEED to clean up
         try {
-            FabricProposal.ChaincodeProposalPayload ppl = FabricProposal.ChaincodeProposalPayload
-                    .parseFrom(proposal.getPayload());
-            Chaincode.ChaincodeInvocationSpec ccis = Chaincode.ChaincodeInvocationSpec.parseFrom(ppl.getInput());
-            Chaincode.ChaincodeSpec scs = ccis.getChaincodeSpec();
-            Chaincode.ChaincodeInput cci = scs.getInput();
-            ByteString deps = cci.getArgs(1);
-            Chaincode.ChaincodeDeploymentSpec chaincodeDeploymentSpec = Chaincode.ChaincodeDeploymentSpec
-                    .parseFrom(deps.toByteArray());
-            chaincodeID = chaincodeDeploymentSpec.getChaincodeSpec().getChaincodeId();
-        } catch (InvalidProtocolBufferException e) {
-            e.printStackTrace();
+
+            if (chaincodeID == null) {
+
+                Header header = Header.parseFrom(proposal.getHeader());
+                Common.ChannelHeader channelHeader = Common.ChannelHeader.parseFrom(header.getChannelHeader());
+                ChaincodeHeaderExtension chaincodeHeaderExtension = ChaincodeHeaderExtension.parseFrom(channelHeader.getExtension());
+                chaincodeID = new ChainCodeID(chaincodeHeaderExtension.getChaincodeId());
+            }
+            return chaincodeID;
+
+        } catch (Exception e) {
+            throw new InvalidArgumentException(e);
         }
 
-        return new ChainCodeID(chaincodeID);
     }
 
     /**
@@ -150,16 +170,55 @@ public class ProposalResponse extends ChainCodeResponse {
      * @throws InvalidProtocolBufferException
      */
 
-    public byte[] getChainCodeActionResponsePayload() throws InvalidProtocolBufferException {
+    public byte[] getChainCodeActionResponsePayload() throws InvalidProtocolBufferException, InvalidArgumentException {
 
-        FabricProposalResponse.ProposalResponsePayload proposalResponsePayload = FabricProposalResponse.ProposalResponsePayload.parseFrom(proposalResponse.getPayload());
-        ByteString extension = proposalResponsePayload.getExtension();
-        if (extension == null || extension.isEmpty()) {
-            return null;
+        try {
+
+            final ProposalResponsePayloadDeserializer proposalResponsePayloadDeserializer = getProposalResponsePayloadDeserializer();
+            ByteString ret = proposalResponsePayloadDeserializer.getExtension().getChaincodeAction().getResponse().getPayload();
+            if (null == ret) {
+                return null;
+            }
+            return ret.toByteArray();
+        } catch (InvalidArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new InvalidArgumentException(e);
         }
-        FabricProposal.ChaincodeAction chaincodeAction = FabricProposal.ChaincodeAction.parseFrom(extension);
-        ByteString results = chaincodeAction.getResponse().getPayload();
-        return results.toByteArray();
+    }
+
+    public int getChainCodeActionResponseStatus() throws InvalidArgumentException {
+
+        try {
+
+            final ProposalResponsePayloadDeserializer proposalResponsePayloadDeserializer = getProposalResponsePayloadDeserializer();
+            return proposalResponsePayloadDeserializer.getExtension().getResponseStatus();
+
+        } catch (InvalidArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new InvalidArgumentException(e);
+        }
+
+    }
+
+    public TxReadWriteSetInfo getChainCodeActionResponseReadWriteSetInfo() throws InvalidArgumentException {
+
+        try {
+
+            final ProposalResponsePayloadDeserializer proposalResponsePayloadDeserializer = getProposalResponsePayloadDeserializer();
+
+            TxReadWriteSet txReadWriteSet = proposalResponsePayloadDeserializer.getExtension().getResults();
+
+            if (txReadWriteSet == null) {
+                return null;
+            }
+
+            return new TxReadWriteSetInfo(txReadWriteSet);
+
+        } catch (Exception e) {
+            throw new InvalidArgumentException(e);
+        }
 
     }
 
