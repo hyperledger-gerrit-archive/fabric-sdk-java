@@ -15,6 +15,7 @@
 package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
@@ -608,7 +609,7 @@ public class End2endIT {
         txExpected.put("writeset1", "Missing writeset for chain bar block 1");
     }
 
-    void blockWalker(Chain chain) throws InvalidProtocolBufferException, InvalidArgumentException, ProposalException, UnsupportedEncodingException {
+    void blockWalker(Chain chain) throws InvalidArgumentException, ProposalException, IOException {
 
         try {
             BlockchainInfo channelInfo = chain.queryBlockchainInfo();
@@ -617,7 +618,7 @@ public class End2endIT {
                 BlockInfo returnedBlock = chain.queryBlockByNumber(current);
                 final long blockNumber = returnedBlock.getBlockNumber();
 
-                out("current block number %d has data hash: %s", blockNumber, Hex.encodeHexString(returnedBlock.getDataHash()));
+                out("current block number %d has data hash: %s", blockNumber, Hex.encodeHexString(returnedBlock.getHash()));
                 out("current block number %d has previous hash id: %s", blockNumber, Hex.encodeHexString(returnedBlock.getPreviousHash()));
 
                 final int envelopCount = returnedBlock.getEnvelopCount();

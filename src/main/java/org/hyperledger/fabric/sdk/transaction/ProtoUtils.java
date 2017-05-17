@@ -246,5 +246,8 @@ public class ProtoUtils {
         return new Date(Timestamps.toMillis(timestamp));
 
     }
-
+    
+    public static byte[] hash(byte[] bytes){
+    	return suite.hash(bytes);
+    }
 }
