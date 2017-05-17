@@ -14,8 +14,15 @@
 
 package org.hyperledger.fabric.sdkintegration;
 
+import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.hyperledger.fabric.sdk.BlockInfo.EnvelopeType.TRANSACTION_ENVELOPE;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.File;
-import java.io.UnsupportedEncodingException;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.Collection;
@@ -26,7 +33,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.codec.binary.Hex;
 import org.hyperledger.fabric.protos.ledger.rwset.kvrwset.KvRwset;
 import org.hyperledger.fabric.sdk.BlockEvent;
@@ -52,6 +58,7 @@ import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
+import org.hyperledger.fabric.sdk.helper.ChainUtils;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
@@ -59,14 +66,6 @@ import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import static java.lang.String.format;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.hyperledger.fabric.sdk.BlockInfo.EnvelopeType.TRANSACTION_ENVELOPE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Test end to end scenario
@@ -178,12 +177,12 @@ public class End2endIT {
 
                 SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
                         findFile_sk(Paths.get(testConfig.getTestChannlePath(), "crypto-config/peerOrganizations/",
-                                sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
+                                sampleOrgDomainName, format("/users/Admin@%s/msp/keystore",sampleOrgDomainName )).toFile()),
                         Paths.get(testConfig.getTestChannlePath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
                                 format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
 
                 sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can crate channels, join peers and install chain code
-                // and jump tall blockchains in a single leap!
+                                                        // and jump tall blockchains in a single leap!
             }
 
             ////////////////////////////
@@ -242,21 +241,8 @@ public class End2endIT {
 
                 InstallProposalRequest installProposalRequest = client.newInstallProposalRequest();
                 installProposalRequest.setChaincodeID(chainCodeID);
-
-                if (FOO_CHAIN_NAME.equals(chain.getName())) {
-                    // on foo chain install from directory.
-
-                    ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
-                    installProposalRequest.setChaincodeSourceLocation(new File(TEST_FIXTURES_PATH + "/sdkintegration/gocc/sample1"));
-                } else {
-                    // On bar chain install from an input stream.
-
-                    installProposalRequest.setChainCodeInputStream(Util.generateTarGzInputStream(
-                            (Paths.get(TEST_FIXTURES_PATH, "/sdkintegration/gocc/sample1", "src", CHAIN_CODE_PATH).toFile()),
-                            Paths.get("src", CHAIN_CODE_PATH).toString()));
-
-                }
-
+                ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
+                installProposalRequest.setChaincodeSourceLocation(new File(TEST_FIXTURES_PATH + "/sdkintegration/gocc/sample1"));
                 installProposalRequest.setChaincodeVersion(CHAIN_CODE_VERSION);
 
                 out("Sending install proposal");
@@ -288,6 +274,11 @@ public class End2endIT {
                 }
             }
 
+            //   client.setUserContext(sampleOrg.getUser(TEST_ADMIN_NAME));
+            //  final ChainCodeID chainCodeID = firstInstallProposalResponse.getChainCodeID();
+            // Note install chain code does not require transaction no need to
+            // send to Orderers
+
             ///////////////
             //// Instantiate chain code.
             InstantiateProposalRequest instantiateProposalRequest = client.newInstantiationProposalRequest();
@@ -311,6 +302,8 @@ public class End2endIT {
             out("Sending instantiateProposalRequest to all peers with arguments: a and b set to 100 and %s respectively", "" + (200 + delta));
             successful.clear();
             failed.clear();
+
+            //         client.setUserContext(sampleOrg.getAdmin());
 
             responses = chain.sendInstantiationProposal(instantiateProposalRequest, chain.getPeers());
             for (ProposalResponse response : responses) {
@@ -341,7 +334,8 @@ public class End2endIT {
                     successful.clear();
                     failed.clear();
 
-                    client.setUserContext(sampleOrg.getUser(TESTUSER_1_NAME));
+                    // client.setUserContext(sampleOrg.getUser(TESTUSER_1_NAME));
+                    //       client.setUserContext(sampleOrg.getAdmin());
 
                     ///////////////
                     /// Send transaction proposal to all peers
@@ -378,26 +372,12 @@ public class End2endIT {
                     out("Successfully received transaction proposal responses.");
 
                     ProposalResponse resp = transactionPropResp.iterator().next();
-                    byte[] x = resp.getChainCodeActionResponsePayload(); // This is the data returned by the chaincode.
+                    byte[] x = resp.getChainCodeActionResponsePayload();
                     String resultAsString = null;
                     if (x != null) {
                         resultAsString = new String(x, "UTF-8");
                     }
                     assertEquals(":)", resultAsString);
-
-                    assertEquals(200, resp.getChainCodeActionResponseStatus()); //Chaincode's status.
-
-                    TxReadWriteSetInfo readWriteSetInfo = resp.getChainCodeActionResponseReadWriteSetInfo();
-                    //See blockwaler below how to transverse this
-                    assertNotNull(readWriteSetInfo);
-                    assertTrue(readWriteSetInfo.getNsRwsetCount() > 0);
-
-                    ChainCodeID cid = resp.getChainCodeID();
-                    assertNotNull(cid);
-                    assertEquals(CHAIN_CODE_PATH, cid.getPath());
-                    assertEquals(CHAIN_CODE_NAME, cid.getName());
-                    assertEquals(CHAIN_CODE_VERSION, cid.getVersion());
-
                     ////////////////////////////
                     // Send Transaction Transaction to orderer
                     out("Sending chain code transaction(move a,b,100) to orderer.");
@@ -541,8 +521,10 @@ public class End2endIT {
         //Only peer Admin org
         client.setUserContext(sampleOrg.getPeerAdmin());
 
+
+
         //Create chain that has only one signer that is this orgs peer admin. If chain creation policy needed more signature they would need to be added too.
-        Chain newChain = client.newChain(name, anOrderer, chainConfiguration, client.getChainConfigurationSignature(chainConfiguration, sampleOrg.getPeerAdmin()));
+        Chain newChain = client.newChain(name, anOrderer, chainConfiguration,  client.getChainConfigurationSignature(chainConfiguration, sampleOrg.getPeerAdmin()));
 
         out("Created chain %s", name);
 
@@ -606,7 +588,7 @@ public class End2endIT {
 
         File[] matches = directory.listFiles((dir, name) -> name.endsWith("_sk"));
 
-        if (null == matches) {
+        if(null == matches){
             throw new RuntimeException(format("Matches returned null does %s directory exist?", directory.getAbsoluteFile().getName()));
         }
 
@@ -619,14 +601,14 @@ public class End2endIT {
     }
 
     private static final Map<String, String> txExpected;
-
-    static {
+    static
+    {
         txExpected = new HashMap<String, String>();
         txExpected.put("readset1", "Missing readset for chain bar block 1");
         txExpected.put("writeset1", "Missing writeset for chain bar block 1");
     }
 
-    void blockWalker(Chain chain) throws InvalidProtocolBufferException, InvalidArgumentException, ProposalException, UnsupportedEncodingException {
+    void blockWalker(Chain chain) throws InvalidArgumentException, ProposalException, IOException {
 
         try {
             BlockchainInfo channelInfo = chain.queryBlockchainInfo();
@@ -637,6 +619,7 @@ public class End2endIT {
 
                 out("current block number %d has data hash: %s", blockNumber, Hex.encodeHexString(returnedBlock.getDataHash()));
                 out("current block number %d has previous hash id: %s", blockNumber, Hex.encodeHexString(returnedBlock.getPreviousHash()));
+                out("current block number %d has calculated block hash is %s", blockNumber, Hex.encodeHexString(ChainUtils.calculateBlockHash(blockNumber, returnedBlock.getPreviousHash(), returnedBlock.getDataHash())));
 
                 final int envelopCount = returnedBlock.getEnvelopCount();
                 assertEquals(1, envelopCount);
@@ -769,7 +752,7 @@ public class End2endIT {
                 }
 
             }
-            if (!txExpected.isEmpty()) {
+            if(!txExpected.isEmpty()){
                 fail(txExpected.get(0));
             }
         } catch (InvalidProtocolBufferRuntimeException e) {
