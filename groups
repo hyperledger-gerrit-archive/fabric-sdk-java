@@ -1,5 +1,4 @@
 # UUID                                                                                 	Group Name
 #
-3d6d2c7ee4b408acdaaf0302cf0a9ad5d8e83013                                               	Administrators
 ef1fe8d82339cf63038bbcf163cc2539eabce3c5                                               	GitHub Replication
 ldap:cn=hyperledger-gerrit-fabric-sdk-java-committers,ou=Groups,dc=freestandards,dc=org	ldap/hyperledger-gerrit-fabric-sdk-java-committers
