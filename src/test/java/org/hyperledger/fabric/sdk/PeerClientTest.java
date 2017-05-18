@@ -28,13 +28,13 @@ package org.hyperledger.fabric.sdk;
 
 public class PeerClientTest {
 
-//	static Chain testChain = null;
+//	static Channel testChain = null;
 //	static ChainCodeResponse deployResponse = null;
 //	static ChainCodeResponse javaDeployResponse = null;
 //
 //	@BeforeClass
 //	public static void setupChain() {
-//		testChain = new Chain("chain1");
+//		testChain = new Channel("chain1");
 //		try {
 //			testChain.setMemberServicesUrl("grpc://localhost:7054", null);
 //			testChain.setKeyValStore(new SampleStore(System.getProperty("user.home")+"/test.properties"));

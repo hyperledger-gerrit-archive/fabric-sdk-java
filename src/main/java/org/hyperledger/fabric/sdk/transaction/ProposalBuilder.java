@@ -54,7 +54,7 @@ public class ProposalBuilder {
     protected TransactionRequest request;
     protected ChaincodeSpec.Type ccType = ChaincodeSpec.Type.GOLANG;
     protected Map<String, byte[]> transientMap = null;
-    private String chainID;
+    private String channelID;
 
     protected ProposalBuilder() {
     }
@@ -80,8 +80,8 @@ public class ProposalBuilder {
 
     public ProposalBuilder context(TransactionContext context) {
         this.context = context;
-        if (null == chainID) {
-            chainID = context.getChain().getName(); //Default to context chain.
+        if (null == channelID) {
+            channelID = context.getChannel().getName(); //Default to context channel.
         }
         return this;
     }
@@ -99,23 +99,23 @@ public class ProposalBuilder {
     }
 
     /**
-     * The chain that is being targeted . note blank string means no specific chain.
+     * The channel that is being targeted . note blank string means no specific channel.
      *
-     * @param chainID
+     * @param channelID
      */
 
-    public void chainID(String chainID) {
-        this.chainID = chainID;
+    public void channelID(String channelID) {
+        this.channelID = channelID;
     }
 
     public FabricProposal.Proposal build() throws ProposalException {
-        if (request != null && request.noChainID()) {
-            chainID = "";
+        if (request != null && request.noChannelID()) {
+            channelID = "";
         }
-        return createFabricProposal(chainID, chaincodeID);
+        return createFabricProposal(channelID, chaincodeID);
     }
 
-    private FabricProposal.Proposal createFabricProposal(String chainID, Chaincode.ChaincodeID chaincodeID) {
+    private FabricProposal.Proposal createFabricProposal(String channelID, Chaincode.ChaincodeID chaincodeID) {
 
         transientMap = transientMap == null ? Collections.EMPTY_MAP : transientMap;
 
@@ -130,7 +130,7 @@ public class ProposalBuilder {
                 .setChaincodeId(chaincodeID).build();
 
         Common.ChannelHeader chainHeader = createChannelHeader(HeaderType.ENDORSER_TRANSACTION,
-                context.getTxID(), chainID, context.getEpoch(), context.getFabricTimestamp(), chaincodeHeaderExtension);
+                context.getTxID(), channelID, context.getEpoch(), context.getFabricTimestamp(), chaincodeHeaderExtension);
 
         ChaincodeInvocationSpec chaincodeInvocationSpec = createChaincodeInvocationSpec(
                 chaincodeID,

@@ -165,7 +165,7 @@ public class InstallProposalBuilder extends LSCCProposalBuilder {
             logger.info(format("Installing '%s'  %s chaincode from directory: '%s' with source location: '%s'. chaincodePath:'%s'",
                     chaincodeID, dplang, projectSourceDir.getAbsolutePath(), targetPathPrefix, chaincodePath));
 
-            // generate chain code source tar
+            // generate chaincode source tar
             data = SDKUtil.generateTarGz(projectSourceDir, targetPathPrefix);
 
         } else {

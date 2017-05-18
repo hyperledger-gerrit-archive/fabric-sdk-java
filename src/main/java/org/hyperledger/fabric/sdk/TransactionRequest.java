@@ -67,7 +67,7 @@ public class TransactionRequest {
      * Some peer requests (e.g. queries to QSCC) require the field to be blank.
      * Subclasses should override this method as needed.
      */
-    public boolean noChainID() {
+    public boolean noChannelID() {
         return false;
     }
 
@@ -185,7 +185,7 @@ public class TransactionRequest {
     }
 
     /**
-     * The chain code language type: default type Type.GO_LANG
+     * The chaincode language type: default type Type.GO_LANG
      *
      * @param chaincodeLanguage . Type.Java Type.GO_LANG
      */
