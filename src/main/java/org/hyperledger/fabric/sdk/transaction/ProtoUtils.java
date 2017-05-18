@@ -51,17 +51,17 @@ public class ProtoUtils {
      *
      * @param type
      * @param txID
-     * @param chainID
+     * @param channelID
      * @param epoch
      * @param timeStamp
      * @param chaincodeHeaderExtension
      * @return
      */
-    public static ChannelHeader createChannelHeader(HeaderType type, String txID, String chainID, long epoch, Timestamp timeStamp, ChaincodeHeaderExtension chaincodeHeaderExtension) {
+    public static ChannelHeader createChannelHeader(HeaderType type, String txID, String channelID, long epoch, Timestamp timeStamp, ChaincodeHeaderExtension chaincodeHeaderExtension) {
 
         if (isDebugLevel) {
             logger.debug(format("ChannelHeader: type: %s, version: 1, Txid: %s, channelId: %s, epoch %d",
-                    type.name(), txID, chainID, epoch));
+                    type.name(), txID, channelID, epoch));
 
         }
 
@@ -69,7 +69,7 @@ public class ProtoUtils {
                 .setType(type.getNumber())
                 .setVersion(1)
                 .setTxId(txID)
-                .setChannelId(chainID)
+                .setChannelId(channelID)
                 .setTimestamp(timeStamp)
                 .setEpoch(epoch);
         if (null != chaincodeHeaderExtension) {
