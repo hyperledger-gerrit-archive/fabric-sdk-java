@@ -62,8 +62,8 @@ public class SDKUtil {
     /**
      * Generate parameter hash for the given chain code path,func and args
      *
-     * @param path Chain code path
-     * @param func Chain code function name
+     * @param path Channel code path
+     * @param func Channel code function name
      * @param args List of arguments
      * @return hash of path, func and args
      */
@@ -84,7 +84,7 @@ public class SDKUtil {
      * Generate hash of a chain code directory
      *
      * @param rootDir      Root directory
-     * @param chaincodeDir Chain code directory
+     * @param chaincodeDir Channel code directory
      * @param hash         Previous hash (if any)
      * @return hash of the directory
      * @throws IOException
