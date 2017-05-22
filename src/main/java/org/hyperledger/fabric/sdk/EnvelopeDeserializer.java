@@ -22,6 +22,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
+import org.hyperledger.fabric.protos.common.Common.HeaderType;
 import org.hyperledger.fabric.protos.common.Common.Payload;
 import org.hyperledger.fabric.protos.peer.FabricTransaction;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
@@ -81,23 +82,21 @@ class EnvelopeDeserializer {
         return ret;
     }
 
-    private Integer type = null;
+    private HeaderType type = null;
 
-    int getType() {
+    HeaderType getType() {
         if (type == null) {
 
-            type = getPayload().getHeader().getChannelHeader().getType();
+            type = HeaderType.forNumber(getPayload().getHeader().getChannelHeader().getType());
 
         }
         return type;
     }
 
-
     /**
      * @return whether this Transaction is marked as TxValidationCode.VALID
      */
     public boolean isValid() {
-
 
         return validcode == FabricTransaction.TxValidationCode.VALID_VALUE;
     }
@@ -109,7 +108,6 @@ class EnvelopeDeserializer {
 
         return validcode;
     }
-
 
     static EnvelopeDeserializer newInstance(ByteString byteString, byte b) throws InvalidProtocolBufferException {
 
@@ -130,9 +128,14 @@ class EnvelopeDeserializer {
 
      */
 
-        switch (type) {
-            case 3:
+        final HeaderType headerType = HeaderType.forNumber(type);
+
+        switch (HeaderType.forNumber(type)) {
+            case ENDORSER_TRANSACTION:
                 ret = new EndorserTransactionEnvDeserializer(byteString, b);
+                break;
+            case CONFIG:
+                ret = new ConfigEnvDeserializer(byteString, b);
                 break;
             default: //just assume base properties.
                 ret = new EnvelopeDeserializer(byteString, b);
