@@ -21,6 +21,7 @@ import java.util.List;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.hyperledger.fabric.protos.common.Common.Block;
+import org.hyperledger.fabric.protos.common.Common.HeaderType;
 import org.hyperledger.fabric.protos.ledger.rwset.Rwset.TxReadWriteSet;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
@@ -37,7 +38,6 @@ public class BlockInfo {
     BlockInfo(Block block) {
         this.block = new BlockDeserializer(block);
     }
-
 
     public String getChannelId() throws InvalidProtocolBufferException {
 
@@ -67,7 +67,7 @@ public class BlockInfo {
     }
 
     /**
-     * @return the {@link Block} tansaction metadata value
+     * @return the {@link Block} transaction metadata value
      */
     public byte[] getTransActionsMetaData() {
 
@@ -99,7 +99,7 @@ public class BlockInfo {
 //     * @throws InvalidProtocolBufferException
 //     */
 
-//    public TansactionEnvelopeInfo getEnvelopeInfo(int index) throws InvalidProtocolBufferException {
+//    public TransactionEnvelopeInfo getEnvelopeInfo(int index) throws InvalidProtocolBufferException {
 //
 //        try {
 //            // block.getData(0).getEnvelope().getSignature();
@@ -108,7 +108,7 @@ public class BlockInfo {
 //
 //            final PayloadDeserializer payload = block.getData(index).getPayload();
 //
-//            return new TansactionEnvelopeInfo(null, payload.getHeader());
+//            return new TransactionEnvelopeInfo(null, payload.getHeader());
 //        } catch (InvalidProtocolBufferRuntimeException e) {
 //            throw (InvalidProtocolBufferException) e.getCause();
 //        }
@@ -161,17 +161,28 @@ public class BlockInfo {
          * @return the validation code of this Transaction (enumeration TxValidationCode in Transaction.proto)
          */
         public byte getValidationCode() {
-           return envelopeDeserializer.validationCode();
+            return envelopeDeserializer.validationCode();
         }
-
 
         public EnvelopeType getType() {
 
-            switch (headerDeserializer.getChannelHeader().getType()) {
-                case 3:
+            final int type = headerDeserializer.getChannelHeader().getType();
+
+            final HeaderType headerType = HeaderType.forNumber(headerDeserializer.getChannelHeader().getType());
+
+            switch (HeaderType.forNumber(headerDeserializer.getChannelHeader().getType())) {
+                case ENDORSER_TRANSACTION:
                     return EnvelopeType.TRANSACTION_ENVELOPE;
 
+                case CONFIG:
+                    return EnvelopeType.CONFIG_ENVELOPE;
+
+                case CONFIG_UPDATE:
+
+                    return EnvelopeType.ENVELOPE;
+
                 default:
+
                     return EnvelopeType.ENVELOPE;
             }
 
@@ -179,7 +190,7 @@ public class BlockInfo {
 
     }
 
-    public EnvelopeInfo getEnvelopeInfo(int blockIndex) throws InvalidProtocolBufferException {
+    EnvelopeInfo getEnvelopeInfo(int blockIndex) throws InvalidProtocolBufferException {
 
         try {
             // block.getData(0).getEnvelope().getSignature();
@@ -189,8 +200,11 @@ public class BlockInfo {
             EnvelopeDeserializer ed = EnvelopeDeserializer.newInstance(block.getBlock().getData().getData(blockIndex), block.getTransActionsMetaData()[blockIndex]);
 
             switch (ed.getType()) {
-                case 3:
-                    ret = new TansactionEnvelopeInfo((EndorserTransactionEnvDeserializer) ed, blockIndex);
+                case ENDORSER_TRANSACTION:
+                    ret = new TransactionEnvelopeInfo((EndorserTransactionEnvDeserializer) ed, blockIndex);
+                    break;
+                case CONFIG:
+                    ret = new ConfigEnvelopeInfo((ConfigEnvDeserializer) ed, blockIndex);
                     break;
                 default: //just assume base properties.
                     ret = new EnvelopeInfo(ed, blockIndex);
@@ -210,7 +224,16 @@ public class BlockInfo {
         return new TransactionInfoIterable();
     }
 
-    public class TansactionEnvelopeInfo extends EnvelopeInfo {
+    public class ConfigEnvelopeInfo extends EnvelopeInfo {
+
+        ConfigEnvelopeInfo(ConfigEnvDeserializer configEnvDeserializerDeserializer, int blockIndex) {
+            super(configEnvDeserializerDeserializer, blockIndex);
+
+        }
+
+    }
+
+    public class TransactionEnvelopeInfo extends EnvelopeInfo {
 
         EndorserTransactionEnvDeserializer getTransactionDeserializer() {
             return transactionDeserializer;
@@ -218,9 +241,7 @@ public class BlockInfo {
 
         protected final EndorserTransactionEnvDeserializer transactionDeserializer;
 
-
-
-        public TansactionEnvelopeInfo(EndorserTransactionEnvDeserializer transactionDeserializer, int blockIndex) {
+        TransactionEnvelopeInfo(EndorserTransactionEnvDeserializer transactionDeserializer, int blockIndex) {
             super(transactionDeserializer, blockIndex);
 
             this.transactionDeserializer = transactionDeserializer;
@@ -446,6 +467,7 @@ public class BlockInfo {
     public enum EnvelopeType {
 
         TRANSACTION_ENVELOPE,
+        CONFIG_ENVELOPE,
         ENVELOPE
 
     }
