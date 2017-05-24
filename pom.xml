@@ -4,7 +4,7 @@
     <groupId>org.hyperledger.fabric-sdk-java</groupId>
     <artifactId>fabric-sdk-java</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.1-SNAPSHOT</version>
     <name>fabric-java-sdk</name>
     <description>Java SDK for Hyperledger fabric project</description>
     <url>https://www.hyperledger.org/community/projects</url>
@@ -34,8 +34,24 @@
         <skipITs>true</skipITs>
         <alpn-boot-version>8.1.7.v20160121</alpn-boot-version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <hyp.nexus.host>nexus.hyperledger.org</hyp.nexus.host>
+        <hyp.nexus.port>443</hyp.nexus.port>
+        <hyp.nexus.release-url>https://nexus.hyperledger.org/content/repositories/releases/</hyp.nexus.release-url>
+        <hyp.nexus.snapshot-url>https://nexus.hyperledger.org/content/repositories/snapshots/</hyp.nexus.snapshot-url>
+        <hyp.nexus.staging-url>https://nexus.hyperledger.org/content/repositories/staging/</hyp.nexus.staging-url>
+        <hyp.nexus.public-url>https://nexus.hyperledger.org/content/groups/public/</hyp.nexus.public-url>
+        <hyp.nexus.staging.server-id>hyperledger-staging</hyp.nexus.staging.server-id>
+        <hyp.nexus.staging.profile-id>1e394b667b8d9</hyp.nexus.staging.profile-id>
+        <hyp.git.host>gerrit.hyperledger.org</hyp.git.host>
+        <hyp.git.port>443</hyp.git.port>
+        <hyp.git.project>fabric-sdk-java</hyp.git.project>
+        <hyp.git.protocol>https</hyp.git.protocol>
+        <nexus.proxy>https://nexus.hyperledger.org</nexus.proxy>
+        <sitePath>/content/sites/site/${project.groupId}/${project.artifactId}/${project.version}</sitePath>
+        <releases.path>content/repositories/releases/</releases.path>
+        <snapshots.path>content/repositories/snapshots/</snapshots.path>
+        <staging.path>content/repositories/staging/</staging.path>
     </properties>
-
     <reporting>
         <plugins>
             <plugin>
@@ -52,7 +68,6 @@
             </plugin>
         </plugins>
     </reporting>
-
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -173,11 +188,7 @@
             <artifactId>snakeyaml</artifactId>
             <version>1.18</version>
         </dependency>
-
-
     </dependencies>
-
-
     <build>
         <resources>
             <resource>
@@ -197,6 +208,18 @@
             </extension>
         </extensions>
         <plugins>
+            <!-- Staging Plugin -->
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.7</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <nexusUrl>http://10.30.65.251:8081/</nexusUrl>
+                    <stagingProfileId>${hyp.nexus.staging.profile-id}</stagingProfileId>
+                    <serverId>hyperledger-staging</serverId>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -277,6 +300,7 @@
                     <doctitle>Hyperledger Fabric Java SDK</doctitle>
                     <nohelp>true</nohelp>
                 </configuration>
+                <configuration/>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -300,98 +324,37 @@
             </plugin>
         </plugins>
     </build>
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Official Maven repository</name>
+            <url>http://repo2.maven.org/maven2/</url>
+        </repository>
+        <repository>
+            <id>hyperledger-releases</id>
+            <name>Hyperledger Release Repository</name>
+            <url>http://10.30.65.251:8081/${releases.path}</url>
+        </repository>
+        <repository>
+            <id>hyperledger-staging</id>
+            <name>Hyperledger Staging Repository</name>
+            <url>http://10.30.65.251:8081/${staging.path}</url>
+        </repository>
+    </repositories>
     <distributionManagement>
+        <site>
+            <id>hyperledger-site</id>
+            <url>dav:http://10.30.65.251:8081/content/sites/site/org/hyperledger/fabric-sdk-java/${project.artifactId}/${project.version}</url>
+        </site>
+        <repository>
+            <id>hyperledger-releases</id>
+            <name>Hyperledger Release Repository</name>
+            <url>http://10.30.65.251:8081/${releases.path}</url>
+        </repository>
         <snapshotRepository>
-            <id>hyperledger-bin-publish</id>
-            <url>https://nexus.hyperledger.org/content/repositories/snapshots</url>
+            <id>hyperledger-snapshots</id>
+            <name>Hyperledger Snapshot Repository</name>
+            <url>http://10.30.65.251:8081/${snapshots.path}</url>
         </snapshotRepository>
     </distributionManagement>
-    <profiles>
-        <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.7</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <serverId>hyperledger-bin-publish</serverId>
-                            <nexusUrl>https://nexus.hyperledger.org/</nexusUrl>
-                            <autoReleaseAfterClose>false</autoReleaseAfterClose>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>2.3</version>
-                        <configuration>
-                            <descriptorRefs>
-                                <descriptorRef>jar-with-dependencies</descriptorRef>
-                            </descriptorRefs>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <configuration>
-                            <useAgent>true</useAgent>
-                        </configuration>
-                        <version>1.5</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>2.2.1</version>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>2.10.4</version>
-                        <configuration>
-                            <excludePackageNames>
-                                org.hyperledger.fabric_ca.sdk.helper:org.hyperledger.fabric.protos.*:org.hyperledger.fabric.sdk.helper:org.hyperledger.fabric.sdk.transaction:org.hyperledger.fabric.sdk.security
-                            </excludePackageNames>
-                            <show>public</show>
-                            <doctitle>Hyperledger Fabric Java SDK</doctitle>
-                            <nohelp>true</nohelp>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>
