@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *        http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.List;
 import java.util.Set;
 
 import io.netty.util.internal.StringUtil;
@@ -50,9 +49,9 @@ public class SampleUser implements User, Serializable {
         this.organization = org;
         this.keyValStoreName = toKeyValStoreName(this.name, org);
         String memberStr = keyValStore.getValue(keyValStoreName);
-        if(null == memberStr){
+        if (null == memberStr) {
             saveState();
-        }else {
+        } else {
             restoreState();
         }
 
@@ -128,15 +127,6 @@ public class SampleUser implements User, Serializable {
         return this.enrollment != null;
     }
 
-
-    private String getAttrsKey(List<String> attrs) {
-        if (attrs == null || attrs.isEmpty()) {
-            return null;
-        }
-        return String.join(",", attrs);
-    }
-
-
     /**
      * Save the state of this user to the key value store.
      */
@@ -175,7 +165,7 @@ public class SampleUser implements User, Serializable {
                     this.organization = state.organization;
                     this.enrollmentSecret = state.enrollmentSecret;
                     this.enrollment = state.enrollment;
-                    this.mspID = state.mspID;
+                    this.memberServicesProviderId = state.memberServicesProviderId;
                     return this;
                 }
             } catch (Exception e) {
@@ -209,13 +199,13 @@ public class SampleUser implements User, Serializable {
 
     @Override
     public String getMSPID() {
-        return mspID;
+        return memberServicesProviderId;
     }
 
-    String mspID;
+    String memberServicesProviderId;
 
-    public void setMPSID(String mspID) {
-        this.mspID = mspID;
+    public void setMemberServicesProviderId(String id) {
+        this.memberServicesProviderId = id;
         saveState();
 
     }
