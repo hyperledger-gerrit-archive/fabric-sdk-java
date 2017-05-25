@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *        http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,6 +13,9 @@
  */
 
 package org.hyperledger.fabric_ca.sdk;
+
+import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -34,13 +37,8 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Properties;
-import java.util.Set;
 
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -92,12 +90,10 @@ import org.hyperledger.fabric_ca.sdk.exception.RegistrationException;
 import org.hyperledger.fabric_ca.sdk.exception.RevocationException;
 import org.hyperledger.fabric_ca.sdk.helper.Config;
 
-import static java.lang.String.format;
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
  * HFCAClient Hyperledger Fabric Certificate Authority Client.
  */
+@SuppressWarnings("deprecation")
 public class HFCAClient {
     private static final Log logger = LogFactory.getLog(HFCAClient.class);
     Config config = Config.getConfig(); //Load config so enable logging setting.
@@ -108,11 +104,11 @@ public class HFCAClient {
     private static final String HFCA_REVOKE = HFCA_CONTEXT_ROOT + "revoke";
 
     static final String FABRIC_CA_REQPROP = "caname";
-    private static final int DEFAULT_SECURITY_LEVEL = 256;  //TODO make configurable //Right now by default FAB services is using
-    private static final String DEFAULT_HASH_ALGORITHM = "SHA2";  //Right now by default FAB services is using SHA2
+//    private static final int DEFAULT_SECURITY_LEVEL = 256;  //TODO make configurable //Right now by default FAB services is using
+//    private static final String DEFAULT_HASH_ALGORITHM = "SHA2";  //Right now by default FAB services is using SHA2
 
-    private static final Set<Integer> VALID_KEY_SIZES =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(256, 384)));
+//    private static final Set<Integer> VALID_KEY_SIZES =
+//            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(256, 384)));
 
     private final String url;
     private final boolean isSSL;
@@ -209,15 +205,18 @@ public class HFCAClient {
     }
 
     /**
-     * Register the user and return an enrollment secret.
+     * Register a user.
      *
-     * @param req       Registration request with the following fields: name, role
-     * @param registrar The identity of the registrar (i.e. who is performing the registration)
+     * @param request Registration request with the following fields: name, role.
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return the enrollment secret.
+     * @throws RegistrationException if registration fails.
+     * @throws InvalidArgumentException
      */
 
-    public String register(RegistrationRequest req, User registrar) throws RegistrationException, InvalidArgumentException {
+    public String register(RegistrationRequest request, User registrar) throws RegistrationException, InvalidArgumentException {
 
-        if (Utils.isNullOrEmpty(req.getEnrollmentID())) {
+        if (Utils.isNullOrEmpty(request.getEnrollmentID())) {
             throw new InvalidArgumentException("EntrollmentID cannot be null or empty");
         }
 
@@ -229,7 +228,7 @@ public class HFCAClient {
         setUpSSL();
 
         try {
-            String body = req.toJson();
+            String body = request.toJson();
             String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), body);
             JsonObject resp = httpPost(url + HFCA_REGISTER, body, authHdr);
             String secret = resp.getString("secret");
@@ -628,8 +627,8 @@ public class HFCAClient {
         boolean success = jobj.getBoolean("success");
         if (!success) {
             EnrollmentException e = new EnrollmentException(
-                    format("POST request to %s failed request body %s Body of response did not contain success", url, body)
-                    , new Exception());
+                    format("POST request to %s failed request body %s Body of response did not contain success", url, body),
+                    new Exception());
             logger.error(e.getMessage());
             throw e;
         }
@@ -657,39 +656,39 @@ public class HFCAClient {
         String cert = b64.encodeToString(enrollment.getCert().getBytes(UTF_8));
         body = b64.encodeToString(body.getBytes(UTF_8));
         String signString = body + "." + cert;
-        byte[] signature = cryptoPrimitives.ecdsaSignToBytes(enrollment.getKey(), signString.getBytes(UTF_8));
+        byte[] signature = cryptoPrimitives.sign(enrollment.getKey(), signString.getBytes(UTF_8));
         return cert + "." + b64.encodeToString(signature);
     }
 
     /*
      *  Convert a list of member type names to the role mask currently used by the peer
      */
-    private int rolesToMask(ArrayList<String> roles) {
-        int mask = 0;
-        if (roles != null) {
-            for (String role : roles) {
-                switch (role) {
-                    case "client":
-                        mask |= 1;
-                        break;       // Client mask
-                    case "peer":
-                        mask |= 2;
-                        break;       // Peer mask
-                    case "validator":
-                        mask |= 4;
-                        break;  // Validator mask
-                    case "auditor":
-                        mask |= 8;
-                        break;    // Auditor mask
-                }
-            }
-        }
-
-        if (mask == 0) {
-            mask = 1;  // Client
-        }
-        return mask;
-    }
+//    private int rolesToMask(ArrayList<String> roles) {
+//        int mask = 0;
+//        if (roles != null) {
+//            for (String role : roles) {
+//                switch (role) {
+//                    case "client":
+//                        mask |= 1;
+//                        break;       // Client mask
+//                    case "peer":
+//                        mask |= 2;
+//                        break;       // Peer mask
+//                    case "validator":
+//                        mask |= 4;
+//                        break;  // Validator mask
+//                    case "auditor":
+//                        mask |= 8;
+//                        break;    // Auditor mask
+//                }
+//            }
+//        }
+//
+//        if (mask == 0) {
+//            mask = 1;  // Client
+//        }
+//        return mask;
+//    }
 
     private Registry<ConnectionSocketFactory> registry = null;
 
@@ -739,12 +738,15 @@ public class HFCAClient {
             super(truststore);
 
             TrustManager tm = new X509TrustManager() {
+                @Override
                 public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
                 }
 
+                @Override
                 public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
                 }
 
+                @Override
                 public X509Certificate[] getAcceptedIssuers() {
                     return null;
                 }
