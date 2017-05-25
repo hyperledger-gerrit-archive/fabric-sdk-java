@@ -17,9 +17,9 @@ package org.hyperledger.fabric.sdkintegration;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.util.Collection;
-import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -65,8 +65,6 @@ public class End2endAndBackAgainIT {
     private static final String TESTUSER_1_NAME = "user1";
     private static final String TEST_FIXTURES_PATH = "src/test/fixture";
 
-    private final int gossipWaitTime = testConfig.getGossipWaitTime();
-
     private static final String CHAIN_CODE_NAME = "example_cc_go";
     private static final String CHAIN_CODE_PATH = "github.com/example_cc";
     private static final String CHAIN_CODE_VERSION = "1";
@@ -81,8 +79,6 @@ public class End2endAndBackAgainIT {
 
     private static final String FOO_CHANNEL_NAME = "foo";
     private static final String BAR_CHANNEL_NAME = "bar";
-
-    private Hashtable<String, HFCAClient> fabricCAs = new Hashtable<>();
 
     String testTxID = null;  // save the CC invoke TxID and use in queries
 
@@ -182,7 +178,6 @@ public class End2endAndBackAgainIT {
     void runChannel(HFClient client, Channel channel, SampleOrg sampleOrg, final int delta) {
         final String channelName = channel.getName();
         try {
-
             out("Running Channel %s with a delta %d", channelName, delta);
             channel.setTransactionWaitTime(testConfig.getTransactionWaitTime());
             channel.setDeployWaitTime(testConfig.getDeployWaitTime());
@@ -193,10 +188,8 @@ public class End2endAndBackAgainIT {
             queryChaincodeForExpectedValue(client, channel, "" + (300 + delta), chaincodeID);
 
             // exercise v1 of chaincode
-
             moveAmount(client, channel, chaincodeID, "25").thenApply(transactionEvent -> {
                 try {
-
                     waitOnFabric();
 
                     queryChaincodeForExpectedValue(client, channel, "" + (325 + delta), chaincodeID);
@@ -309,7 +302,6 @@ public class End2endAndBackAgainIT {
             }).thenApply(transactionEvent -> {
                 try {
                     waitOnFabric(10000);
-
                     out("Chaincode has been upgraded to version %s", CHAIN_CODE_VERSION_11);
 
                     //Check to see if peers have new chaincode and old chaincode is gone.
@@ -348,13 +340,9 @@ public class End2endAndBackAgainIT {
                 } catch (Exception e) {
                     throw new CompletionException(e);
                 }
-
             }).thenApply(transactionEvent -> {
-
                 waitOnFabric(10000);
-
                 queryChaincodeForExpectedValue(client, channel, "" + (425 + delta), chaincodeID_11);
-
                 return null;
             }).exceptionally(e -> {
                 if (e instanceof CompletionException && e.getCause() != null) {
@@ -531,37 +519,23 @@ public class End2endAndBackAgainIT {
 //        }
     }
 
-    private static boolean checkInstalledChaincode(HFClient client, Peer peer, String cc_name, String cc_path, String cc_version) throws InvalidArgumentException, ProposalException {
-        List<ChaincodeInfo> ccinfoList = client.queryInstalledChaincodes(peer);
-
-        boolean found = false;
-
-        for (ChaincodeInfo ccifo : ccinfoList) {
-
-            found = cc_name.equals(ccifo.getName()) && cc_path.equals(ccifo.getPath()) && cc_version.equals(ccifo.getVersion());
-            if (found) {
-                break;
-            }
-
-        }
-
-        return found;
+    private static boolean checkInstalledChaincode(HFClient client, Peer peer, String ccName, String ccPath, String ccVersion
+    ) throws InvalidArgumentException, ProposalException {
+        List<ChaincodeInfo> ccInfoList = client.queryInstalledChaincodes(peer);
+        return findChaincodeInfo(ccInfoList, ccName, ccPath, ccVersion).isPresent();
     }
 
-    private static boolean checkInstantiatedChaincode(Channel channel, Peer peer, String cc_name, String cc_path, String cc_version) throws InvalidArgumentException, ProposalException {
-        List<ChaincodeInfo> ccinfoList = channel.queryInstantiatedChaincodes(peer);
+    private static boolean checkInstantiatedChaincode(Channel channel, Peer peer, String ccName, String ccPath, String ccVersion) throws InvalidArgumentException, ProposalException {
+        List<ChaincodeInfo> ccInfoList = channel.queryInstantiatedChaincodes(peer);
+        return findChaincodeInfo(ccInfoList, ccName, ccPath, ccVersion).isPresent();
+    }
 
-        boolean found = false;
-
-        for (ChaincodeInfo ccifo : ccinfoList) {
-            found = cc_name.equals(ccifo.getName()) && cc_path.equals(ccifo.getPath()) && cc_version.equals(ccifo.getVersion());
-            if (found) {
-                break;
-            }
-
-        }
-
-        return found;
+    private static Optional<ChaincodeInfo> findChaincodeInfo(List<ChaincodeInfo> chaincodeInfos, String name, String path, String version) {
+        return chaincodeInfos.stream()
+                .filter(info -> name.equals(info.getName()))
+                .filter(info -> path.equals(info.getPath()))
+                .filter(info -> version.equals(info.getVersion()))
+                .findAny();
     }
 
     static void out(String format, Object... args) {

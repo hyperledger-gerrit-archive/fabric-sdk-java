@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -66,7 +66,7 @@ class OrdererClient {
             try {
                 isTerminated = lchannel.shutdown().awaitTermination(3, TimeUnit.SECONDS);
             } catch (Exception e) {
-                logger.debug(e);//best effort
+                logger.debug(e); //best effort
             }
             if (!isTerminated) {
                 lchannel.shutdownNow();
@@ -122,7 +122,7 @@ class OrdererClient {
         //nso.onCompleted();
 
         try {
-            if(!finishLatch.await(2, TimeUnit.MINUTES)){
+            if (!finishLatch.await(2, TimeUnit.MINUTES)) {
                 TransactionException ste = new TransactionException("Send transactions failed. Reason:  timeout");
                 logger.error("sendTransaction error " + ste.getMessage(), ste);
                 throw ste;
@@ -205,10 +205,10 @@ class OrdererClient {
         //nso.onCompleted();
 
         try {
-            if(!finishLatch.await(2, TimeUnit.MINUTES)){
+            if (!finishLatch.await(2, TimeUnit.MINUTES)) {
                 TransactionException ex = new TransactionException("sendDeliver time exceeded for orderer");
-                logger.error(ex.getMessage(),ex);
-                throw  ex;
+                logger.error(ex.getMessage(), ex);
+                throw ex;
             }
             logger.trace("Done waiting for reply!");
 
@@ -226,8 +226,8 @@ class OrdererClient {
         return retList.toArray(new DeliverResponse[retList.size()]);
     }
 
-    boolean isChannelActive(){
+    boolean isChannelActive() {
         ManagedChannel lchannel = managedChannel;
-        return lchannel != null && !lchannel.isShutdown() && ! lchannel.isTerminated();
+        return lchannel != null && !lchannel.isShutdown() && !lchannel.isTerminated();
     }
 }

@@ -48,15 +48,18 @@ import org.hyperledger.fabric.protos.common.Common.BlockMetadata;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
+import org.hyperledger.fabric.protos.common.Common.HeaderType;
 import org.hyperledger.fabric.protos.common.Common.LastConfig;
 import org.hyperledger.fabric.protos.common.Common.Metadata;
 import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.common.Common.SignatureHeader;
+import org.hyperledger.fabric.protos.common.Common.Status;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigEnvelope;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigGroup;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigSignature;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigUpdateEnvelope;
+import org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
 import org.hyperledger.fabric.protos.common.Ledger;
-import org.hyperledger.fabric.protos.common.Policies.Policy;
 import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.protos.msp.MspConfig;
 import org.hyperledger.fabric.protos.orderer.Ab;
@@ -65,8 +68,6 @@ import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekInfo;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekPosition;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekSpecified;
-import org.hyperledger.fabric.protos.peer.Configuration.AnchorPeer;
-import org.hyperledger.fabric.protos.peer.Configuration.AnchorPeers;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
@@ -101,12 +102,6 @@ import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 import org.hyperledger.fabric.sdk.transaction.UpgradeProposalBuilder;
 
 import static java.lang.String.format;
-import static org.hyperledger.fabric.protos.common.Common.HeaderType;
-import static org.hyperledger.fabric.protos.common.Common.SignatureHeader;
-import static org.hyperledger.fabric.protos.common.Common.Status;
-import static org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
-import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicy;
-import static org.hyperledger.fabric.protos.common.Policies.SignaturePolicyEnvelope;
 import static org.hyperledger.fabric.sdk.helper.Utils.checkGrpcUrl;
 import static org.hyperledger.fabric.sdk.helper.Utils.toHexString;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
@@ -118,7 +113,7 @@ import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.getSignatureHead
  */
 public class Channel {
     private static final Log logger = LogFactory.getLog(Channel.class);
-    private final static boolean isDebugLevel = logger.isDebugEnabled();
+    private static final boolean IS_DEBUG_LEVEL = logger.isDebugEnabled();
     private static final Config config = Config.getConfig();
     static final String SYSTEM_CHANNEL_NAME = "";
 
@@ -128,23 +123,19 @@ public class Channel {
     // The peers on this channel to which the client can connect
     private final Collection<Peer> peers = new Vector<>();
 
-    // Security enabled flag
-    private boolean securityEnabled = true;
-
     // Temporary variables to control how long to wait for deploy and invoke to complete before
     // emitting events.  This will be removed when the SDK is able to receive events from the
     private int deployWaitTime = 20;
     private int transactionWaitTime = 5;
 
     // contains the anchor peers parsed from the channel's configBlock
-    private Set<Anchor> anchorPeers;
+//    private Set<Anchor> anchorPeers;
 
     // The crypto primitives object
     private CryptoSuite cryptoSuite;
     private final Collection<Orderer> orderers = new LinkedList<>();
     HFClient client;
     private boolean initialized = false;
-    private int max_message_count = 50;
     private boolean shutdown = false;
 
     /**
@@ -221,7 +212,7 @@ public class Channel {
 
             ByteString payloadSignature = transactionContext.signByteStrings(payloadByteString);
 
-            if (isDebugLevel) {
+            if (IS_DEBUG_LEVEL) {
                 logger.debug(format("Sending to orderer payloadSignature: 0x%s ", toHexString(payloadSignature)));
             }
 
@@ -290,7 +281,7 @@ public class Channel {
         this.systemChannel = systemChannel;
 
         if (systemChannel) {
-            name = SYSTEM_CHANNEL_NAME;///It's special !
+            name = SYSTEM_CHANNEL_NAME; //It's special !
             initialized = true;
         } else {
             if (Utils.isNullOrEmpty(name)) {
@@ -489,6 +480,7 @@ public class Channel {
 
     /**
      * Get the peers for this channel.
+     *
      * @return the peers.
      */
     public Collection<Peer> getPeers() {
@@ -497,6 +489,7 @@ public class Channel {
 
     /**
      * Get the deploy wait time in seconds.
+     *
      * @return number of seconds.
      */
     public int getDeployWaitTime() {
@@ -567,7 +560,7 @@ public class Channel {
         }
 
         try {
-            parseConfigBlock();// Parse config block for this channel to get it's information.
+            parseConfigBlock(); // Parse config block for this channel to get it's information.
 
             loadCACertificates();  // put all MSP certs into cryptoSuite
 
@@ -667,7 +660,7 @@ public class Channel {
                     ChannelHeader deliverChainHeader = createChannelHeader(HeaderType.DELIVER_SEEK_INFO, "4",
                             name, 0, getCurrentFabricTimestamp(), null);
 
-                    String mspid = client.getUserContext().getMSPID();
+                    String mspid = client.getUserContext().getMspId();
                     String cert = getEnrollment().getCert();
 
                     Identities.SerializedIdentity identity = Identities.SerializedIdentity.newBuilder()
@@ -689,13 +682,13 @@ public class Channel {
                             .setData(seekInfo.toByteString())
                             .build();
 
-                    byte[] deliverPayload_bytes = deliverPayload.toByteArray();
+                    byte[] deliverPayloadBytes = deliverPayload.toByteArray();
 
-                    byte[] deliver_signature = cryptoSuite.sign(getEnrollment().getKey(), deliverPayload_bytes);
+                    byte[] deliverSignature = cryptoSuite.sign(getEnrollment().getKey(), deliverPayloadBytes);
 
                     Envelope deliverEnvelope = Envelope.newBuilder()
-                            .setSignature(ByteString.copyFrom(deliver_signature))
-                            .setPayload(ByteString.copyFrom(deliverPayload_bytes))
+                            .setSignature(ByteString.copyFrom(deliverSignature))
+                            .setPayload(ByteString.copyFrom(deliverPayloadBytes))
                             .build();
 
                     DeliverResponse[] deliver = order.sendDeliver(deliverEnvelope);
@@ -735,7 +728,7 @@ public class Channel {
                             throw new TransactionException(format("Getting genesis block time exceeded %s seconds for channel %s", Long.toString(TimeUnit.MILLISECONDS.toSeconds(duration)), name));
                         }
                         try {
-                            Thread.sleep(200);//try again
+                            Thread.sleep(200); //try again
                         } catch (InterruptedException e) {
                             TransactionException te = new TransactionException("getGenesisBlock thread Sleep", e);
                             logger.warn(te.getMessage(), te);
@@ -879,7 +872,7 @@ public class Channel {
 
             msps = Collections.unmodifiableMap(newMSPS);
 
-            anchorPeers = Collections.unmodifiableSet(traverseConfigGroupsAnchors("", channelGroup, new HashSet<>()));
+//            anchorPeers = Collections.unmodifiableSet(traverseConfigGroupsAnchors("", channelGroup, new HashSet<>()));
 
         } catch (TransactionException e) {
             logger.error(e.getMessage(), e);
@@ -891,24 +884,24 @@ public class Channel {
 
     }
 
-    private Set<Anchor> traverseConfigGroupsAnchors(String name, ConfigGroup configGroup, Set<Anchor> anchorPeers) throws InvalidProtocolBufferException, InvalidArgumentException {
-        ConfigValue anchorsConfig = configGroup.getValuesMap().get("AnchorPeers");
-        if (anchorsConfig != null) {
-            AnchorPeers anchors = AnchorPeers.parseFrom(anchorsConfig.getValue());
-            for (AnchorPeer anchorPeer : anchors.getAnchorPeersList()) {
-                String hostName = anchorPeer.getHost();
-                int port = anchorPeer.getPort();
-                logger.debug(format("parsed from config block: anchor peer %s:%d", hostName, port));
-                anchorPeers.add(new Anchor(hostName, port));
-            }
-        }
-
-        for (Map.Entry<String, ConfigGroup> gm : configGroup.getGroupsMap().entrySet()) {
-            traverseConfigGroupsAnchors(gm.getKey(), gm.getValue(), anchorPeers);
-        }
-
-        return anchorPeers;
-    }
+//    private Set<Anchor> traverseConfigGroupsAnchors(String name, ConfigGroup configGroup, Set<Anchor> anchorPeers) throws InvalidProtocolBufferException, InvalidArgumentException {
+//        ConfigValue anchorsConfig = configGroup.getValuesMap().get("AnchorPeers");
+//        if (anchorsConfig != null) {
+//            AnchorPeers anchors = AnchorPeers.parseFrom(anchorsConfig.getValue());
+//            for (AnchorPeer anchorPeer : anchors.getAnchorPeersList()) {
+//                String hostName = anchorPeer.getHost();
+//                int port = anchorPeer.getPort();
+//                logger.debug(format("parsed from config block: anchor peer %s:%d", hostName, port));
+//                anchorPeers.add(new Anchor(hostName, port));
+//            }
+//        }
+//
+//        for (Map.Entry<String, ConfigGroup> gm : configGroup.getGroupsMap().entrySet()) {
+//            traverseConfigGroupsAnchors(gm.getKey(), gm.getValue(), anchorPeers);
+//        }
+//
+//        return anchorPeers;
+//    }
 
     private Map<String, MSP> traverseConfigGroupsMSP(String name, ConfigGroup configGroup, Map<String, MSP> msps) throws InvalidProtocolBufferException {
 
@@ -1151,22 +1144,22 @@ public class Channel {
         return latestBlock;
     }
 
-    private static Policy buildPolicyEnvelope(int nOf) {
-
-        SignaturePolicy.NOutOf nOutOf = SignaturePolicy.NOutOf.newBuilder().setN(nOf).build();
-
-        SignaturePolicy signaturePolicy = SignaturePolicy.newBuilder().setNOutOf(nOutOf)
-                .build();
-
-        SignaturePolicyEnvelope signaturePolicyEnvelope = SignaturePolicyEnvelope.newBuilder()
-                .setVersion(0)
-                .setPolicy(signaturePolicy).build();
-
-        return Policy.newBuilder()
-                .setType(Policy.PolicyType.SIGNATURE.getNumber())
-                .setPolicy(signaturePolicyEnvelope.toByteString())
-                .build();
-    }
+//    private static Policy buildPolicyEnvelope(int nOf) {
+//
+//        SignaturePolicy.NOutOf nOutOf = SignaturePolicy.NOutOf.newBuilder().setN(nOf).build();
+//
+//        SignaturePolicy signaturePolicy = SignaturePolicy.newBuilder().setNOutOf(nOutOf)
+//                .build();
+//
+//        SignaturePolicyEnvelope signaturePolicyEnvelope = SignaturePolicyEnvelope.newBuilder()
+//                .setVersion(0)
+//                .setPolicy(signaturePolicy).build();
+//
+//        return Policy.newBuilder()
+//                .setType(Policy.PolicyType.SIGNATURE.getNumber())
+//                .setPolicy(signaturePolicyEnvelope.toByteString())
+//                .build();
+//    }
 
     public Collection<Orderer> getOrderers() {
         return Collections.unmodifiableCollection(orderers);
@@ -1211,12 +1204,12 @@ public class Channel {
      *
      * @param instantiateProposalRequest
      * @param peers
+     * @return responses from peers.
      * @throws InvalidArgumentException
      * @throws ProposalException
-     * @return responses from peers.
      */
     public Collection<ProposalResponse> sendInstantiationProposal(InstantiateProposalRequest instantiateProposalRequest,
-            Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+                                                                  Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
 
         if (shutdown) {
             throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
@@ -1239,7 +1232,6 @@ public class Channel {
             transactionContext.setProposalWaitTime(instantiateProposalRequest.getProposalWaitTime());
             InstantiateProposalBuilder instantiateProposalbuilder = InstantiateProposalBuilder.newBuilder();
             instantiateProposalbuilder.context(transactionContext);
-            instantiateProposalbuilder.setChaincodeLanguage(instantiateProposalRequest.getChaincodeLanguage());
             instantiateProposalbuilder.argss(instantiateProposalRequest.getArgs());
             instantiateProposalbuilder.chaincodeName(instantiateProposalRequest.getChaincodeName());
             instantiateProposalbuilder.chaincodePath(instantiateProposalRequest.getChaincodePath());
@@ -1390,15 +1382,15 @@ public class Channel {
         return signedProposal.build();
     }
 
-    private SignedProposal signTransActionEnvelope(FabricProposal.Proposal deploymentProposal) throws CryptoException {
-        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), deploymentProposal.toByteArray());
-        SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
-
-        signedProposal.setProposalBytes(deploymentProposal.toByteString());
-
-        signedProposal.setSignature(ByteString.copyFrom(ecdsaSignature));
-        return signedProposal.build();
-    }
+//    private SignedProposal signTransActionEnvelope(FabricProposal.Proposal deploymentProposal) throws CryptoException {
+//        byte[] ecdsaSignature = cryptoSuite.sign(getEnrollment().getKey(), deploymentProposal.toByteArray());
+//        SignedProposal.Builder signedProposal = SignedProposal.newBuilder();
+//
+//        signedProposal.setProposalBytes(deploymentProposal.toByteString());
+//
+//        signedProposal.setSignature(ByteString.copyFrom(ecdsaSignature));
+//        return signedProposal.build();
+//    }
 
     /**
      * query this channel for a Block by the block hash.
@@ -1425,11 +1417,12 @@ public class Channel {
 
     /**
      * Query a peer in this channel for a Block by the block hash.
-     * @param peer the Peer to query.
+     *
+     * @param peer      the Peer to query.
      * @param blockHash the hash of the Block in the chain.
      * @return the {@link BlockInfo} with the given block Hash
      * @throws InvalidArgumentException if the channel is shutdown or any of the arguments are not valid.
-     * @throws ProposalException if an error occurred processing the query.
+     * @throws ProposalException        if an error occurred processing the query.
      */
     public BlockInfo queryBlockByHash(Peer peer, byte[] blockHash) throws InvalidArgumentException, ProposalException {
 
@@ -1814,7 +1807,7 @@ public class Channel {
 
             final Response fabricResponseResponse = fabricResponse.getResponse();
 
-            if (null == fabricResponseResponse) {//not likely but check it.
+            if (null == fabricResponseResponse) { //not likely but check it.
                 throw new ProposalException(format("Peer %s channel query return with empty fabricResponseResponse", peer.getName()));
             }
 
@@ -1881,7 +1874,7 @@ public class Channel {
 
             final Response fabricResponseResponse = fabricResponse.getResponse();
 
-            if (null == fabricResponseResponse) {//not likely but check it.
+            if (null == fabricResponseResponse) { //not likely but check it.
                 throw new ProposalException(format("Peer %s channel query return with empty fabricResponseResponse", peer.getName()));
             }
 
@@ -1951,7 +1944,7 @@ public class Channel {
 
             final Response fabricResponseResponse = fabricResponse.getResponse();
 
-            if (null == fabricResponseResponse) {//not likely but check it.
+            if (null == fabricResponseResponse) { //not likely but check it.
                 throw new ProposalException(format("Peer %s channel query return with empty fabricResponseResponse", peer.getName()));
             }
 
@@ -2118,7 +2111,7 @@ public class Channel {
                 Throwable cause = e.getCause();
                 if (cause instanceof Error) {
                     String emsg = "Sending proposal to " + peerFuturePair.peer.getName() + " failed because of " + cause.getMessage();
-                    logger.error(emsg, new Exception(cause));//wrapped in exception to get full stack trace.
+                    logger.error(emsg, new Exception(cause)); //wrapped in exception to get full stack trace.
                     throw (Error) cause;
                 } else {
                     if (cause instanceof StatusRuntimeException) {
@@ -2128,7 +2121,7 @@ public class Channel {
                         message = format("Sending proposal to " + peerFuturePair.peer.getName() + " failed because of %s", cause.getMessage());
                     }
                     status = 500;
-                    logger.error(message, new Exception(cause));//wrapped in exception to get full stack trace.
+                    logger.error(message, new Exception(cause)); //wrapped in exception to get full stack trace.
                 }
             }
 
@@ -2359,8 +2352,8 @@ public class Channel {
                 return false;
             }
 
-            Block block = event.getBlock();
-            final long num = block.getHeader().getNumber();
+//            Block block = event.getBlock();
+//            final long num = block.getHeader().getNumber();
 
             // May be fed by multiple eventhubs but BlockingQueue.add() is thread-safe
             events.add(event);
@@ -2709,7 +2702,7 @@ public class Channel {
 
         initialized = false;
         shutdown = true;
-        anchorPeers = null;
+//        anchorPeers = null;
         executorService = null;
 
         for (EventHub eh : getEventHubs()) {
