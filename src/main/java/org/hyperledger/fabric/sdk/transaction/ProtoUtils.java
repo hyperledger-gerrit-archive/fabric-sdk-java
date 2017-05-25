@@ -229,7 +229,7 @@ public final class ProtoUtils {
 
         return Identities.SerializedIdentity.newBuilder()
                 .setIdBytes(ByteString.copyFromUtf8(user.getEnrollment().getCert()))
-                .setMspid(user.getMSPID()).build();
+                .setMspid(user.getMspId()).build();
     }
 
     public static Timestamp getCurrentFabricTimestamp() {
