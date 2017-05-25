@@ -114,7 +114,12 @@ public class TransactionContext {
 
     /**
      * Emit a specific event provided an event listener is already registered.
+     * <p>
+     * Note: this implementation currently does nothing.
+     * @param name event name.
+     * @param event an event.
      */
+    // TODO: This method doesn't behave as advertised. It does nothing. Change the Javadoc when this changes.
     public void emitMyEvent(String name, Object event) {
         /*
        setTimeout(function() {
@@ -130,7 +135,8 @@ public class TransactionContext {
     }
 
     /**
-     * Get the attribute names associated
+     * Get the attribute names associated with this transaction context.
+     * @return the attributes.
      */
     public List<String> getAttrs() {
         return this.attrs;
@@ -138,6 +144,7 @@ public class TransactionContext {
 
     /**
      * Set the attributes for this transaction context.
+     * @param attrs the attributes.
      */
     public void setAttrs(List<String> attrs) {
         this.attrs = attrs;
