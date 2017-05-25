@@ -1071,7 +1071,7 @@ public class Channel {
 
             DeliverResponse[] deliver = orderer.sendDeliver(envelope);
 
-            Block configBlock;
+            final Block configBlock;
             if (deliver.length < 1) {
                 throw new TransactionException(format("newest block for channel %s fetch bad deliver missing status block only got blocks:%d", name, deliver.length));
 
@@ -1087,6 +1087,9 @@ public class Channel {
 
                         DeliverResponse blockresp = deliver[1];
                         configBlock = blockresp.getBlock();
+                        if (configBlock == null) {
+                            throw new TransactionException(format("newest block for channel %s fetch bad deliver returned null:", name));
+                        }
 
                         int dataCount = configBlock.getData().getDataCount();
                         if (dataCount < 1) {
@@ -1094,10 +1097,6 @@ public class Channel {
                         }
                     }
                 }
-            }
-
-            if (configBlock == null) {
-                throw new TransactionException(format("newest block for channel %s fetch bad deliver returned null:", name));
             }
 
             //getChannelConfig -  config block number ::%s  -- numberof tx :: %s', block.header.number, block.data.data.length)
@@ -2390,11 +2389,8 @@ public class Channel {
             Block block = event.getBlock();
             final long num = block.getHeader().getNumber();
 
-            //If being fed by multiple eventhubs make sure we don't add dups here.
-            synchronized (this) {
-
-                events.add(event);
-            }
+            // May be fed by multiple eventhubs but BlockingQueue.add() is thread-safe
+            events.add(event);
 
             return true;
 
