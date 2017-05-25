@@ -864,8 +864,7 @@ public class CryptoPrimitives implements CryptoSuite {
 
     public byte[] certificateToDER(String certricatePEM){
 
-        final PemReader pemReader = new PemReader(new StringReader(certricatePEM));
-        try {
+        try (final PemReader pemReader = new PemReader(new StringReader(certricatePEM))) {
             final PemObject pemObject = pemReader.readPemObject();
             return pemObject.getContent();
 
