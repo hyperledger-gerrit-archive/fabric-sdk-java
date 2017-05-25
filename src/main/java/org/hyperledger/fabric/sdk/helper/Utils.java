@@ -14,7 +14,9 @@
 
 package org.hyperledger.fabric.sdk.helper;
 
-import java.io.BufferedOutputStream;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.commons.codec.binary.Hex.encodeHexString;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,10 +36,6 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.io.ByteStreams;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Timestamp;
-import io.netty.util.internal.StringUtil;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -51,10 +49,13 @@ import org.bouncycastle.crypto.digests.SHA3Digest;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.commons.codec.binary.Hex.encodeHexString;
+import com.google.common.io.ByteStreams;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
 
-public class Utils {
+import io.netty.util.internal.StringUtil;
+
+public final class Utils {
     private static final Log logger = LogFactory.getLog(Utils.class);
     private static final Config confg = Config.getConfig();
     private static final int maxLogStringLength = confg.maxLogStringLength();
@@ -127,22 +128,19 @@ public class Utils {
     }
 
     /**
-     * Compress the given directory src to target tar.gz file
+     * Compress the contents of given directory using Tar and Gzip to an in-memory byte array.
      *
-     * @param src        The source directory
-     * @param pathPrefix
+     * @param sourceDirectory the source directory.
+     * @param pathPrefix a path to be prepended to every file name in the .tar.gz output, or {@code null} if no prefix is required.
+     * @return the compressed directory contents.
      * @throws IOException
      */
-    public static byte[] generateTarGz(File src, String pathPrefix) throws IOException {
-        File sourceDirectory = src;
-        //File destinationArchive = new File(target);
-
+    public static byte[] generateTarGz(File sourceDirectory, String pathPrefix) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream(500000);
 
         String sourcePath = sourceDirectory.getAbsolutePath();
-        //	FileOutputStream destinationOutputStream = new FileOutputStream(destinationArchive);
 
-        TarArchiveOutputStream archiveOutputStream = new TarArchiveOutputStream(new GzipCompressorOutputStream(new BufferedOutputStream(bos)));
+        TarArchiveOutputStream archiveOutputStream = new TarArchiveOutputStream(new GzipCompressorOutputStream(bos));
         archiveOutputStream.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
 
         try {
@@ -180,10 +178,10 @@ public class Utils {
     }
 
     /**
-     * Read a file and return its contents
+     * Read the contents a file.
      *
-     * @param input source file to read
-     * @return {@link byte[]} contents of the file
+     * @param input source file to read.
+     * @return contents of the file.
      * @throws IOException
      */
     public static byte[] readFile(File input) throws IOException {
@@ -234,11 +232,11 @@ public class Utils {
     }
 
     /**
-     * Generate hash of the given input using the given Digest
+     * Generate hash of the given input using the given Digest.
      *
-     * @param input  byte[] input
-     * @param digest The {@link Digest} to use for hashing
-     * @return
+     * @param input  input data.
+     * @param digest the digest to use for hashing
+     * @return hashed data.
      */
     public static byte[] hash(byte[] input, Digest digest) {
         byte[] retValue = new byte[digest.getDigestSize()];
@@ -318,21 +316,21 @@ public class Utils {
     }
 
     /**
+     * Check if a string is null or empty.
      * @param url
-     * @return
-     * @deprecated
+     * @return {@code true} if the string is null or empty; otherwise {@code false}.
+     * @deprecated Replaced by {@link #isNullOrEmpty}
      */
     public static boolean nullOrEmptyString(String url) {
         return url == null || url.isEmpty();
     }
 
     /**
-     * Check if string is null or empty
+     * Check if a string is null or empty.
      *
-     * @param url
-     * @return
+     * @param url the string to test.
+     * @return {@code true} if the string is null or empty; otherwise {@code false}.
      */
-
     public static boolean isNullOrEmpty(String url) {
         return url == null || url.isEmpty();
     }
@@ -391,5 +389,10 @@ public class Utils {
         return encodeHexString(bytes);
 
     }
+    
+    /**
+     * Private constructor to prevent instantiation.
+     */
+    private Utils() { }
 
 }
