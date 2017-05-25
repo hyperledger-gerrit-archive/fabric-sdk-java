@@ -17,9 +17,9 @@ package org.hyperledger.fabric.sdkintegration;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.util.Collection;
-import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -60,12 +60,10 @@ import static org.junit.Assert.fail;
  */
 public class End2endAndBackAgainIT {
 
-    private static final TestConfig testConfig = TestConfig.getConfig();
+    private static final TestConfig TEST_CONFIG = TestConfig.getConfig();
     private static final String TEST_ADMIN_NAME = "admin";
     private static final String TESTUSER_1_NAME = "user1";
     private static final String TEST_FIXTURES_PATH = "src/test/fixture";
-
-    private final int gossipWaitTime = testConfig.getGossipWaitTime();
 
     private static final String CHAIN_CODE_NAME = "example_cc_go";
     private static final String CHAIN_CODE_PATH = "github.com/example_cc";
@@ -82,8 +80,6 @@ public class End2endAndBackAgainIT {
     private static final String FOO_CHANNEL_NAME = "foo";
     private static final String BAR_CHANNEL_NAME = "bar";
 
-    private Hashtable<String, HFCAClient> fabricCAs = new Hashtable<>();
-
     String testTxID = null;  // save the CC invoke TxID and use in queries
 
     private final TestConfigHelper configHelper = new TestConfigHelper();
@@ -98,7 +94,7 @@ public class End2endAndBackAgainIT {
         configHelper.clearConfig();
         configHelper.customizeConfig();
 
-        testSampleOrgs = testConfig.getIntegrationTestsSampleOrgs();
+        testSampleOrgs = TEST_CONFIG.getIntegrationTestsSampleOrgs();
         //Set up hfca for each sample org
 
         for (SampleOrg sampleOrg : testSampleOrgs) {
@@ -161,12 +157,12 @@ public class End2endAndBackAgainIT {
 
             ////////////////////////////
             //Reconstruct and run the channels
-            SampleOrg sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg1");
+            SampleOrg sampleOrg = TEST_CONFIG.getIntegrationTestsSampleOrg("peerOrg1");
             Channel fooChannel = reconstructChannel(FOO_CHANNEL_NAME, client, sampleOrg);
             runChannel(client, fooChannel, sampleOrg, 0);
             fooChannel.shutdown(true); //clean up resources no longer needed.
             out("\n");
-            sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
+            sampleOrg = TEST_CONFIG.getIntegrationTestsSampleOrg("peerOrg2");
             Channel barChannel = reconstructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
             runChannel(client, barChannel, sampleOrg, 100); //run a newly constructed foo channel with different b value!
             barChannel.shutdown(true);
@@ -179,53 +175,45 @@ public class End2endAndBackAgainIT {
         }
     }
 
+    //CHECKSTYLE.OFF: Method length is 175 lines (max allowed is 150).
     void runChannel(HFClient client, Channel channel, SampleOrg sampleOrg, final int delta) {
         final String channelName = channel.getName();
         try {
-
             out("Running Channel %s with a delta %d", channelName, delta);
-            channel.setTransactionWaitTime(testConfig.getTransactionWaitTime());
-            channel.setDeployWaitTime(testConfig.getDeployWaitTime());
+            channel.setTransactionWaitTime(TEST_CONFIG.getTransactionWaitTime());
+            channel.setDeployWaitTime(TEST_CONFIG.getDeployWaitTime());
 
-            ////////////////////////////
-            // Send Query Proposal to all peers see if it's what we expect from end of End2endIT
-            //
-            queryChaincodeForExpectedValue(client, channel, "" + (300 + delta), chaincodeID);
+            // --- Send Query Proposal to all peers see if it's what we expect from end of End2endIT
+
+            queryChaincodeForExpectedValue(client, channel, String.valueOf(300 + delta), chaincodeID);
 
             // exercise v1 of chaincode
-
             moveAmount(client, channel, chaincodeID, "25").thenApply(transactionEvent -> {
                 try {
-
                     waitOnFabric();
-
                     queryChaincodeForExpectedValue(client, channel, "" + (325 + delta), chaincodeID);
 
-                    //////////////////
-                    // Start of upgrade first must install it.
+                    // --- Start of upgrade first must install it.
 
-                    ///////////////
-                    ////
                     InstallProposalRequest installProposalRequest = client.newInstallProposalRequest();
                     installProposalRequest.setChaincodeID(chaincodeID);
                     ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
                     installProposalRequest.setChaincodeSourceLocation(new File(TEST_FIXTURES_PATH + "/sdkintegration/gocc/sample_11"));
                     installProposalRequest.setChaincodeVersion(CHAIN_CODE_VERSION_11);
-                    installProposalRequest.setProposalWaitTime(testConfig.getProposalWaitTime());
+                    installProposalRequest.setProposalWaitTime(TEST_CONFIG.getProposalWaitTime());
 
                     out("Sending install proposal");
 
-                    ////////////////////////////
-                    // only a client from the same org as the peer can issue an install request
+                    // --- only a client from the same org as the peer can issue an install request
+
                     int numInstallProposal = 0;
 
-                    Collection<ProposalResponse> responses;
                     final Collection<ProposalResponse> successful = new LinkedList<>();
                     final Collection<ProposalResponse> failed = new LinkedList<>();
                     Collection<Peer> peersFromOrg = channel.getPeers();
                     numInstallProposal = numInstallProposal + peersFromOrg.size();
 
-                    responses = client.sendInstallProposal(installProposalRequest, peersFromOrg);
+                    Collection<ProposalResponse> responses = client.sendInstallProposal(installProposalRequest, peersFromOrg);
 
                     for (ProposalResponse response : responses) {
                         if (response.getStatus() == Status.SUCCESS) {
@@ -250,27 +238,22 @@ public class End2endAndBackAgainIT {
                         fail("Not enough endorsers for install :" + successful.size() + ".  " + first.getMessage());
                     }
 
-                    //////////////////
-                    // Upgrade chaincode to ***double*** our move results.
+                    // --- Upgrade chaincode to ***double*** our move results.
 
                     UpgradeProposalRequest upgradeProposalRequest = client.newUpgradeProposalRequest();
                     upgradeProposalRequest.setChaincodeID(chaincodeID_11);
-                    upgradeProposalRequest.setProposalWaitTime(testConfig.getProposalWaitTime());
+                    upgradeProposalRequest.setProposalWaitTime(TEST_CONFIG.getProposalWaitTime());
                     upgradeProposalRequest.setFcn("init");
-                    upgradeProposalRequest.setArgs(new String[] {});// no arguments don't change the ledger see chaincode.
+                    upgradeProposalRequest.setArgs(new String[] {}); // no arguments don't change the ledger see chaincode.
 
-                    ChaincodeEndorsementPolicy chaincodeEndorsementPolicy;
-
-                    chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy();
+                    ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy();
                     chaincodeEndorsementPolicy.fromYamlFile(new File(TEST_FIXTURES_PATH + "/sdkintegration/chaincodeendorsementpolicy.yaml"));
 
                     upgradeProposalRequest.setChaincodeEndorsementPolicy(chaincodeEndorsementPolicy);
 
                     out("Sending upgrade proposal");
 
-                    Collection<ProposalResponse> responses2;
-
-                    responses2 = channel.sendUpgradeProposal(upgradeProposalRequest);
+                    Collection<ProposalResponse> responses2 = channel.sendUpgradeProposal(upgradeProposalRequest);
 
                     successful.clear();
                     failed.clear();
@@ -298,8 +281,7 @@ public class End2endAndBackAgainIT {
                                 + successful.size() + ".  " + first.getMessage());
                     }
 
-                    return channel.sendTransaction(successful).get(testConfig.getTransactionWaitTime(), TimeUnit.SECONDS);
-
+                    return channel.sendTransaction(successful).get(TEST_CONFIG.getTransactionWaitTime(), TimeUnit.SECONDS);
                 } catch (CompletionException e) {
                     throw e;
                 } catch (Exception e) {
@@ -309,7 +291,6 @@ public class End2endAndBackAgainIT {
             }).thenApply(transactionEvent -> {
                 try {
                     waitOnFabric(10000);
-
                     out("Chaincode has been upgraded to version %s", CHAIN_CODE_VERSION_11);
 
                     //Check to see if peers have new chaincode and old chaincode is gone.
@@ -332,7 +313,6 @@ public class End2endAndBackAgainIT {
                             throw new AssertionError(format("Peer %s still has old instantiated chaincode name:%s, path:%s, version: %s",
                                     peer.getName(), CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_PATH));
                         }
-
                     }
 
                     client.setUserContext(sampleOrg.getUser(TESTUSER_1_NAME));
@@ -342,19 +322,15 @@ public class End2endAndBackAgainIT {
                     queryChaincodeForExpectedValue(client, channel, "" + (325 + delta), chaincodeID);
 
                     //Now lets run the new chaincode which should *double* the results we asked to move.
-                    return moveAmount(client, channel, chaincodeID_11, "50").get(testConfig.getTransactionWaitTime(), TimeUnit.SECONDS); // really move 100
+                    return moveAmount(client, channel, chaincodeID_11, "50").get(TEST_CONFIG.getTransactionWaitTime(), TimeUnit.SECONDS); // really move 100
                 } catch (CompletionException e) {
                     throw e;
                 } catch (Exception e) {
                     throw new CompletionException(e);
                 }
-
             }).thenApply(transactionEvent -> {
-
                 waitOnFabric(10000);
-
                 queryChaincodeForExpectedValue(client, channel, "" + (425 + delta), chaincodeID_11);
-
                 return null;
             }).exceptionally(e -> {
                 if (e instanceof CompletionException && e.getCause() != null) {
@@ -369,13 +345,13 @@ public class End2endAndBackAgainIT {
                 fail(format("Test failed with %s exception %s", e.getClass().getName(), e.getMessage()));
 
                 return null;
-            }).get(testConfig.getTransactionWaitTime(), TimeUnit.SECONDS);
+            }).get(TEST_CONFIG.getTransactionWaitTime(), TimeUnit.SECONDS);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         out("Running for Channel %s done", channelName);
-
     }
+    //CHECKSTYLE.ON: Method length is 175 lines (max allowed is 150).
 
     CompletableFuture<BlockEvent.TransactionEvent> moveAmount(HFClient client, Channel channel, ChaincodeID chaincodeID, String moveAmount) {
 
@@ -389,7 +365,7 @@ public class End2endAndBackAgainIT {
             transactionProposalRequest.setChaincodeID(chaincodeID);
             transactionProposalRequest.setFcn("invoke");
             transactionProposalRequest.setArgs(new String[] {"move", "a", "b", moveAmount});
-            transactionProposalRequest.setProposalWaitTime(testConfig.getProposalWaitTime());
+            transactionProposalRequest.setProposalWaitTime(TEST_CONFIG.getProposalWaitTime());
             out("sending transaction proposal to all peers with arguments: move(a,b,%s)", moveAmount);
 
             Collection<ProposalResponse> invokePropResp = channel.sendTransactionProposal(transactionProposalRequest, channel.getPeers());
@@ -439,12 +415,12 @@ public class End2endAndBackAgainIT {
 
         for (String orderName : sampleOrg.getOrdererNames()) {
             newChannel.addOrderer(client.newOrderer(orderName, sampleOrg.getOrdererLocation(orderName),
-                    testConfig.getOrdererProperties(orderName)));
+                    TEST_CONFIG.getOrdererProperties(orderName)));
         }
 
         for (String peerName : sampleOrg.getPeerNames()) {
             String peerLocation = sampleOrg.getPeerLocation(peerName);
-            Peer peer = client.newPeer(peerName, peerLocation, testConfig.getPeerProperties(peerName));
+            Peer peer = client.newPeer(peerName, peerLocation, TEST_CONFIG.getPeerProperties(peerName));
 
             //Query the actual peer for which channels it belongs to and check it belongs to this channel
             Set<String> channels = client.queryChannels(peer);
@@ -458,7 +434,7 @@ public class End2endAndBackAgainIT {
 
         for (String eventHubName : sampleOrg.getEventHubNames()) {
             EventHub eventHub = client.newEventHub(eventHubName, sampleOrg.getEventHubLocation(eventHubName),
-                    testConfig.getEventHubProperties(eventHubName));
+                    TEST_CONFIG.getEventHubProperties(eventHubName));
             newChannel.addEventHub(eventHub);
         }
 
@@ -531,37 +507,25 @@ public class End2endAndBackAgainIT {
 //        }
     }
 
-    private static boolean checkInstalledChaincode(HFClient client, Peer peer, String cc_name, String cc_path, String cc_version) throws InvalidArgumentException, ProposalException {
-        List<ChaincodeInfo> ccinfoList = client.queryInstalledChaincodes(peer);
-
-        boolean found = false;
-
-        for (ChaincodeInfo ccifo : ccinfoList) {
-
-            found = cc_name.equals(ccifo.getName()) && cc_path.equals(ccifo.getPath()) && cc_version.equals(ccifo.getVersion());
-            if (found) {
-                break;
-            }
-
-        }
-
-        return found;
+    private static boolean checkInstalledChaincode(HFClient client, Peer peer, String ccName, String ccPath, String ccVersion
+            ) throws InvalidArgumentException, ProposalException {
+        List<ChaincodeInfo> ccInfoList = client.queryInstalledChaincodes(peer);
+        return findChaincodeInfo(ccInfoList, ccName, ccPath, ccVersion).isPresent();
     }
 
-    private static boolean checkInstantiatedChaincode(Channel channel, Peer peer, String cc_name, String cc_path, String cc_version) throws InvalidArgumentException, ProposalException {
-        List<ChaincodeInfo> ccinfoList = channel.queryInstantiatedChaincodes(peer);
+    private static boolean checkInstantiatedChaincode(Channel channel, Peer peer, String ccName, String ccPath, String ccVersion) throws InvalidArgumentException, ProposalException {
+        List<ChaincodeInfo> ccInfoList = channel.queryInstantiatedChaincodes(peer);
+        return findChaincodeInfo(ccInfoList, ccName, ccPath, ccVersion).isPresent();
+    }
 
-        boolean found = false;
-
-        for (ChaincodeInfo ccifo : ccinfoList) {
-            found = cc_name.equals(ccifo.getName()) && cc_path.equals(ccifo.getPath()) && cc_version.equals(ccifo.getVersion());
-            if (found) {
-                break;
+    private static Optional<ChaincodeInfo> findChaincodeInfo(List<ChaincodeInfo> chaincodeInfos, String name, String path, String version) {
+        for (ChaincodeInfo info : chaincodeInfos) {
+            if (name.equals(info.getName()) && path.equals(info.getPath()) && version.equals(info.getVersion())) {
+                return Optional.of(info);
             }
-
         }
 
-        return found;
+        return Optional.empty();
     }
 
     static void out(String format, Object... args) {

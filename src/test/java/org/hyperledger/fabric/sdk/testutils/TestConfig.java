@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *        http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -59,16 +59,16 @@ public class TestConfig {
 
 
     private static final String INTEGRATIONTESTS_ORG = PROPBASE + "integrationTests.org.";
-    private static final Pattern orgPat = Pattern.compile("^" + Pattern.quote(INTEGRATIONTESTS_ORG) + "([^\\.]+)\\.mspid$");
+    private static final Pattern ORG_PATTERN = Pattern.compile("^" + Pattern.quote(INTEGRATIONTESTS_ORG) + "([^\\.]+)\\.mspid$");
 
     private static final String INTEGRATIONTESTSTLS = PROPBASE + "integrationtests.tls";
 
     private static TestConfig config;
-    private final static Properties sdkProperties = new Properties();
+    private static final Properties SDK_PROPERTIES = new Properties();
     private final boolean runningTLS;
     private final boolean runningFabricCATLS;
     private final boolean runningFabricTLS;
-    private final static HashMap<String, SampleOrg> sampleOrgs = new HashMap<>();
+    private static final HashMap<String, SampleOrg> SAMPLE_ORGS = new HashMap<>();
 
     private TestConfig() {
         File loadFile;
@@ -80,7 +80,7 @@ public class TestConfig {
             logger.debug(String.format("Loading configuration from %s and it is present: %b", loadFile.toString(),
                     loadFile.exists()));
             configProps = new FileInputStream(loadFile);
-            sdkProperties.load(configProps);
+            SDK_PROPERTIES.load(configProps);
 
         } catch (IOException e) { // if not there no worries just use defaults
 //            logger.warn(String.format("Failed to load any test configuration from: %s. Using toolkit defaults",
@@ -110,56 +110,56 @@ public class TestConfig {
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.eventhub_locations", "peer0.org2.example.com@grpc://localhost:8053, peer1.org2.example.com@grpc://localhost:8058");
 
             defaultProperty(INTEGRATIONTESTSTLS, null);
-            runningTLS = null != sdkProperties.getProperty(INTEGRATIONTESTSTLS, null);
+            runningTLS = null != SDK_PROPERTIES.getProperty(INTEGRATIONTESTSTLS, null);
             runningFabricCATLS = runningTLS;
             runningFabricTLS = runningTLS;
 
-            for (Map.Entry<Object, Object> x : sdkProperties.entrySet()) {
+            for (Map.Entry<Object, Object> x : SDK_PROPERTIES.entrySet()) {
                 final String key = x.getKey() + "";
                 final String val = x.getValue() + "";
 
                 if (key.startsWith(INTEGRATIONTESTS_ORG)) {
 
-                    Matcher match = orgPat.matcher(key);
+                    Matcher match = ORG_PATTERN.matcher(key);
 
                     if (match.matches() && match.groupCount() == 1) {
                         String orgName = match.group(1).trim();
-                        sampleOrgs.put(orgName, new SampleOrg(orgName, val.trim()));
+                        SAMPLE_ORGS.put(orgName, new SampleOrg(orgName, val.trim()));
 
                     }
                 }
             }
 
-            for (Map.Entry<String, SampleOrg> org : sampleOrgs.entrySet()) {
+            for (Map.Entry<String, SampleOrg> org : SAMPLE_ORGS.entrySet()) {
                 final SampleOrg sampleOrg = org.getValue();
                 final String orgName = org.getKey();
 
-                String peerNames = sdkProperties.getProperty(INTEGRATIONTESTS_ORG + orgName + ".peer_locations");
+                String peerNames = SDK_PROPERTIES.getProperty(INTEGRATIONTESTS_ORG + orgName + ".peer_locations");
                 String[] ps = peerNames.split("[ \t]*,[ \t]*");
                 for (String peer : ps) {
                     String[] nl = peer.split("[ \t]*@[ \t]*");
                     sampleOrg.addPeerLocation(nl[0], grpcTLSify(nl[1]));
                 }
 
-                final String domainName = sdkProperties.getProperty(INTEGRATIONTESTS_ORG + orgName + ".domname");
+                final String domainName = SDK_PROPERTIES.getProperty(INTEGRATIONTESTS_ORG + orgName + ".domname");
 
                 sampleOrg.setDomainName(domainName);
 
-                String ordererNames = sdkProperties.getProperty(INTEGRATIONTESTS_ORG + orgName + ".orderer_locations");
+                String ordererNames = SDK_PROPERTIES.getProperty(INTEGRATIONTESTS_ORG + orgName + ".orderer_locations");
                 ps = ordererNames.split("[ \t]*,[ \t]*");
                 for (String peer : ps) {
                     String[] nl = peer.split("[ \t]*@[ \t]*");
                     sampleOrg.addOrdererLocation(nl[0], grpcTLSify(nl[1]));
                 }
 
-                String eventHubNames = sdkProperties.getProperty(INTEGRATIONTESTS_ORG + orgName + ".eventhub_locations");
+                String eventHubNames = SDK_PROPERTIES.getProperty(INTEGRATIONTESTS_ORG + orgName + ".eventhub_locations");
                 ps = eventHubNames.split("[ \t]*,[ \t]*");
                 for (String peer : ps) {
                     String[] nl = peer.split("[ \t]*@[ \t]*");
                     sampleOrg.addEventHubLocation(nl[0], grpcTLSify(nl[1]));
                 }
 
-                sampleOrg.setCALocation(httpTLSify(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".ca_location"))));
+                sampleOrg.setCALocation(httpTLSify(SDK_PROPERTIES.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".ca_location"))));
 
                 if (runningFabricCATLS) {
                     String cert = "src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/peerOrganizations/DNAME/ca/ca.DNAME-cert.pem".replaceAll("DNAME", domainName);
@@ -170,7 +170,7 @@ public class TestConfig {
                     Properties properties = new Properties();
                     properties.setProperty("pemFile", cf.getAbsolutePath());
 
-                    properties.setProperty("allowAllHostNames", "true");//testing environment only NOT FOR PRODUCTION!
+                    properties.setProperty("allowAllHostNames", "true"); //testing environment only NOT FOR PRODUCTION!
 
                     sampleOrg.setCAProperties(properties);
                 }
@@ -219,7 +219,7 @@ public class TestConfig {
      */
     private String getProperty(String property) {
 
-        String ret = sdkProperties.getProperty(property);
+        String ret = SDK_PROPERTIES.getProperty(property);
 
         if (null == ret) {
             logger.warn(String.format("No configuration value found for '%s'", property));
@@ -227,32 +227,19 @@ public class TestConfig {
         return ret;
     }
 
-    /**
-     * getProperty returns the value for given property key. If not found, it
-     * will set the property to defaultValueidea-IC-171.3780.107
-     *
-     * @param property
-     * @param defaultValue
-     * @return property value as a String
-     */
-    private String getProperty(String property, String defaultValue) {
-
-        return sdkProperties.getProperty(property, defaultValue);
-    }
-
-    static private void defaultProperty(String key, String value) {
+    private static void defaultProperty(String key, String value) {
 
         String ret = System.getProperty(key);
         if (ret != null) {
-            sdkProperties.put(key, ret);
+            SDK_PROPERTIES.put(key, ret);
         } else {
             String envKey = key.toUpperCase().replaceAll("\\.", "_");
             ret = System.getenv(envKey);
             if (null != ret) {
-                sdkProperties.put(key, ret);
+                SDK_PROPERTIES.put(key, ret);
             } else {
-                if (null == sdkProperties.getProperty(key) && value != null) {
-                    sdkProperties.put(key, value);
+                if (null == SDK_PROPERTIES.getProperty(key) && value != null) {
+                    SDK_PROPERTIES.put(key, value);
                 }
 
             }
@@ -272,25 +259,20 @@ public class TestConfig {
         return Integer.parseInt(getProperty(GOSSIPWAITTIME));
     }
 
-    /**
-     * Time to wait for proposal to complete
-     *
-     * @return
-     */
     public long getProposalWaitTime() {
         return Integer.parseInt(getProperty(PROPOSALWAITTIME));
     }
 
     public Collection<SampleOrg> getIntegrationTestsSampleOrgs() {
-        return Collections.unmodifiableCollection(sampleOrgs.values());
+        return Collections.unmodifiableCollection(SAMPLE_ORGS.values());
     }
 
     public SampleOrg getIntegrationTestsSampleOrg(String name) {
-        return sampleOrgs.get(name);
+        return SAMPLE_ORGS.get(name);
 
     }
 
-    private final static String tlsbase = "src/test/fixture/sdkintegration/e2e-2Orgs/tls/";
+//    private final static String tlsbase = "src/test/fixture/sdkintegration/e2e-2Orgs/tls/";
 
     public Properties getPeerProperties(String name) {
 
@@ -309,11 +291,11 @@ public class TestConfig {
 
         final String domainName = getDomainName(name);
 
-        File cert = Paths.get(getTestChannlePath(), "crypto-config/ordererOrganizations".replace("orderer", type), domainName, type +"s",
+        File cert = Paths.get(getTestChannlePath(), "crypto-config/ordererOrganizations".replace("orderer", type), domainName, type + "s",
                 name, "tls/server.crt").toFile();
-        if(!cert.exists()){
+        if (!cert.exists()) {
             throw new RuntimeException(String.format("Missing cert file for: %s. Could not find at location: %s", name,
-                    cert.getAbsolutePath()) );
+                    cert.getAbsolutePath()));
         }
 
         Properties ret = new Properties();
@@ -332,39 +314,39 @@ public class TestConfig {
 
     }
 
-    private Properties getTLSProperties(String type, String name) {
-        Properties ret = null;
-        if (runningFabricTLS) {
-            String cert = tlsbase + "/" + type + "/" + name + "/cert.pem";
-            File cf = new File(cert);
-            if (!cf.exists() || !cf.isFile()) {
-                throw new RuntimeException("Missing cert file " + cf.getAbsolutePath());
-            }
-            ret = new Properties();
-            ret.setProperty("pemFile", cert);
-            ret.setProperty("trustServerCertificate", "true"); //testing environment only NOT FOR PRODUCTION!
-            ret.setProperty("sslProvider", "openSSL");
-            ret.setProperty("negotiationType", "TLS");
-        }
-        return ret;
-    }
+//    private Properties getTLSProperties(String type, String name) {
+//        Properties ret = null;
+//        if (runningFabricTLS) {
+//            String cert = tlsbase + "/" + type + "/" + name + "/cert.pem";
+//            File cf = new File(cert);
+//            if (!cf.exists() || !cf.isFile()) {
+//                throw new RuntimeException("Missing cert file " + cf.getAbsolutePath());
+//            }
+//            ret = new Properties();
+//            ret.setProperty("pemFile", cert);
+//            ret.setProperty("trustServerCertificate", "true"); //testing environment only NOT FOR PRODUCTION!
+//            ret.setProperty("sslProvider", "openSSL");
+//            ret.setProperty("negotiationType", "TLS");
+//        }
+//        return ret;
+//    }
 
-    private Properties getTLSProperties(String cert) {
-        Properties ret = null;
-        if (runningFabricTLS) {
-            //   String cert = tlsbase + "/" + type + "/" + name + "/ca.pem";
-            File cf = new File(tlsbase + cert);
-            if (!cf.exists() || !cf.isFile()) {
-                throw new RuntimeException("TEST error missing cert file " + cf.getAbsolutePath());
-            }
-            ret = new Properties();
-            ret.setProperty("pemFile", cf.getAbsolutePath());
-            ret.setProperty("trustServerCertificate", "true"); //testing environment only NOT FOR PRODUCTION!
-            ret.setProperty("sslProvider", "openSSL");
-            ret.setProperty("negotiationType", "TLS");
-        }
-        return ret;
-    }
+//    private Properties getTLSProperties(String cert) {
+//        Properties ret = null;
+//        if (runningFabricTLS) {
+//            //   String cert = tlsbase + "/" + type + "/" + name + "/ca.pem";
+//            File cf = new File(tlsbase + cert);
+//            if (!cf.exists() || !cf.isFile()) {
+//                throw new RuntimeException("TEST error missing cert file " + cf.getAbsolutePath());
+//            }
+//            ret = new Properties();
+//            ret.setProperty("pemFile", cf.getAbsolutePath());
+//            ret.setProperty("trustServerCertificate", "true"); //testing environment only NOT FOR PRODUCTION!
+//            ret.setProperty("sslProvider", "openSSL");
+//            ret.setProperty("negotiationType", "TLS");
+//        }
+//        return ret;
+//    }
 
     public String getTestChannlePath() {
 
@@ -377,7 +359,7 @@ public class TestConfig {
         if (-1 == dot) {
             return null;
         } else {
-            return name.substring(dot+1);
+            return name.substring(dot + 1);
         }
 
     }

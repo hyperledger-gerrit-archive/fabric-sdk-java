@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *        http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,14 +34,12 @@ import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createDeployment
 
 public class InstantiateProposalBuilder extends LSCCProposalBuilder {
 
-    private final static Log logger = LogFactory.getLog(InstantiateProposalBuilder.class);
+    private static final Log logger = LogFactory.getLog(InstantiateProposalBuilder.class);
 
     private String chaincodePath;
 
-    private String chaincodeSource;
     private String chaincodeName;
     private List<String> argList;
-    private TransactionRequest.Type chaincodeLanguage;
     private String chaincodeVersion;
 
     private byte[] chaincodePolicy = null;
@@ -133,8 +131,8 @@ public class InstantiateProposalBuilder extends LSCCProposalBuilder {
 
     }
 
+    // TODO: This method should probably do something useful or be removed
     public void setChaincodeLanguage(TransactionRequest.Type chaincodeLanguage) {
-        this.chaincodeLanguage = chaincodeLanguage;
     }
 
     public void chaincodeVersion(String chaincodeVersion) {

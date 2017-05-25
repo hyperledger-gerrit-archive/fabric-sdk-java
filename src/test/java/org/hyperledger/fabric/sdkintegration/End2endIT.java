@@ -75,12 +75,10 @@ import static org.junit.Assert.fail;
  */
 public class End2endIT {
 
-    private static final TestConfig testConfig = TestConfig.getConfig();
+    private static final TestConfig TEST_CONFIG = TestConfig.getConfig();
     private static final String TEST_ADMIN_NAME = "admin";
     private static final String TESTUSER_1_NAME = "user1";
     private static final String TEST_FIXTURES_PATH = "src/test/fixture";
-
-    private final int gossipWaitTime = testConfig.getGossipWaitTime();
 
     private static final String CHAIN_CODE_NAME = "example_cc_go";
     private static final String CHAIN_CODE_PATH = "github.com/example_cc";
@@ -101,7 +99,7 @@ public class End2endIT {
         configHelper.clearConfig();
         configHelper.customizeConfig();
 
-        testSampleOrgs = testConfig.getIntegrationTestsSampleOrgs();
+        testSampleOrgs = TEST_CONFIG.getIntegrationTestsSampleOrgs();
         //Set up hfca for each sample org
 
         for (SampleOrg sampleOrg : testSampleOrgs) {
@@ -179,9 +177,9 @@ public class End2endIT {
                 final String sampleOrgDomainName = sampleOrg.getDomainName();
 
                 SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
-                        findFile_sk(Paths.get(testConfig.getTestChannlePath(), "crypto-config/peerOrganizations/",
+                        findFileSk(Paths.get(TEST_CONFIG.getTestChannlePath(), "crypto-config/peerOrganizations/",
                                 sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
-                        Paths.get(testConfig.getTestChannlePath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
+                        Paths.get(TEST_CONFIG.getTestChannlePath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
                                 format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
 
                 sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can create channels, join peers and install chaincode
@@ -190,13 +188,13 @@ public class End2endIT {
 
             ////////////////////////////
             //Construct and run the channels
-            SampleOrg sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg1");
+            SampleOrg sampleOrg = TEST_CONFIG.getIntegrationTestsSampleOrg("peerOrg1");
             Channel fooChannel = constructChannel(FOO_CHANNEL_NAME, client, sampleOrg);
             runChannel(client, fooChannel, true, sampleOrg, 0);
             fooChannel.shutdown(true); // Force foo channel to shutdown clean up resources.
             out("\n");
 
-            sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
+            sampleOrg = TEST_CONFIG.getIntegrationTestsSampleOrg("peerOrg2");
             Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
             runChannel(client, barChannel, true, sampleOrg, 100); //run a newly constructed bar channel with different b value!
             //let bar channel just shutdown so we have both scenarios.
@@ -213,16 +211,16 @@ public class End2endIT {
 
     }
 
+    //CHECKSTYLE.OFF: Method length is 320 lines (max allowed is 150).
     void runChannel(HFClient client, Channel channel, boolean installChaincode, SampleOrg sampleOrg, int delta) {
 
         try {
 
             final String channelName = channel.getName();
             out("Running channel %s", channelName);
-            channel.setTransactionWaitTime(testConfig.getTransactionWaitTime());
-            channel.setDeployWaitTime(testConfig.getDeployWaitTime());
+            channel.setTransactionWaitTime(TEST_CONFIG.getTransactionWaitTime());
+            channel.setDeployWaitTime(TEST_CONFIG.getDeployWaitTime());
 
-            Collection<Peer> channelPeers = channel.getPeers();
             Collection<Orderer> orderers = channel.getOrderers();
             final ChaincodeID chaincodeID;
             Collection<ProposalResponse> responses;
@@ -300,7 +298,7 @@ public class End2endIT {
             ///////////////
             //// Instantiate chaincode.
             InstantiateProposalRequest instantiateProposalRequest = client.newInstantiationProposalRequest();
-            instantiateProposalRequest.setProposalWaitTime(testConfig.getProposalWaitTime());
+            instantiateProposalRequest.setProposalWaitTime(TEST_CONFIG.getProposalWaitTime());
             instantiateProposalRequest.setChaincodeID(chaincodeID);
             instantiateProposalRequest.setFcn("init");
             instantiateProposalRequest.setArgs(new String[] {"a", "500", "b", "" + (200 + delta)});
@@ -357,7 +355,7 @@ public class End2endIT {
                     TransactionProposalRequest transactionProposalRequest = client.newTransactionProposalRequest();
                     transactionProposalRequest.setChaincodeID(chaincodeID);
                     transactionProposalRequest.setFcn("invoke");
-                    transactionProposalRequest.setProposalWaitTime(testConfig.getProposalWaitTime());
+                    transactionProposalRequest.setProposalWaitTime(TEST_CONFIG.getProposalWaitTime());
                     transactionProposalRequest.setArgs(new String[] {"move", "a", "b", "100"});
 
                     Map<String, byte[]> tm2 = new HashMap<>();
@@ -419,7 +417,7 @@ public class End2endIT {
                     ////////////////////////////
                     // Send Transaction Transaction to orderer
                     out("Sending chaincode transaction(move a,b,100) to orderer.");
-                    return channel.sendTransaction(successful).get(testConfig.getTransactionWaitTime(), TimeUnit.SECONDS);
+                    return channel.sendTransaction(successful).get(TEST_CONFIG.getTransactionWaitTime(), TimeUnit.SECONDS);
 
                 } catch (Exception e) {
                     out("Caught an exception while invoking chaincode");
@@ -484,7 +482,7 @@ public class End2endIT {
                 fail(format("Test failed with %s exception %s", e.getClass().getName(), e.getMessage()));
 
                 return null;
-            }).get(testConfig.getTransactionWaitTime(), TimeUnit.SECONDS);
+            }).get(TEST_CONFIG.getTransactionWaitTime(), TimeUnit.SECONDS);
 
             // Channel queries
 
@@ -534,6 +532,7 @@ public class End2endIT {
             fail("Test failed with error : " + e.getMessage());
         }
     }
+    //CHECKSTYLE.ON: Method length is 320 lines (max allowed is 150).
 
     private Channel constructChannel(String name, HFClient client, SampleOrg sampleOrg) throws Exception {
         ////////////////////////////
@@ -546,7 +545,7 @@ public class End2endIT {
 
         for (String orderName : sampleOrg.getOrdererNames()) {
 
-            Properties ordererProperties = testConfig.getOrdererProperties(orderName);
+            Properties ordererProperties = TEST_CONFIG.getOrdererProperties(orderName);
 
             //example of setting keepAlive to avoid timeouts on inactive http2 connections.
             //calls: NettyChannelBuilder.enableKeepAlive(true, 1, TimeUnit.SECONDS, 1, TimeUnit.SECONDS);
@@ -574,7 +573,7 @@ public class End2endIT {
         for (String peerName : sampleOrg.getPeerNames()) {
             String peerLocation = sampleOrg.getPeerLocation(peerName);
 
-            Properties peerProperties = testConfig.getPeerProperties(peerName);//test properties for peer.. if any.
+            Properties peerProperties = TEST_CONFIG.getPeerProperties(peerName); //test properties for peer.. if any.
             if (peerProperties == null) {
                 peerProperties = new Properties();
             }
@@ -593,7 +592,7 @@ public class End2endIT {
 
         for (String eventHubName : sampleOrg.getEventHubNames()) {
             EventHub eventHub = client.newEventHub(eventHubName, sampleOrg.getEventHubLocation(eventHubName),
-                    testConfig.getEventHubProperties(eventHubName));
+                    TEST_CONFIG.getEventHubProperties(eventHubName));
             newChannel.addEventHub(eventHub);
         }
 
@@ -627,7 +626,7 @@ public class End2endIT {
 //        }
     }
 
-    File findFile_sk(File directory) {
+    File findFileSk(File directory) {
 
         File[] matches = directory.listFiles((dir, name) -> name.endsWith("_sk"));
 
@@ -643,16 +642,15 @@ public class End2endIT {
 
     }
 
-    private static final Map<String, String> txExpected;
+    private static final Map<String, String> TX_EXPECTED;
 
     static {
-        txExpected = new HashMap<String, String>();
-        txExpected.put("readset1", "Missing readset for channel bar block 1");
-        txExpected.put("writeset1", "Missing writeset for channel bar block 1");
+        TX_EXPECTED = new HashMap<String, String>();
+        TX_EXPECTED.put("readset1", "Missing readset for channel bar block 1");
+        TX_EXPECTED.put("writeset1", "Missing writeset for channel bar block 1");
     }
 
     void blockWalker(Channel channel) throws InvalidProtocolBufferException, InvalidArgumentException, ProposalException, UnsupportedEncodingException, IOException {
-
         try {
             BlockchainInfo channelInfo = channel.queryBlockchainInfo();
 
@@ -697,9 +695,9 @@ public class End2endIT {
                             assertEquals(200, transactionActionInfo.getResponseStatus());
                             out("   Transaction action %d has response message bytes as string: %s", j,
                                     printableString(new String(transactionActionInfo.getResponseMessageBytes(), "UTF-8")));
-
                             out("   Transaction action %d has %d endorsements", j, transactionActionInfo.getEndorsementsCount());
                             assertEquals(2, transactionActionInfo.getEndorsementsCount());
+
                             for (int n = 0; n < transactionActionInfo.getEndorsementsCount(); ++n) {
                                 BlockInfo.EndorserInfo endorserInfo = transactionActionInfo.getEndorsementInfo(n);
                                 out("Endorser %d signature: %s", n, Hex.encodeHexString(endorserInfo.getSignature()));
@@ -707,24 +705,20 @@ public class End2endIT {
                             }
                             out("   Transaction action %d has %d chaincode input arguments", j, transactionActionInfo.getChaincodeInputArgsCount());
                             for (int z = 0; z < transactionActionInfo.getChaincodeInputArgsCount(); ++z) {
-
                                 out("     Transaction action %d has chaincode input argument %d is: %s", j, z,
                                         printableString(new String(transactionActionInfo.getChaincodeInputArgs(z), "UTF-8")));
                             }
 
                             out("   Transaction action %d proposal response status: %d", j,
                                     transactionActionInfo.getProposalResponseStatus());
-
                             out("   Transaction action %d proposal response payload: %s", j,
                                     printableString(new String(transactionActionInfo.getProposalResponsePayload())));
 
                             TxReadWriteSetInfo rwsetInfo = transactionActionInfo.getTxReadWriteSet();
                             if (null != rwsetInfo) {
-
                                 out("   Transaction action %d has %d name space read write sets", j, rwsetInfo.getNsRwsetCount());
 
                                 for (TxReadWriteSetInfo.NsRwsetInfo nsRwsetInfo : rwsetInfo.getNsRwsetInfos()) {
-
                                     final String namespace = nsRwsetInfo.getNaamespace();
                                     KvRwset.KVRWSet rws = nsRwsetInfo.getRwset();
 
@@ -736,7 +730,6 @@ public class End2endIT {
                                                 readList.getVersion().getBlockNum(), readList.getVersion().getTxNum());
 
                                         if ("bar".equals(channelId) && blockNumber == 2) {
-
                                             if ("example_cc_go".equals(namespace)) {
                                                 if (rs == 0) {
                                                     assertEquals("a", readList.getKey());
@@ -750,17 +743,14 @@ public class End2endIT {
                                                     fail(format("unexpected readset %d", rs));
                                                 }
 
-                                                txExpected.remove("readset1");
+                                                TX_EXPECTED.remove("readset1");
                                             }
                                         }
-
                                     }
 
                                     rs = -1;
-
                                     for (KvRwset.KVWrite writeList : rws.getWritesList()) {
                                         rs++;
-
                                         String valAsString = printableString(new String(writeList.getValue().toByteArray(), "UTF-8"));
 
                                         out("     Namespace %s write set %d key %s has value '%s' ", namespace, rs,
@@ -770,38 +760,29 @@ public class End2endIT {
                                         if ("bar".equals(channelId) && blockNumber == 2) {
                                             if (rs == 0) {
                                                 assertEquals("a", writeList.getKey());
-
                                                 assertEquals("400", valAsString);
                                             } else if (rs == 1) {
                                                 assertEquals("b", writeList.getKey());
-
                                                 assertEquals("400", valAsString);
                                             } else {
                                                 fail(format("unexpected writeset %d", rs));
                                             }
 
-                                            txExpected.remove("writeset1");
+                                            TX_EXPECTED.remove("writeset1");
                                         }
-
                                     }
                                 }
-
                             }
-
                         }
-
                     }
-
                 }
-
             }
-            if (!txExpected.isEmpty()) {
-                fail(txExpected.get(0));
+            if (!TX_EXPECTED.isEmpty()) {
+                fail(TX_EXPECTED.get(0));
             }
         } catch (InvalidProtocolBufferRuntimeException e) {
             throw e.getCause();
         }
-
     }
 
     static String printableString(final String string) {
