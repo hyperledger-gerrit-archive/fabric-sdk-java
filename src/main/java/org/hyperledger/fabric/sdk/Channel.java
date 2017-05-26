@@ -154,9 +154,9 @@ public class Channel {
     private boolean shutdown = false;
 
     /**
-     * Get eventHubs on the channel
+     * Get all Event Hubs on this channel.
      *
-     * @return
+     * @return Event Hubs
      */
     public Collection<EventHub> getEventHubs() {
         return Collections.unmodifiableCollection(eventHubs);
@@ -269,12 +269,12 @@ public class Channel {
      * User's can not directly create this channel.
      *
      * @param client
-     * @return
+     * @return a new system channel.
      * @throws InvalidArgumentException
      */
 
     static Channel newSystemChannel(HFClient client) throws InvalidArgumentException {
-        return new Channel(null, client, true);
+        return new Channel(SYSTEM_CHANNEL_NAME, client, true);
     }
 
     public boolean isInitialized() {
@@ -288,9 +288,10 @@ public class Channel {
     /**
      * @param name
      * @param client
+     * @throws InvalidArgumentException 
      */
 
-    Channel(String name, HFClient client, final boolean systemChannel) throws InvalidArgumentException {
+    private Channel(String name, HFClient client, final boolean systemChannel) throws InvalidArgumentException {
 
         this.systemChannel = systemChannel;
 
@@ -433,10 +434,10 @@ public class Channel {
     }
 
     /**
-     * addOrderer - Add an Orderer to the channel
+     * Add an Orderer to this channel.
      *
-     * @param orderer
-     * @return
+     * @param orderer the orderer to add.
+     * @return this channel.
      * @throws InvalidArgumentException
      */
 
@@ -463,10 +464,10 @@ public class Channel {
     }
 
     /**
-     * Add eventhub to channel.
+     * Add an Event Hub to this channel.
      *
      * @param eventHub
-     * @return
+     * @return this channel
      * @throws InvalidArgumentException
      */
 
@@ -494,6 +495,7 @@ public class Channel {
 
     /**
      * Get the peers for this channel.
+     * @return the peers.
      */
     public Collection<Peer> getPeers() {
         return Collections.unmodifiableCollection(this.peers);
@@ -509,7 +511,8 @@ public class Channel {
     }
 
     /**
-     * Set prefetch mode to true or false.
+     * Set prefetch mode.
+     * @param preFetchMode {@code true} to enable prefetch mode; otherwise {@code false}.
      */
     public void setPreFetchMode(boolean preFetchMode) {
         this.preFetchMode = preFetchMode;
@@ -517,13 +520,15 @@ public class Channel {
 
     /**
      * Determine if dev mode is enabled.
+     * @return {@code true} if dev mode if enabled; otherwise {@code false}.
      */
     public boolean isDevMode() {
         return this.devMode;
     }
 
     /**
-     * Set dev mode to true or false.
+     * Set dev mode.
+     * @param devMode {@code true} to enable dev mode; otherwise {@code false}.
      */
     public void setDevMode(boolean devMode) {
 
@@ -532,6 +537,7 @@ public class Channel {
 
     /**
      * Get the deploy wait time in seconds.
+     * @return number of seconds.
      */
     public int getDeployWaitTime() {
         return this.deployWaitTime;
@@ -568,7 +574,7 @@ public class Channel {
     /**
      * Initialize the Channel.  Starts the channel. event hubs will connect.
      *
-     * @return
+     * @return this channel.
      * @throws InvalidArgumentException
      * @throws TransactionException
      */
@@ -1004,7 +1010,7 @@ public class Channel {
                         channelHeader.getChannelId(), name));
             }
 
-            logger.trace(format("Channel %s getConfigurationBlock returned %s", name, "" + configBlock));
+            logger.trace(format("Channel %s getConfigurationBlock returned %s", name, String.valueOf(configBlock)));
             if (!logger.isTraceEnabled()) {
                 logger.debug(format("Channel %s getConfigurationBlock returned", name));
             }
@@ -1245,12 +1251,12 @@ public class Channel {
      *
      * @param instantiateProposalRequest
      * @param peers
-     * @return
-     * @throws IllegalArgumentException
+     * @throws InvalidArgumentException
      * @throws ProposalException
+     * @return responses from peers.
      */
-
-    public Collection<ProposalResponse> sendInstantiationProposal(InstantiateProposalRequest instantiateProposalRequest, Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+    public Collection<ProposalResponse> sendInstantiationProposal(InstantiateProposalRequest instantiateProposalRequest,
+            Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
 
         if (shutdown) {
             throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
@@ -1458,12 +1464,12 @@ public class Channel {
     }
 
     /**
-     * query a peer in this channel for a Block by the block hash
-     *
-     * @param blockHash the hash of the Block in the chain
+     * Query a peer in this channel for a Block by the block hash.
+     * @param peer the Peer to query.
+     * @param blockHash the hash of the Block in the chain.
      * @return the {@link BlockInfo} with the given block Hash
-     * @throws InvalidArgumentException
-     * @throws ProposalException
+     * @throws InvalidArgumentException if the channel is shutdown or any of the arguments are not valid.
+     * @throws ProposalException if an error occurred processing the query.
      */
     public BlockInfo queryBlockByHash(Peer peer, byte[] blockHash) throws InvalidArgumentException, ProposalException {
 
@@ -2012,7 +2018,7 @@ public class Channel {
      * Send a transaction  proposal.
      *
      * @param transactionProposalRequest The transaction proposal to be sent to all the peers.
-     * @return
+     * @return responses from peers.
      * @throws InvalidArgumentException
      * @throws ProposalException
      */
@@ -2026,7 +2032,7 @@ public class Channel {
      *
      * @param transactionProposalRequest The transaction proposal to be sent to the peers.
      * @param peers
-     * @return
+     * @return responses from peers.
      * @throws InvalidArgumentException
      * @throws ProposalException
      */
@@ -2053,7 +2059,7 @@ public class Channel {
      *
      * @param queryByChaincodeRequest
      * @param peers
-     * @return
+     * @return responses from peers.
      * @throws InvalidArgumentException
      * @throws ProposalException
      */
@@ -2186,10 +2192,10 @@ public class Channel {
     // transactions order
 
     /**
-     * Send transaction to one of the orderers on the channels
+     * Send transaction to one of the orderers on the channel.
      *
      * @param proposalResponses
-     * @return
+     * @return a Future allowing access to the result of the transaction invocation.
      */
     public CompletableFuture<TransactionEvent> sendTransaction(Collection<ProposalResponse> proposalResponses) {
 
@@ -2198,11 +2204,11 @@ public class Channel {
     }
 
     /**
-     * Send transaction to orderer.
+     * Send transaction to one of a specified set of orderers.
      *
      * @param proposalResponses
      * @param orderers
-     * @return
+     * @return Future allowing access to the result of the transaction invocation.
      */
 
     public CompletableFuture<TransactionEvent> sendTransaction(Collection<ProposalResponse> proposalResponses, Collection<Orderer> orderers) {
@@ -2351,10 +2357,11 @@ public class Channel {
     ////////////////  Channel Block monitoring //////////////////////////////////
 
     /**
-     * registerBlockListener - Register a block listener.
+     * Register a block listener.
      *
      * @param listener
-     * @return
+     * @return the UUID handle of the registered block listener.
+     * @throws InvalidArgumentException if the channel is shutdown.
      */
     public String registerBlockListener(BlockListener listener) throws InvalidArgumentException {
 
