@@ -27,7 +27,7 @@ import static org.hyperledger.fabric.protos.peer.FabricProposal.ChaincodeProposa
 class ChaincodeProposalPayloadDeserializer {
     private final ByteString byteString;
     private WeakReference<ChaincodeProposalPayload> chaincodeProposalPayload;
-    private WeakReference<ChaincodeInputDeserializer> chaincodeInputDeserialize;
+    private WeakReference<ChaincodeInvocationSpecDeserializer> invocationSpecDeserializer;
 
     ChaincodeProposalPayloadDeserializer(ByteString byteString) {
         this.byteString = byteString;
@@ -56,18 +56,18 @@ class ChaincodeProposalPayloadDeserializer {
 
     }
 
-    ChaincodeInputDeserializer getChaincodeInput() {
-        ChaincodeInputDeserializer ret = null;
+    ChaincodeInvocationSpecDeserializer getChaincodeInvocationSpec() {
+        ChaincodeInvocationSpecDeserializer ret = null;
 
-        if (chaincodeInputDeserialize != null) {
-            ret = chaincodeInputDeserialize.get();
+        if (invocationSpecDeserializer != null) {
+            ret = invocationSpecDeserializer.get();
 
         }
         if (ret == null) {
 
-            ret = new ChaincodeInputDeserializer(getChaincodeProposalPayload().getInput());
+            ret = new ChaincodeInvocationSpecDeserializer(getChaincodeProposalPayload().getInput());
 
-            chaincodeInputDeserialize = new WeakReference<>(ret);
+            invocationSpecDeserializer = new WeakReference<>(ret);
 
         }
 
