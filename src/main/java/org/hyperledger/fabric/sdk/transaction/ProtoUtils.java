@@ -41,7 +41,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hyperledger.fabric.sdk.helper.Utils.logString;
 import static org.hyperledger.fabric.sdk.helper.Utils.toHexString;
 
-public class ProtoUtils {
+public final class ProtoUtils {
 
     private final static Log logger = LogFactory.getLog(ProtoUtils.class);
     private final static boolean isDebugLevel = logger.isDebugEnabled();
@@ -246,5 +246,10 @@ public class ProtoUtils {
         return new Date(Timestamps.toMillis(timestamp));
 
     }
+    
+    /**
+     * Private constructor to prevent instantiation.
+     */
+    private ProtoUtils() { }
 
 }

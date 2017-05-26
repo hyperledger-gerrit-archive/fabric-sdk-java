@@ -55,7 +55,7 @@ import com.google.protobuf.Timestamp;
 
 import io.netty.util.internal.StringUtil;
 
-public class Utils {
+public final class Utils {
     private static final Log logger = LogFactory.getLog(Utils.class);
     private static final Config confg = Config.getConfig();
     private static final int maxLogStringLength = confg.maxLogStringLength();
@@ -389,5 +389,10 @@ public class Utils {
         return encodeHexString(bytes);
 
     }
+    
+    /**
+     * Private constructor to prevent instantiation.
+     */
+    private Utils() { }
 
 }
