@@ -4,6 +4,7 @@ Welcome to Java SDK for Hyperledger project. The SDK helps facilitate Java appli
   user chaincode, query blocks
  and transactions on the channel, and monitor events on the channel.
 
+
 THe SDK acts on behave of a particular User which is defined by the embedding application through the implementation
  of the SDK's `User` interface.
 
