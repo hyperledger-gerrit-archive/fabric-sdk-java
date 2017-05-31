@@ -545,8 +545,15 @@ public class End2endIT {
         Collection<Orderer> orderers = new LinkedList<>();
 
         for (String orderName : sampleOrg.getOrdererNames()) {
+
+            Properties orderProps = testConfig.getOrdererProperties(orderName);
+
+            //example of setting keepAlive to avoid timeouts on inactive http2 connections.
+            //calls: NettyChannelBuilder.enableKeepAlive(true, 1, TimeUnit.SECONDS, 1, TimeUnit.SECONDS);
+            orderProps.put("grpc.NettyChannelBuilderOption.enableKeepAlive", new Object[] {true, 1L, TimeUnit.SECONDS, 1L, TimeUnit.SECONDS});
+
             orderers.add(client.newOrderer(orderName, sampleOrg.getOrdererLocation(orderName),
-                    testConfig.getOrdererProperties(orderName)));
+                    orderProps));
         }
 
         //Just pick the first orderer in the list to create the channel.
@@ -572,7 +579,7 @@ public class End2endIT {
                 peerProperties = new Properties();
             }
             //Example of setting specific options on grpc's ManagedChannelBuilder
-            peerProperties.put("grpc.ManagedChannelBuilderOption.maxInboundMessageSize", 9000000);
+            peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
 
             Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
             newChannel.joinPeer(peer);
