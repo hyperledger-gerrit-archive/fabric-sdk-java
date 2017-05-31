@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *        http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -57,8 +57,8 @@ import io.netty.util.internal.StringUtil;
 
 public final class Utils {
     private static final Log logger = LogFactory.getLog(Utils.class);
-    private static final Config confg = Config.getConfig();
-    private static final int maxLogStringLength = confg.maxLogStringLength();
+    private static final Config CONFIG = Config.getConfig();
+    private static final int MAX_LOG_STRING_LENGTH = CONFIG.maxLogStringLength();
 
     /**
      * Generate parameter hash for the given chaincode path,func and args
@@ -145,7 +145,7 @@ public final class Utils {
 
         try {
             Collection<File> childrenFiles = org.apache.commons.io.FileUtils.listFiles(sourceDirectory, null, true);
-            //		childrenFiles.remove(destinationArchive);
+            // childrenFiles.remove(destinationArchive);
 
             ArchiveEntry archiveEntry;
             FileInputStream fileInputStream;
@@ -307,7 +307,7 @@ public final class Utils {
     public static Exception checkGrpcUrl(String url) {
         try {
 
-            Properties props = parseGrpcUrl(url);
+            parseGrpcUrl(url);
             return null;
 
         } catch (Exception e) {
@@ -350,7 +350,7 @@ public final class Utils {
 
         String ret = string.replaceAll("[^\\p{Print}]", "?");
 
-        ret = ret.substring(0, Math.min(ret.length(), maxLogStringLength)) + (ret.length() > maxLogStringLength ? "..." : "");
+        ret = ret.substring(0, Math.min(ret.length(), MAX_LOG_STRING_LENGTH)) + (ret.length() > MAX_LOG_STRING_LENGTH ? "..." : "");
 
         return ret;
 
@@ -359,12 +359,12 @@ public final class Utils {
     private static final int NONONCE_LENGTH = 24;
 
 
-    private final static SecureRandom random = new SecureRandom();
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     public static byte[] generateNonce() {
 
         byte[] values = new byte[NONONCE_LENGTH];
-        random.nextBytes(values);
+        RANDOM.nextBytes(values);
 
         return values;
     }
