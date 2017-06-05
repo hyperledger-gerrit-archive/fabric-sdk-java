@@ -489,6 +489,7 @@ public class Channel {
 
     /**
      * Get the peers for this channel.
+     *
      * @return the peers.
      */
     public Collection<Peer> getPeers() {
@@ -497,6 +498,7 @@ public class Channel {
 
     /**
      * Get the deploy wait time in seconds.
+     *
      * @return number of seconds.
      */
     public int getDeployWaitTime() {
@@ -1082,7 +1084,7 @@ public class Channel {
 
     }
 
-    private Block getLatestBlock(Orderer orderer) throws CryptoException, TransactionException {
+    private Block getLatestBlock(Orderer orderer) throws CryptoException, TransactionException, InvalidArgumentException {
 
         logger.debug(format("getConfigurationBlock for channel %s", name));
 
@@ -1211,12 +1213,12 @@ public class Channel {
      *
      * @param instantiateProposalRequest
      * @param peers
+     * @return responses from peers.
      * @throws InvalidArgumentException
      * @throws ProposalException
-     * @return responses from peers.
      */
     public Collection<ProposalResponse> sendInstantiationProposal(InstantiateProposalRequest instantiateProposalRequest,
-            Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+                                                                  Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
 
         if (shutdown) {
             throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
@@ -1224,6 +1226,9 @@ public class Channel {
         if (null == instantiateProposalRequest) {
             throw new InvalidArgumentException("sendDeploymentProposal deploymentProposalRequest is null");
         }
+
+        instantiateProposalRequest.setSubmitted();
+
         if (null == peers) {
             throw new InvalidArgumentException("sendDeploymentProposal peers is null");
         }
@@ -1235,7 +1240,7 @@ public class Channel {
         }
 
         try {
-            TransactionContext transactionContext = getTransactionContext();
+            TransactionContext transactionContext = getTransactionContext(instantiateProposalRequest.getUserContext());
             transactionContext.setProposalWaitTime(instantiateProposalRequest.getProposalWaitTime());
             InstantiateProposalBuilder instantiateProposalbuilder = InstantiateProposalBuilder.newBuilder();
             instantiateProposalbuilder.context(transactionContext);
@@ -1256,12 +1261,19 @@ public class Channel {
         }
     }
 
-    private TransactionContext getTransactionContext() {
+    private TransactionContext getTransactionContext() throws InvalidArgumentException {
         return getTransactionContext(client.getUserContext());
     }
 
-    private TransactionContext getTransactionContext(User userContext) {
-        return new TransactionContext(this, userContext, cryptoSuite);
+    private TransactionContext getTransactionContext(User userContext) throws InvalidArgumentException {
+        userContext = userContext != null ? userContext : client.getUserContext();
+        if (userContext == null) {
+            throw new InvalidArgumentException("User context may not be null.");
+        }
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("CryptoSuite  may not be null.");
+        }
+        return new TransactionContext(this, userContext != null ? client.getUserContext() : userContext, cryptoSuite);
     }
 
     /**
@@ -1294,7 +1306,7 @@ public class Channel {
         }
 
         try {
-            TransactionContext transactionContext = getTransactionContext();
+            TransactionContext transactionContext = getTransactionContext(installProposalRequest.getUserContext());
             transactionContext.verify(false);  // Install will have no signing cause it's not really targeted to a channel.
             transactionContext.setProposalWaitTime(installProposalRequest.getProposalWaitTime());
             InstallProposalBuilder installProposalbuilder = InstallProposalBuilder.newBuilder();
@@ -1361,7 +1373,7 @@ public class Channel {
         }
 
         try {
-            TransactionContext transactionContext = getTransactionContext();
+            TransactionContext transactionContext = getTransactionContext(upgradeProposalRequest.getUserContext());
             //transactionContext.verify(false);  // Install will have no signing cause it's not really targeted to a channel.
             transactionContext.setProposalWaitTime(upgradeProposalRequest.getProposalWaitTime());
             UpgradeProposalBuilder upgradeProposalBuilder = UpgradeProposalBuilder.newBuilder();
@@ -1425,11 +1437,12 @@ public class Channel {
 
     /**
      * Query a peer in this channel for a Block by the block hash.
-     * @param peer the Peer to query.
+     *
+     * @param peer      the Peer to query.
      * @param blockHash the hash of the Block in the chain.
      * @return the {@link BlockInfo} with the given block Hash
      * @throws InvalidArgumentException if the channel is shutdown or any of the arguments are not valid.
-     * @throws ProposalException if an error occurred processing the query.
+     * @throws ProposalException        if an error occurred processing the query.
      */
     public BlockInfo queryBlockByHash(Peer peer, byte[] blockHash) throws InvalidArgumentException, ProposalException {
 
@@ -1450,7 +1463,7 @@ public class Channel {
         BlockInfo responseBlock;
         try {
             logger.debug("queryBlockByHash with hash : " + Hex.encodeHexString(blockHash) + "\n    to peer " + peer.getName() + " on channel " + name);
-            QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+            QuerySCCRequest querySCCRequest = new QuerySCCRequest(client.getUserContext());
             querySCCRequest.setFcn(QuerySCCRequest.GETBLOCKBYHASH);
             querySCCRequest.setArgs(new String[] {name});
             querySCCRequest.setArgBytes(new byte[][] {blockHash});
@@ -1520,7 +1533,7 @@ public class Channel {
         BlockInfo responseBlock;
         try {
             logger.debug("queryBlockByNumber with blockNumber " + blockNumber + " to peer " + peer.getName() + " on channel " + name);
-            QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+            QuerySCCRequest querySCCRequest = new QuerySCCRequest(client.getUserContext());
             querySCCRequest.setFcn(QuerySCCRequest.GETBLOCKBYNUMBER);
             querySCCRequest.setArgs(new String[] {name, Long.toUnsignedString(blockNumber)});
 
@@ -1599,7 +1612,7 @@ public class Channel {
         BlockInfo responseBlock;
         try {
             logger.debug("queryBlockByTransactionID with txID " + txID + " \n    to peer" + peer.getName() + " on channel " + name);
-            QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+            QuerySCCRequest querySCCRequest = new QuerySCCRequest(client.getUserContext());
             querySCCRequest.setFcn(QuerySCCRequest.GETBLOCKBYTXID);
             querySCCRequest.setArgs(new String[] {name, txID});
 
@@ -1670,7 +1683,7 @@ public class Channel {
         BlockchainInfo response;
         try {
             logger.debug("queryBlockchainInfo to peer " + peer.getName() + " on channel " + name);
-            QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+            QuerySCCRequest querySCCRequest = new QuerySCCRequest(client.getUserContext());
             querySCCRequest.setFcn(QuerySCCRequest.GETCHAININFO);
             querySCCRequest.setArgs(new String[] {name});
 
@@ -1748,7 +1761,7 @@ public class Channel {
         TransactionInfo transactionInfo;
         try {
             logger.debug("queryTransactionByID with txID " + txID + "\n    from peer " + peer.getName() + " on channel " + name);
-            QuerySCCRequest querySCCRequest = new QuerySCCRequest();
+            QuerySCCRequest querySCCRequest = new QuerySCCRequest(client.getUserContext());
             querySCCRequest.setFcn(QuerySCCRequest.GETTRANSACTIONBYID);
             querySCCRequest.setArgs(new String[] {name, txID});
 
@@ -2037,6 +2050,9 @@ public class Channel {
         if (null == proposalRequest) {
             throw new InvalidArgumentException("sendProposal queryProposalRequest is null");
         }
+
+        proposalRequest.setSubmitted();
+
         if (null == peers) {
             throw new InvalidArgumentException("sendProposal peers is null");
         }
@@ -2052,7 +2068,7 @@ public class Channel {
         }
 
         try {
-            TransactionContext transactionContext = getTransactionContext();
+            TransactionContext transactionContext = getTransactionContext(proposalRequest.getUserContext());
             transactionContext.verify(proposalRequest.doVerify());
             transactionContext.setProposalWaitTime(proposalRequest.getProposalWaitTime());
 
@@ -2283,6 +2299,18 @@ public class Channel {
     }
 
     byte[] getChannelConfigurationSignature(ChannelConfiguration channelConfiguration, User signer) throws InvalidArgumentException {
+
+        if (signer == null) {
+
+            throw new InvalidArgumentException("signer is null");
+
+        }
+
+        if (signer == channelConfiguration) {
+
+            throw new InvalidArgumentException("channelConfiguration is null");
+
+        }
 
         try {
 
