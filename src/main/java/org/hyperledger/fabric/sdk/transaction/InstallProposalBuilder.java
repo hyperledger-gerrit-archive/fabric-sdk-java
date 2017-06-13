@@ -15,6 +15,7 @@
 package org.hyperledger.fabric.sdk.transaction;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -92,21 +93,26 @@ public class InstallProposalBuilder extends LSCCProposalBuilder {
 
             createNetModeTransaction();
 
-        } catch (Exception exp) {
+        } catch (IOException exp) {
             logger.error(exp);
             throw new ProposalException("IO Error while creating install proposal", exp);
         }
     }
 
-    private void createNetModeTransaction() throws Exception {
+    private void createNetModeTransaction() throws IOException {
         logger.debug("createNetModeTransaction");
 
         if (null == chaincodeSource && chaincodeInputStream == null) {
-            throw new IllegalArgumentException("Missing chaincode source or chaincode inputstream in InstallRequest");
+            throw new IllegalArgumentException("Missing chaincodeSource or chaincodeInputStream in InstallRequest");
         }
 
         if (null != chaincodeSource && chaincodeInputStream != null) {
-            throw new IllegalArgumentException("Both chaincode source and chaincode inputstream in InstallRequest were set. Specify on or the other.");
+            throw new IllegalArgumentException("Both chaincodeSource and chaincodeInputStream in InstallRequest were set. Specify one or the other");
+        }
+
+        //   Verify that chaincodePath is being passed when chaincodeSource is specified
+        if (null != chaincodeSource && chaincodePath == null) {
+            throw new IllegalArgumentException("Missing chaincodePath in InstallRequest. Must be specified when chaincodeSource is set");
         }
 
         final Type ccType;
@@ -117,10 +123,6 @@ public class InstallProposalBuilder extends LSCCProposalBuilder {
         switch (chaincodeLanguage) {
             case GO_LANG:
 
-                //   Verify that chaincodePath is being passed
-                if (Utils.isNullOrEmpty(chaincodePath)) {
-                    throw new IllegalArgumentException("Missing chaincodePath in InstallRequest");
-                }
                 dplang = "Go";
                 ccType = Type.GOLANG;
                 if (null != chaincodeSource) {
