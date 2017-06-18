@@ -77,6 +77,7 @@ import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
@@ -185,12 +186,16 @@ public class HFCAClient {
 
     }
 
-    public void setCryptoSuite(CryptoSuite cryptoSuite) {
+    public void setCryptoSuite(CryptoSuite cryptoSuite)  throws CryptoException, InvalidArgumentException {
         this.cryptoPrimitives = (CryptoPrimitives) cryptoSuite;
         try {
             cryptoPrimitives.init();
+        } catch (org.hyperledger.fabric.sdk.exception.InvalidArgumentException e) {
+            logger.error(e);
+            throw new InvalidArgumentException(e);
         } catch (Exception e) {
             logger.error(e);
+            throw e;
         }
     }
 
