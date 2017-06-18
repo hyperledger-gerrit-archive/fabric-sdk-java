@@ -77,6 +77,7 @@ import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
@@ -185,12 +186,26 @@ public class HFCAClient {
 
     }
 
-    public void setCryptoSuite(CryptoSuite cryptoSuite) {
+    /**
+     * Sets and initializes the cryptoSuite.
+     * <p>
+     * Note that this method also initializes cryptoSuite by calling {@link CryptoSuite#init()}
+     *
+     * @param cryptoSuite The cryptoSuite to be set and initialized
+     * @throws CryptoException If cryptoSuite cannot be initialized
+     * @throws InvalidArgumentException If initialization fails due to an invalid argument
+     */
+    public void setCryptoSuite(CryptoSuite cryptoSuite)  throws CryptoException, InvalidArgumentException {
         this.cryptoPrimitives = (CryptoPrimitives) cryptoSuite;
         try {
             cryptoPrimitives.init();
+        } catch (org.hyperledger.fabric.sdk.exception.InvalidArgumentException e) {
+            InvalidArgumentException iae = new InvalidArgumentException(e.getMessage(), e);
+            logger.error(iae);
+            throw iae;
         } catch (Exception e) {
             logger.error(e);
+            throw e;
         }
     }
 
