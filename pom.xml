@@ -218,6 +218,7 @@
                     <includes>
                         <include>**/*Test.java</include>
                     </includes>
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
                     <!--<useSystemClassLoader>true</useSystemClassLoader>-->
                 </configuration>
             </plugin>
@@ -231,6 +232,7 @@
                         <include>**/IntegrationSuite.java</include>
                     </includes>
                     <skipITs>${skipITs}</skipITs>
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
                     <!--<argLine>-->
                     <!-- -Xbootclasspath/p:${settings.localRepository}/org/mortbay/jetty/alpn/alpn-boot/${alpn-boot-version}/alpn-boot-${alpn-boot-version}.jar-->
                     <!--</argLine>-->
