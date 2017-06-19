@@ -16,6 +16,7 @@ package org.hyperledger.fabric.sdk;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -37,21 +38,37 @@ import static org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse.TypeCase.
  * Sample client code that makes gRPC calls to the server.
  */
 class OrdererClient {
+    private static final long ORDERER_WAIT_TIME = 2000L;
     private final String channelName;
-    boolean shutdown = false;
+    private boolean shutdown = false;
     private static final Log logger = LogFactory.getLog(OrdererClient.class);
     private ManagedChannel managedChannel;
     private final String name;
     private final String url;
+    private final long ordererWaitTimeMilliSecs;
 
     /**
      * Construct client for accessing Orderer server using the existing managedChannel.
      */
-    OrdererClient(Orderer orderer, ManagedChannelBuilder<?> channelBuilder) {
+    OrdererClient(Orderer orderer, ManagedChannelBuilder<?> channelBuilder, Properties properties) {
         managedChannel = channelBuilder.build();
         name = orderer.getName();
         url = orderer.getUrl();
         channelName = orderer.getChannel().getName();
+
+        if (null == properties) {
+
+            ordererWaitTimeMilliSecs = ORDERER_WAIT_TIME;
+
+        } else {
+
+            String ordererWaitTimeMilliSecsString = properties.getProperty("ordererWaitTimeMilliSecs", Long.toString(ORDERER_WAIT_TIME));
+
+            ordererWaitTimeMilliSecs = Long.getLong(ordererWaitTimeMilliSecsString, ORDERER_WAIT_TIME);
+
+        }
+
+
     }
 
     synchronized void shutdown(boolean force) {
@@ -133,7 +150,9 @@ class OrdererClient {
         //nso.onCompleted();
 
         try {
-            if (!finishLatch.await(2, TimeUnit.MINUTES)) {
+
+            if (!finishLatch.await(ordererWaitTimeMilliSecs, TimeUnit.MILLISECONDS)) {
+
                 TransactionException ste = new TransactionException("Send transactions failed. Reason:  timeout");
                 logger.error("sendTransaction error " + ste.getMessage(), ste);
                 throw ste;
@@ -217,7 +236,7 @@ class OrdererClient {
         //nso.onCompleted();
 
         try {
-            if (!finishLatch.await(2, TimeUnit.MINUTES)) {
+            if (!finishLatch.await(ordererWaitTimeMilliSecs, TimeUnit.MILLISECONDS)) {
                 TransactionException ex = new TransactionException("sendDeliver time exceeded for orderer");
                 logger.error(ex.getMessage(), ex);
                 throw ex;

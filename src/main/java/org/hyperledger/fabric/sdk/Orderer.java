@@ -124,17 +124,12 @@ public class Orderer {
         OrdererClient localOrdererClient = ordererClient;
 
         if (localOrdererClient == null || !localOrdererClient.isChannelActive()) {
-            ordererClient = new OrdererClient(this, new Endpoint(url, properties).getChannelBuilder());
+            ordererClient = new OrdererClient(this, new Endpoint(url, properties).getChannelBuilder(), properties);
             localOrdererClient = ordererClient;
         }
 
         try {
-            Ab.BroadcastResponse resp = localOrdererClient.sendTransaction(transaction);
-
-            return resp;
-        } catch (TransactionException e) { //For any error lets start with a fresh connection.
-            ordererClient = null;
-            throw e;
+            return localOrdererClient.sendTransaction(transaction);
         } catch (Throwable t) {
             ordererClient = null;
             throw t;
@@ -160,7 +155,7 @@ public class Orderer {
 
         logger.debug(format("Order.sendDeliver name: %s, url: %s", name, url));
         if (localOrdererClient == null || !localOrdererClient.isChannelActive()) {
-            localOrdererClient = new OrdererClient(this, new Endpoint(url, properties).getChannelBuilder());
+            localOrdererClient = new OrdererClient(this, new Endpoint(url, properties).getChannelBuilder(), properties);
             ordererClient = localOrdererClient;
         }
 
@@ -168,9 +163,6 @@ public class Orderer {
             DeliverResponse[] response = localOrdererClient.sendDeliver(transaction);
 
             return response;
-        } catch (TransactionException e) { //For any error lets start with a fresh connection.
-            ordererClient = null;
-            throw e;
         } catch (Throwable t) {
             ordererClient = null;
             throw t;
