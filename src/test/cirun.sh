@@ -22,4 +22,6 @@ cd $WD/src/test/fixture/sdkintegration
 cd $WD
 sleep 30
 docker ps -a
+md -p target/diagDump
+export ORG_HYPERLEDGER_FABRIC_SDK_DIAGNOSTICFILEDIR=target/diagDump
 mvn clean install -DskipITs=false -Dmaven.test.failure.ignore=false javadoc:javadoc
