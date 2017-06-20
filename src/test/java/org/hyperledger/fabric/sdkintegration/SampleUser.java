@@ -14,18 +14,13 @@
 
 package org.hyperledger.fabric.sdkintegration;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.util.Set;
-
 import io.netty.util.internal.StringUtil;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
+
+import java.io.*;
+import java.util.Set;
 
 public class SampleUser implements User, Serializable {
     private static final long serialVersionUID = 8077132186383604355L;
@@ -100,6 +95,7 @@ public class SampleUser implements User, Serializable {
      */
     public void setAffiliation(String affiliation) {
         this.affiliation = affiliation;
+        saveState();
     }
 
     @Override
