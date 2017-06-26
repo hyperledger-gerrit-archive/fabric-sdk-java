@@ -94,6 +94,10 @@ public class TestConfig {
             defaultProperty(DEPLOYWAITTIME, "120000");
             defaultProperty(PROPOSALWAITTIME, "120000");
 
+            System.setProperty("org.hyperledger.fabric.sdk.proposal.wait.time", "120000");
+
+            //org.hyperledger.fabric.sdk.proposal.wait.time
+
 
             //////
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.mspid", "Org1MSP");
