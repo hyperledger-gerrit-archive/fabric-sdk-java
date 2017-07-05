@@ -38,7 +38,7 @@ import static org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse.TypeCase.
  * Sample client code that makes gRPC calls to the server.
  */
 class OrdererClient {
-    private static final long ORDERER_WAIT_TIME = 2000L;
+    private static final long ORDERER_WAIT_TIME = 4000L;
     private final String channelName;
     private final ManagedChannelBuilder channelBuilder;
     private boolean shutdown = false;
@@ -236,7 +236,10 @@ class OrdererClient {
                         return;
                     }
 
-                    if (resp.getTypeCase() == STATUS) {
+                    if (resp.getTypeCase() == STATUS){
+                        if (resp.getStatusValue() != 200) {
+                            return;
+                        }
                         done = true;
                         retList.add(0, resp);
 
