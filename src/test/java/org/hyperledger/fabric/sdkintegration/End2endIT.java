@@ -733,7 +733,7 @@ public class End2endIT {
                                 out("   Transaction action %d has %d name space read write sets", j, rwsetInfo.getNsRwsetCount());
 
                                 for (TxReadWriteSetInfo.NsRwsetInfo nsRwsetInfo : rwsetInfo.getNsRwsetInfos()) {
-                                    final String namespace = nsRwsetInfo.getNaamespace();
+                                    final String namespace = nsRwsetInfo.getNamespace();
                                     KvRwset.KVRWSet rws = nsRwsetInfo.getRwset();
 
                                     int rs = -1;
