@@ -66,7 +66,7 @@ class OrdererClient {
 
             String ordererWaitTimeMilliSecsString = properties.getProperty("ordererWaitTimeMilliSecs", Long.toString(ORDERER_WAIT_TIME));
 
-            ordererWaitTimeMilliSecs = Long.getLong(ordererWaitTimeMilliSecsString, ORDERER_WAIT_TIME);
+            ordererWaitTimeMilliSecs = Long.parseLong(ordererWaitTimeMilliSecsString, 10);
 
         }
 
