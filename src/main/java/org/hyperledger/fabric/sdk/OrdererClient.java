@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import org.apache.commons.compress.archivers.dump.InvalidFormatException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common;
@@ -66,7 +67,7 @@ class OrdererClient {
 
             String ordererWaitTimeMilliSecsString = properties.getProperty("ordererWaitTimeMilliSecs", Long.toString(ORDERER_WAIT_TIME));
 
-            ordererWaitTimeMilliSecs = Long.getLong(ordererWaitTimeMilliSecsString, ORDERER_WAIT_TIME);
+            ordererWaitTimeMilliSecs = Long.parseLong(ordererWaitTimeMilliSecsString, 10);
 
         }
 
