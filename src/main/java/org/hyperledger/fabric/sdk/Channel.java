@@ -225,7 +225,7 @@ public class Channel {
             orderer.setChannel(this);
 
             BroadcastResponse trxResult = orderer.sendTransaction(payloadEnv);
-            if (200 != trxResult.getStatusValue()) {
+            if (200 != trxResult.getStatusValue() && 503 != trxResult.getStatusValue()) {
                 throw new TransactionException(format("New channel %s error. StatusValue %d. Status %s", name,
                         trxResult.getStatusValue(), "" + trxResult.getStatus()));
             }
