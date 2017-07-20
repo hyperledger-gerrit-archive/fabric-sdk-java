@@ -111,6 +111,7 @@ environment.  For non Vagrant envrionment, the steps would be the same as below 
   config.vm.network :forwarded_port, guest: 8054, host: 8054
   config.vm.network :forwarded_port, guest: 8056, host: 8056
   config.vm.network :forwarded_port, guest: 8058, host: 8058
+  config.vm.network :forwarded_port, guest: 7059, host: 7059
 
 ```
 
@@ -118,7 +119,7 @@ Add to your Vagrant file a folder for referencing the sdkintegration folder betw
 
   config.vm.synced_folder "..", "/opt/gopath/src/github.com/hyperledger/fabric"</br>
 
-  `config.vm.synced_folder "/home/<<user>>/fabric-sdk-java/src/test/fixture/sdkintegration", "/opt/gopath/src/github.com/hyperledger/fabric/sdkintegration`</br>
+  `config.vm.synced_folder "/home/<<user>>/fabric-sdk-java/src/test/fixture/sdkintegration", "/opt/gopath/src/github.com/hyperledger/fabric/sdkintegration"`</br>
 
   config.vm.synced_folder ENV.fetch('LOCALDEVDIR', ".."), "#{LOCALDEV}"</br>
 
