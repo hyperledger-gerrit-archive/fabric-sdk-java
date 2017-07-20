@@ -1,21 +1,24 @@
 /*
- *  Copyright 2016, 2017 DTCC, Fujitsu Australia Software Technology, IBM - All Rights Reserved.
+ *
+ *  Copyright 2016,2017 DTCC, Fujitsu Australia Software Technology, IBM - All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
+ *
  */
 
 package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
 import java.net.MalformedURLException;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -26,7 +29,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
-import org.hyperledger.fabric.protos.common.Configtx;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
@@ -42,6 +55,7 @@ import org.hyperledger.fabric.sdk.QueryByChaincodeRequest;
 import org.hyperledger.fabric.sdk.SDKUtils;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.TransactionProposalRequest;
+import org.hyperledger.fabric.sdk.UpdateChannelConfiguration;
 import org.hyperledger.fabric.sdk.UpgradeProposalRequest;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
@@ -56,16 +70,14 @@ import org.junit.Test;
 
 import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 /**
- * Test end to end scenario
+ * Upgrade channel scenario
  */
-public class End2endAndBackAgainIT {
+public class UpdateChannelIT {
 
     private static final TestConfig testConfig = TestConfig.getConfig();
-    private static final String TEST_ADMIN_NAME = "admin";
     private static final String TESTUSER_1_NAME = "user1";
     private static final String TEST_FIXTURES_PATH = "src/test/fixture";
 
@@ -73,6 +85,8 @@ public class End2endAndBackAgainIT {
     private static final String CHAIN_CODE_PATH = "github.com/example_cc";
     private static final String CHAIN_CODE_VERSION = "1";
     private static final String CHAIN_CODE_VERSION_11 = "11";
+    private static final String ORIGINAL_BATCH_TIMEOUT = "\"timeout\": \"2s\""; // Batch time out in configtx.yaml
+    private static final String UPDATED_BATCH_TIMEOUT = "\"timeout\": \"5s\"";  // What we want to change it to.
 
     final ChaincodeID chaincodeID = ChaincodeID.newBuilder().setName(CHAIN_CODE_NAME)
             .setVersion(CHAIN_CODE_VERSION)
@@ -93,7 +107,7 @@ public class End2endAndBackAgainIT {
     @Before
     public void checkConfig() throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException, MalformedURLException {
 
-        out("\n\n\nRUNNING: End2endAndBackAgainIT\n");
+        out("\n\n\nRUNNING: UpdateChannelIT\n");
 
         configHelper.clearConfig();
         configHelper.customizeConfig();
@@ -136,6 +150,7 @@ public class End2endAndBackAgainIT {
             //Persistence is not part of SDK. Sample file store is for demonstration purposes only!
             //   MUST be replaced with more robust application implementation  (Database, LDAP)
             File sampleStoreFile = new File(System.getProperty("java.io.tmpdir") + "/HFCSampletest.properties");
+            sampleStoreFile.deleteOnExit();
 
             final SampleStore sampleStore = new SampleStore(sampleStoreFile);
 
@@ -147,14 +162,14 @@ public class End2endAndBackAgainIT {
             for (SampleOrg sampleOrg : testSampleOrgs) {
 
                 final String orgName = sampleOrg.getName();
-
-                SampleUser admin = sampleStore.getMember(TEST_ADMIN_NAME, orgName);
-                sampleOrg.setAdmin(admin); // The admin of this org.
-
-                // No need to enroll or register all done in End2endIt !
-                SampleUser user = sampleStore.getMember(TESTUSER_1_NAME, orgName);
-                sampleOrg.addUser(user);  //Remember user belongs to this Org
-
+//
+//                SampleUser admin = sampleStore.getMember(TEST_ADMIN_NAME, orgName);
+//                sampleOrg.setAdmin(admin); // The admin of this org.
+//
+//                // No need to enroll or register all done in End2endIt !
+//                SampleUser user = sampleStore.getMember(TESTUSER_1_NAME, orgName);
+//                sampleOrg.addUser(user);  //Remember user belongs to this Org
+//
                 sampleOrg.setPeerAdmin(sampleStore.getMember(orgName + "Admin", orgName));
             }
 
@@ -162,13 +177,99 @@ public class End2endAndBackAgainIT {
             //Reconstruct and run the channels
             SampleOrg sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg1");
             Channel fooChannel = reconstructChannel(FOO_CHANNEL_NAME, client, sampleOrg);
-            runChannel(client, fooChannel, sampleOrg, 0);
-            fooChannel.shutdown(true); //clean up resources no longer needed.
+
+            final byte[] channelConfigurationBytes = fooChannel.getChannelConfigurationBytes();
+
+            HttpClients.createDefault();
+
+            HttpClient httpclient = HttpClients.createDefault();
+            HttpPost httppost = new HttpPost("http://localhost:7059/protolator/decode/common.Config");
+            httppost.setEntity(new ByteArrayEntity(channelConfigurationBytes));
+
+            HttpResponse response = httpclient.execute(httppost);
+            int statuscode = response.getStatusLine().getStatusCode();
+            assertEquals(200, statuscode);
+
+            //        out("http status code = %d", statuscode);
+
+            String responseAsString = EntityUtils.toString(response.getEntity());
+
+            // out("responseAsString:%s", responseAsString);
+
+            if (!responseAsString.contains(ORIGINAL_BATCH_TIMEOUT)) {
+
+                fail(format("Did not find expected batch timeout '%s', in:%s", ORIGINAL_BATCH_TIMEOUT, responseAsString));
+            }
+
+            String updateString = responseAsString.replace(ORIGINAL_BATCH_TIMEOUT, UPDATED_BATCH_TIMEOUT);
+            //     out("updateString:%s", updateString);
+
+            httppost = new HttpPost("http://localhost:7059/protolator/encode/common.Config");
+            httppost.setEntity(new StringEntity(updateString));
+
+            response = httpclient.execute(httppost);
+            statuscode = response.getStatusLine().getStatusCode();
+            assertEquals(200, statuscode);
+            byte[] newConfigBytes = EntityUtils.toByteArray(response.getEntity());
+
+            httppost = new HttpPost("http://localhost:7059/configtxlator/compute/update-from-configs");
+
+            HttpEntity multipartEntity = MultipartEntityBuilder.create()
+                    .setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
+                    .addBinaryBody("original", channelConfigurationBytes, ContentType.APPLICATION_OCTET_STREAM, "originalFakeFilename")
+                    .addBinaryBody("updated", newConfigBytes, ContentType.APPLICATION_OCTET_STREAM, "updatedFakeFilename")
+                    .addBinaryBody("channel", fooChannel.getName().getBytes()).build();
+
+            httppost.setEntity(multipartEntity);
+
+            response = httpclient.execute(httppost);
+            statuscode = response.getStatusLine().getStatusCode();
+            assertEquals(200, statuscode);
+
+            byte[] updateBytes = EntityUtils.toByteArray(response.getEntity());
+
+            UpdateChannelConfiguration updateChannelConfiguration = new UpdateChannelConfiguration(updateBytes);
+
+            //To change the channel we need to sign with orderer admin certs which crypto gen stores:
+
+            // private key: src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/msp/keystore/f1a9a940f57419a18a83a852884790d59b378281347dd3d4a88c2b820a0f70c9_sk
+            //certificate:  src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/msp/signcerts/Admin@example.com-cert.pem
+
+            String sampleOrgName = sampleOrg.getName();
+            SampleUser ordererAdmin = sampleStore.getMember(sampleOrgName + "OrderAdmin", sampleOrgName, "OrdererMSP",
+                    Util.findFileSk(Paths.get("src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/msp/keystore/").toFile()),
+                    Paths.get("src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/msp/signcerts/Admin@example.com-cert.pem").toFile());
+
+            client.setUserContext(ordererAdmin);
+
+            fooChannel.updateChannelConfiguration(updateChannelConfiguration, client.getUpdateChannelConfigurationSignature(updateChannelConfiguration, ordererAdmin));
+
+            //Let's add some additional verification...
+
+            final byte[] modChannelBytes = fooChannel.getChannelConfigurationBytes();
+
+            httppost = new HttpPost("http://localhost:7059/protolator/decode/common.Config");
+            httppost.setEntity(new ByteArrayEntity(modChannelBytes));
+
+            response = httpclient.execute(httppost);
+            statuscode = response.getStatusLine().getStatusCode();
+            assertEquals(200, statuscode);
+
+            responseAsString = EntityUtils.toString(response.getEntity());
+
+            // out("responseAsString:%s", responseAsString);
+
+            if (!responseAsString.contains(UPDATED_BATCH_TIMEOUT)) {
+
+                fail(format("Did not find updated expected batch timeout '%s', in:%s", UPDATED_BATCH_TIMEOUT, responseAsString));
+            }
+
+            if (responseAsString.contains(ORIGINAL_BATCH_TIMEOUT)) { //Should not have been there.
+
+                fail(format("Found original batch timeout '%s', when it was not expected in:%s", ORIGINAL_BATCH_TIMEOUT, responseAsString));
+            }
+
             out("\n");
-            sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
-            Channel barChannel = reconstructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
-            runChannel(client, barChannel, sampleOrg, 100); //run a newly constructed foo channel with different b value!
-            barChannel.shutdown(true);
 
             out("That's all folks!");
 
@@ -515,34 +616,6 @@ public class End2endAndBackAgainIT {
         }
 
         newChannel.initialize();
-
-        //Just see if we can get channelConfiguration. Not required for the rest of scenario but should work.
-        final byte[] channelConfigurationBytes = newChannel.getChannelConfigurationBytes();
-        Configtx.Config channelConfig = Configtx.Config.parseFrom(channelConfigurationBytes);
-        assertNotNull(channelConfig);
-        Configtx.ConfigGroup channelGroup = channelConfig.getChannelGroup();
-        assertNotNull(channelGroup);
-        Map<String, Configtx.ConfigGroup> groupsMap = channelGroup.getGroupsMap();
-        assertNotNull(groupsMap.get("Orderer"));
-        assertNotNull(groupsMap.get("Application"));
-
-        //Before return lets see if we have the chaincode on the peers that we expect from End2endIT
-        //And if they were instantiated too.
-
-        for (Peer peer : newChannel.getPeers()) {
-
-            if (!checkInstalledChaincode(client, peer, CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_VERSION)) {
-                throw new AssertionError(format("Peer %s is missing chaincode name: %s, path:%s, version: %s",
-                        peer.getName(), CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_PATH));
-            }
-
-            if (!checkInstantiatedChaincode(newChannel, peer, CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_VERSION)) {
-
-                throw new AssertionError(format("Peer %s is missing instantiated chaincode name: %s, path:%s, version: %s",
-                        peer.getName(), CHAIN_CODE_NAME, CHAIN_CODE_PATH, CHAIN_CODE_PATH));
-            }
-
-        }
 
         return newChannel;
     }
