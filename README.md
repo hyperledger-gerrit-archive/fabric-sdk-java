@@ -118,7 +118,7 @@ Add to your Vagrant file a folder for referencing the sdkintegration folder betw
 
   config.vm.synced_folder "..", "/opt/gopath/src/github.com/hyperledger/fabric"</br>
 
-  `config.vm.synced_folder "/home/<<user>>/fabric-sdk-java/src/test/fixture/sdkintegration", "/opt/gopath/src/github.com/hyperledger/fabric/sdkintegration`</br>
+  `config.vm.synced_folder "/home/<<user>>/fabric-sdk-java/src/test/fixture/sdkintegration", "/opt/gopath/src/github.com/hyperledger/fabric/sdkintegration"`</br>
 
   config.vm.synced_folder ENV.fetch('LOCALDEVDIR', ".."), "#{LOCALDEV}"</br>
 
