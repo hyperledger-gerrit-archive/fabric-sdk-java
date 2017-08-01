@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.apache.commons.codec.binary.Hex;
 import org.hyperledger.fabric.protos.ledger.rwset.kvrwset.KvRwset;
@@ -32,6 +34,7 @@ import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
 import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
+import org.hyperledger.fabric.sdk.ChaincodeEvent;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.Channel;
 import org.hyperledger.fabric.sdk.ChannelConfiguration;
@@ -84,6 +87,9 @@ public class End2endIT {
 
     private static final String FOO_CHANNEL_NAME = "foo";
     private static final String BAR_CHANNEL_NAME = "bar";
+
+    private static final byte[] EXPECTED_EVENT_DATA = "!".getBytes(UTF_8);
+    private static final String EXPECTED_EVENT_NAME = "event";
 
     String testTxID = null;  // save the CC invoke TxID and use in queries
 
@@ -229,6 +235,20 @@ public class End2endIT {
             Collection<ProposalResponse> successful = new LinkedList<>();
             Collection<ProposalResponse> failed = new LinkedList<>();
 
+            // register a chaincode event listener that will trigger for any chaincode id and only for EXPECTED_EVENT_NAME event.
+
+            String chaincodeEventListenerHandle = channel.registerChaincodeEventListener(Pattern.compile(".*"),
+                    Pattern.compile(Pattern.quote(EXPECTED_EVENT_NAME)),
+                    (handle, blockEvent, chaincodeEvent) -> {
+
+                        out("RECEIVED Chaincode event with handle: %s, chhaincode Id: %s, chaincode event name: %s, "
+                                        + "transaction id: %s, event payload: \"%s\", from eventhub: %s",
+                                handle, chaincodeEvent.getChaincodeId(),
+                                chaincodeEvent.getEventName(), chaincodeEvent.getTxId(),
+                                new String(chaincodeEvent.getPayload()), blockEvent.getEventHub().toString());
+
+                    });
+
             chaincodeID = ChaincodeID.newBuilder().setName(CHAIN_CODE_NAME)
                     .setVersion(CHAIN_CODE_VERSION)
                     .setPath(CHAIN_CODE_PATH).build();
@@ -366,9 +386,11 @@ public class End2endIT {
                     transactionProposalRequest.setArgs(new String[] {"move", "a", "b", "100"});
 
                     Map<String, byte[]> tm2 = new HashMap<>();
-                    tm2.put("HyperLedgerFabric", "TransactionProposalRequest:JavaSDK".getBytes(UTF_8));
-                    tm2.put("method", "TransactionProposalRequest".getBytes(UTF_8));
-                    tm2.put("result", ":)".getBytes(UTF_8));  /// This should be returned see chaincode.
+                    tm2.put("HyperLedgerFabric", "TransactionProposalRequest:JavaSDK".getBytes(UTF_8)); //Just some extra junk in transient map
+                    tm2.put("method", "TransactionProposalRequest".getBytes(UTF_8)); // ditto
+                    tm2.put("result", ":)".getBytes(UTF_8));  // This should be returned see chaincode why.
+                    tm2.put(EXPECTED_EVENT_NAME, EXPECTED_EVENT_DATA);  //This should trigger an event see chaincode why.
+
                     transactionProposalRequest.setTransientMap(tm2);
 
                     out("sending transactionProposal to all peers with arguments: move(a,b,100)");
@@ -530,6 +552,12 @@ public class End2endIT {
             TransactionInfo txInfo = channel.queryTransactionByID(testTxID);
             out("QueryTransactionByID returned TransactionInfo: txID " + txInfo.getTransactionID()
                     + "\n     validation code " + txInfo.getValidationCode().getNumber());
+
+            if (chaincodeEventListenerHandle != null) {
+
+                channel.unRegisterChaincodeEventListener(chaincodeEventListenerHandle);
+
+            }
 
             out("Running for Channel %s done", channelName);
 
@@ -711,6 +739,18 @@ public class End2endIT {
                                     transactionActionInfo.getProposalResponseStatus());
                             out("   Transaction action %d proposal response payload: %s", j,
                                     printableString(new String(transactionActionInfo.getProposalResponsePayload())));
+
+                            // Check to see if we have our expected event.
+                            if (blockNumber == 2) {
+                                ChaincodeEvent chaincodeEvent = transactionActionInfo.getEvent();
+                                assertNotNull(chaincodeEvent);
+
+                                assertTrue(Arrays.equals(EXPECTED_EVENT_DATA, chaincodeEvent.getPayload()));
+                                assertEquals(testTxID, chaincodeEvent.getTxId());
+                                assertEquals(CHAIN_CODE_NAME, chaincodeEvent.getChaincodeId());
+                                assertEquals(EXPECTED_EVENT_NAME, chaincodeEvent.getEventName());
+
+                            }
 
                             TxReadWriteSetInfo rwsetInfo = transactionActionInfo.getTxReadWriteSet();
                             if (null != rwsetInfo) {
