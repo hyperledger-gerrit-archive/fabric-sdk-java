@@ -36,6 +36,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -2481,6 +2482,26 @@ public class Channel {
     }
 
     /**
+     * Unregister a block listener.
+     *
+     * @param handle of Block listener to remove.
+     * @return false if not found.
+     * @throws InvalidArgumentException if the channel is shutdown or invalid arguments.
+     */
+    public boolean unRegisterBlockListener(String handle) throws InvalidArgumentException {
+
+        if (shutdown) {
+            throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
+        }
+
+        synchronized (blockListeners) {
+
+            return null != blockListeners.remove(handle);
+
+        }
+    }
+
+    /**
      * A queue each eventing hub will write events to.
      */
 
@@ -2845,6 +2866,170 @@ public class Channel {
 
     }
 
+    ////////////////////////////////////////////////////////////////////////
+    ////////////////  Chaincode Events..  //////////////////////////////////
+
+    private final LinkedHashMap<String, CL> chainCodeListeners = new LinkedHashMap<>();
+
+    private class CL {
+
+        //      final AtomicBoolean fired = new AtomicBoolean(false);
+
+        private final Pattern chaincodeIdPattern;
+        private final Pattern eventNamePattern;
+        private final ChaincodeEventListener chaincodeEventListener;
+        private final String handle;
+
+        CL(Pattern chaincodeIdPattern, Pattern eventNamePattern, ChaincodeEventListener chaincodeEventListener) {
+            this.chaincodeIdPattern = chaincodeIdPattern;
+            this.eventNamePattern = eventNamePattern;
+            this.chaincodeEventListener = chaincodeEventListener;
+            this.handle = Utils.generateUUID();
+
+            synchronized (chainCodeListeners) {
+
+                chainCodeListeners.put(handle, this);
+
+            }
+        }
+
+        boolean isMatch(ChaincodeEvent chaincodeEvent) {
+
+            return chaincodeIdPattern.matcher(chaincodeEvent.getChaincodeId()).matches() && eventNamePattern.matcher(chaincodeEvent.getEventName()).matches();
+
+        }
+
+//        void fire(BlockEvent.TransactionEvent transactionEvent) {
+//
+//            synchronized (chainCodeListeners) {
+//                LinkedList<TL> l = txListeners.get(txID);
+//
+//                if (null != l) {
+//                    l.removeFirstOccurrence(this);
+//                    if (l.size() == 0) {
+//                        txListeners.remove(txID);
+//                    }
+//                }
+//            }
+//            if (future.isDone()) {
+//                fired.set(true);
+//                return;
+//            }
+//
+//            if (transactionEvent.isValid()) {
+//                executorService.execute(() -> future.complete(transactionEvent));
+//            } else {
+//                executorService.execute(() -> future.completeExceptionally(
+//                        new TransactionEventException(format("Received invalid transaction event. Transaction ID %s status %s",
+//                                transactionEvent.getTransactionID(),
+//                                transactionEvent.getValidationCode()),
+//                                transactionEvent)));
+//            }
+//        }
+
+        public void fire(BlockEvent blockEvent, ChaincodeEvent ce) {
+
+            executorService.execute(() -> chaincodeEventListener.received(handle, blockEvent, ce));
+
+        }
+    }
+
+    public String registerChaincodeEventListener(Pattern chaincodeId, Pattern eventName, ChaincodeEventListener chaincodeEventListener) throws InvalidArgumentException {
+
+        CL cl = new CL(chaincodeId, eventName, chaincodeEventListener);
+        synchronized (this) {
+            if (null == blh) {
+                blh = registerChaincodeListenerProcessor();
+            }
+        }
+        return cl.handle;
+
+    }
+
+    private String blh = null;
+
+    public boolean unRegisterChaincodeEventListener(String handle) throws InvalidArgumentException {
+        boolean ret;
+
+        synchronized (chainCodeListeners) {
+            ret = null != chainCodeListeners.remove(handle);
+
+        }
+
+        synchronized (this) {
+            if (null != blh && chainCodeListeners.isEmpty()) {
+
+                unRegisterBlockListener(blh);
+                blh = null;
+            }
+        }
+
+        return ret;
+
+    }
+
+    private String registerChaincodeListenerProcessor() throws InvalidArgumentException {
+        logger.debug(format("Channel %s registerChaincodeListenerProcessor starting", name));
+
+        // Transaction listener is internal Block listener for transactions
+
+        return registerBlockListener(blockEvent -> {
+
+            if (chainCodeListeners.isEmpty()) {
+                return;
+            }
+
+            LinkedList<ChaincodeEvent> chaincodeEvents = new LinkedList<>();
+
+            for (TransactionEvent transactionEvent : blockEvent.getTransactionEvents()) {
+
+                logger.debug(format("Channel %s got event for transaction %s ", name, transactionEvent.getTransactionID()));
+
+                for (BlockInfo.TransactionEnvelopeInfo.TransactionActionInfo info : transactionEvent.getTransactionActionInfos()) {
+
+                    ChaincodeEvent event = info.getEvent();
+                    if (null != event) {
+                        chaincodeEvents.add(event);
+                    }
+
+                }
+
+            }
+
+            if (!chaincodeEvents.isEmpty()) {
+
+                HashMap<CL, ChaincodeEvent> matches = new HashMap<>();
+
+                synchronized (chainCodeListeners) {
+
+                    for (CL cl : chainCodeListeners.values()) {
+
+                        for (ChaincodeEvent chaincodeEvent : chaincodeEvents) {
+
+                            if (cl.isMatch(chaincodeEvent)) {
+
+                                matches.put(cl, chaincodeEvent);
+                            }
+
+                        }
+
+                    }
+                }
+
+                //fire events
+                for (Map.Entry<CL, ChaincodeEvent> match : matches.entrySet()) {
+
+                    CL cl = match.getKey();
+                    ChaincodeEvent ce = match.getValue();
+                    cl.fire(blockEvent, ce);
+
+                }
+
+            }
+
+        });
+    }
+
     /**
      * Shutdown the channel with all resources released.
      *
@@ -2859,8 +3044,12 @@ public class Channel {
 
         initialized = false;
         shutdown = true;
-//        anchorPeers = null;
+
         executorService = null;
+
+        chainCodeListeners.clear();
+
+        blockListeners.clear();
 
         for (EventHub eh : getEventHubs()) {
 
