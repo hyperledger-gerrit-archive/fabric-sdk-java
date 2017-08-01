@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -32,6 +33,7 @@ import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
 import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
+import org.hyperledger.fabric.sdk.ChaincodeEvent;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.Channel;
 import org.hyperledger.fabric.sdk.ChannelConfiguration;
@@ -84,6 +86,9 @@ public class End2endIT {
 
     private static final String FOO_CHANNEL_NAME = "foo";
     private static final String BAR_CHANNEL_NAME = "bar";
+
+    private static final byte[] EXPECTED_EVENT_DATA = "!".getBytes(UTF_8);
+    private static final String EXPECTED_EVENT_NAME = "event";
 
     String testTxID = null;  // save the CC invoke TxID and use in queries
 
@@ -366,9 +371,11 @@ public class End2endIT {
                     transactionProposalRequest.setArgs(new String[] {"move", "a", "b", "100"});
 
                     Map<String, byte[]> tm2 = new HashMap<>();
-                    tm2.put("HyperLedgerFabric", "TransactionProposalRequest:JavaSDK".getBytes(UTF_8));
-                    tm2.put("method", "TransactionProposalRequest".getBytes(UTF_8));
-                    tm2.put("result", ":)".getBytes(UTF_8));  /// This should be returned see chaincode.
+                    tm2.put("HyperLedgerFabric", "TransactionProposalRequest:JavaSDK".getBytes(UTF_8)); //Just some extra junk in transient map
+                    tm2.put("method", "TransactionProposalRequest".getBytes(UTF_8)); // ditto
+                    tm2.put("result", ":)".getBytes(UTF_8));  // This should be returned see chaincode why.
+                    tm2.put(EXPECTED_EVENT_NAME, EXPECTED_EVENT_DATA);  //This should trigger an event see chaincode why.
+
                     transactionProposalRequest.setTransientMap(tm2);
 
                     out("sending transactionProposal to all peers with arguments: move(a,b,100)");
@@ -711,6 +718,18 @@ public class End2endIT {
                                     transactionActionInfo.getProposalResponseStatus());
                             out("   Transaction action %d proposal response payload: %s", j,
                                     printableString(new String(transactionActionInfo.getProposalResponsePayload())));
+
+                            // Check to see if we have our expected event.
+                            if (blockNumber == 2) {
+                                ChaincodeEvent chaincodeEvent = transactionActionInfo.getEvent();
+                                assertNotNull(chaincodeEvent);
+
+                                assertTrue(Arrays.equals(EXPECTED_EVENT_DATA, chaincodeEvent.getPayload()));
+                                assertEquals(testTxID, chaincodeEvent.getTxId());
+                                assertEquals(CHAIN_CODE_NAME, chaincodeEvent.getChaincodeId());
+                                assertEquals(EXPECTED_EVENT_NAME, chaincodeEvent.getEventName());
+
+                            }
 
                             TxReadWriteSetInfo rwsetInfo = transactionActionInfo.getTxReadWriteSet();
                             if (null != rwsetInfo) {

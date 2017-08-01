@@ -36,6 +36,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -2843,6 +2844,179 @@ public class Channel {
 
         return future;
 
+    }
+
+    ////////////////  Chaincode Events..  //////////////////////////////////
+
+    private final LinkedHashMap<String, CL> chainCodeListeners = new LinkedHashMap<>();
+
+    private class CL {
+
+        final AtomicBoolean fired = new AtomicBoolean(false);
+
+        final Set<EventHub> seenEventHubs = Collections.synchronizedSet(new HashSet<>());
+        private final Pattern chaincodeIdPattern;
+        private final Pattern eventNamePattern;
+        private final ChaincodeEventListener chaincodeEventListener;
+        private final String handle;
+//        final long createdTime = System.currentTimeMillis();//seconds
+//        final long waitTime;
+
+        Set<EventHub> eventReceived(EventHub eventHub) {
+
+            logger.debug(format("Channel %s seen transaction event %s for eventHub %s", name, txID, eventHub.toString()));
+            seenEventHubs.add(eventHub);
+            return seenEventHubs;
+        }
+
+        CL(Pattern chaincodeIdPattern, Pattern eventNamePattern, ChaincodeEventListener chaincodeEventListener) {
+            this.chaincodeIdPattern = chaincodeIdPattern;
+            this.eventNamePattern = eventNamePattern;
+            this.chaincodeEventListener = chaincodeEventListener;
+            this.handle = Utils.generateUUID();
+
+            addListener();
+        }
+
+        private void addListener() {
+            synchronized (chainCodeListeners) {
+                if (blh == null) {
+
+                    blh = registerChaincodeListenerProcessor();
+
+                }
+                chainCodeListeners.put(handle, this);
+
+            }
+        }
+
+        boolean isMatch(ChaincodeEvent chaincodeEvent) {
+
+            return chaincodeIdPattern.matcher(chaincodeEvent.getChaincodeId()).matches() && eventNamePattern.matcher(chaincodeEvent.getEventName()).matches();
+
+        }
+
+        void fire(BlockEvent.TransactionEvent transactionEvent) {
+
+            if (fired.getAndSet(true)) {
+                return;
+            }
+
+            synchronized (chainCodeListeners) {
+                LinkedList<TL> l = txListeners.get(txID);
+
+                if (null != l) {
+                    l.removeFirstOccurrence(this);
+                    if (l.size() == 0) {
+                        txListeners.remove(txID);
+                    }
+                }
+            }
+            if (future.isDone()) {
+                fired.set(true);
+                return;
+            }
+
+            if (transactionEvent.isValid()) {
+                executorService.execute(() -> future.complete(transactionEvent));
+            } else {
+                executorService.execute(() -> future.completeExceptionally(
+                        new TransactionEventException(format("Received invalid transaction event. Transaction ID %s status %s",
+                                transactionEvent.getTransactionID(),
+                                transactionEvent.getValidationCode()),
+                                transactionEvent)));
+            }
+        }
+
+    }
+
+    public String registerChaincodeEventListener(Pattern chaincodeId, Pattern eventName, ChaincodeEventListener chaincodeEventListener) {
+
+        CL cl = new CL(chaincodeId, eventName, chaincodeEventListener);
+        return cl.handle;
+
+    }
+
+    private String blh = null;
+
+    public boolean unRegisterChaincodeEventListener(String handle) {
+
+        synchronized (chainCodeListeners) {
+            return null != chainCodeListeners.remove(handle);
+
+        }
+
+    }
+
+    private String registerChaincodeListenerProcessor() throws InvalidArgumentException {
+        logger.debug(format("Channel %s registerChaincodeListenerProcessor starting", name));
+
+        // Transaction listener is internal Block listener for transactions
+
+        return registerBlockListener(blockEvent -> {
+
+            if (chainCodeListeners.isEmpty()) {
+                return;
+            }
+
+            LinkedList<ChaincodeEvent> chaincodeEvents = new LinkedList<>();
+
+            for (TransactionEvent transactionEvent : blockEvent.getTransactionEvents()) {
+
+                logger.debug(format("Channel %s got event for transaction %s ", name, transactionEvent.getTransactionID()));
+
+                for (BlockInfo.TransactionEnvelopeInfo.TransactionActionInfo info : transactionEvent.getTransactionActionInfos()) {
+
+                    ChaincodeEvent event = info.getEvent();
+                    if (null != event) {
+                        chaincodeEvents.add(event);
+                    }
+
+                }
+
+            }
+
+            if (!chaincodeEvents.isEmpty()) {
+
+                ArrayList<ChaincodeEvent> chaincodeEventsMatches = new ArrayList<>(chaincodeEvents.size());
+
+                synchronized (chainCodeListeners) {
+
+                    for (CL cl : chainCodeListeners.values()) {
+
+                        for (ChaincodeEvent chaincodeEvent : chaincodeEvents) {
+
+                            if (cl.isMatch(chaincodeEvent)) {
+                                chaincodeEventsMatches.add(chaincodeEvent);
+                            }
+
+                        }
+
+                    }
+                }
+
+                //fire events
+
+                if (!chaincodeEventsMatches.isEmpty()) {
+
+                    logger.trace("bal");
+
+                }
+            }
+
+//            for (CL l : txL) {
+//                try {
+//                    // only if we get events from each eventhub on the channel fire the transactions event.
+//                    //   if (getEventHubs().containsAll(l.eventReceived(transactionEvent.getEventHub()))) {
+//                    if (getEventHubs().size() == l.eventReceived(transactionEvent.getEventHub()).size()) {
+//                        l.fire(transactionEvent);
+//                    }
+//
+//                } catch (Throwable e) {
+//                    logger.error(e); // Don't let one register stop rest.
+//                }
+//            }
+        });
     }
 
     /**
