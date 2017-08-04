@@ -57,7 +57,13 @@ public class SDKUtils {
         }
 
         if (null == suite) {
-            suite = CryptoSuite.Factory.getCryptoSuite();
+            try {
+                suite = CryptoSuite.Factory.getCryptoSuite();
+            } catch (Exception e) {
+
+                throw new InvalidArgumentException(e);
+
+            }
         }
 
         ByteArrayOutputStream s = new ByteArrayOutputStream();

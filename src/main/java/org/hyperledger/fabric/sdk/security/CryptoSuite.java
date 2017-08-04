@@ -13,6 +13,7 @@
  */
 package org.hyperledger.fabric.sdk.security;
 
+import java.lang.reflect.InvocationTargetException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
@@ -26,6 +27,15 @@ import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
  * All packages for PKI key creation/signing/verification implement this interface
  */
 public interface CryptoSuite {
+
+    /**
+     * Get Crypto Suite Factory for this implementation.
+     *
+     * @return
+     */
+
+    CryptoSuiteFactory getCryptoSuiteFactory();
+
     /**
      * implementation specific initialization. Whoever constructs a CryptoSuite instance <b>MUST</b> call
      * init before using the instance
@@ -86,10 +96,10 @@ public interface CryptoSuite {
     /**
      * Verify the specified signature
      *
-     * @param certificate the certificate of the signer as the contents of the PEM file
+     * @param certificate        the certificate of the signer as the contents of the PEM file
      * @param signatureAlgorithm the algorithm used to create the signature.
-     * @param signature   the signature to verify
-     * @param plainText   the original text that is to be verified
+     * @param signature          the signature to verify
+     * @param plainText          the original text that is to be verified
      * @return {@code true} if the signature is successfully verified; otherwise {@code false}.
      * @throws CryptoException
      */
@@ -113,25 +123,45 @@ public interface CryptoSuite {
 
         }
 
-        public static CryptoSuite getCryptoSuite() {
-            return new CryptoPrimitives();
+        /**
+         * Get a crypto suite with the default factory with default settings.
+         * Settings which can define such parameters such as curve strength, are specific to the crypto factory.
+         *
+         * @return Default crypto suite.
+         * @throws IllegalAccessException
+         * @throws InstantiationException
+         * @throws ClassNotFoundException
+         * @throws CryptoException
+         * @throws InvalidArgumentException
+         * @throws NoSuchMethodException
+         * @throws InvocationTargetException
+         */
+
+        public static CryptoSuite getCryptoSuite() throws IllegalAccessException, InstantiationException,
+                ClassNotFoundException, CryptoException, InvalidArgumentException, NoSuchMethodException,
+                InvocationTargetException {
+            return CryptoSuiteFactory.getDefault().getCryptoSuite();
         }
 
-        /* TODO create a version of getCryptoSuite that allows pluggable implementations
-         * possibly : getCryptoSuite("org.x.my.crypto.myClass") and use reflection to
-         * invoke the constructor
+        /**
+         * Get a crypto suite with the default factory with settings defined by properties
+         * Properties are uniquely defined by the specific crypto factory.
          *
-        public static CryptoSuite getCryptoSuite(String type) {
-            CryptoSuite cryptoSuite;
-            switch (type) {
-            // add additional cases when we have multiple CryptoSuite implementations
-            case "DEFAULT":
-                // fall through
-            default:
-                cryptoSuite = new CryptoPrimitives() ;
-            }
-            return cryptoSuite;
+         * @param properties properties that define suite characteristics such as strength, curve, hashing .
+         * @return
+         * @throws IllegalAccessException
+         * @throws InstantiationException
+         * @throws ClassNotFoundException
+         * @throws CryptoException
+         * @throws InvalidArgumentException
+         * @throws NoSuchMethodException
+         * @throws InvocationTargetException
+         */
+        public static CryptoSuite getCryptoSuite(Properties properties) throws IllegalAccessException, InstantiationException,
+                ClassNotFoundException, CryptoException, InvalidArgumentException, NoSuchMethodException,
+                InvocationTargetException {
+            return CryptoSuiteFactory.getDefault().getCryptoSuite(properties);
         }
-        */
+
     }
 }

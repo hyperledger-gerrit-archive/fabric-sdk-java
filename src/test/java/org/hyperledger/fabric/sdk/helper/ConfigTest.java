@@ -15,7 +15,6 @@
 package org.hyperledger.fabric.sdk.helper;
 
 import org.apache.log4j.Level;
-
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.junit.After;
 import org.junit.Assert;
@@ -95,8 +94,6 @@ public class ConfigTest {
         Assert.assertNotNull(config.getSignatureAlgorithm());
         Assert.assertNotNull(config.getCertificateFormat());
 
-        // Arrays
-        Assert.assertNotNull(config.getPeerCACerts());
     }
 
     @Test
