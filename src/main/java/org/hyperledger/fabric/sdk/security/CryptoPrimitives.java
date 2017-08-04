@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.security.auth.x500.X500Principal;
 import javax.xml.bind.DatatypeConverter;
@@ -256,7 +257,6 @@ public class CryptoPrimitives implements CryptoSuite {
         if (alias == null || alias.isEmpty()) {
             throw new InvalidArgumentException("You must assign an alias to a certificate when adding to the trust store");
         }
-
 
         BufferedInputStream bis;
         try {
@@ -702,8 +702,20 @@ public class CryptoPrimitives implements CryptoSuite {
     }
 
     @Override
+    public CryptoSuiteFactory getCryptoSuiteFactory() {
+        return HLSDKJCryptoSuiteFactory.instance();
+    }
+
+    final AtomicBoolean inited = new AtomicBoolean(false);
+
+    @Override
     public void init() throws CryptoException, InvalidArgumentException {
-        resetConfiguration();
+        if (inited.getAndSet(true)) {
+            throw new InvalidArgumentException("Crypto suite already initialized");
+        } else {
+            resetConfiguration();
+        }
+
     }
 
     private Digest getHashDigest() {
