@@ -23,14 +23,12 @@ import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
-import org.hyperledger.fabric.sdk.testutils.TestUtils;
 import org.hyperledger.fabric.sdkintegration.SampleStore;
 import org.hyperledger.fabric.sdkintegration.SampleUser;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric_ca.sdk.exception.RegistrationException;
 import org.hyperledger.fabric_ca.sdk.exception.RevocationException;
-import org.hyperledger.fabric_ca.sdk.helper.Config;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -324,7 +322,7 @@ public class HFCAClientTest {
         thrown.expectMessage("Failed to enroll user admin");
 
         CryptoSuite cryptoSuite = CryptoSuite.Factory.getCryptoSuite();
-        cryptoSuite.init();
+        //   cryptoSuite.init();
 
         EnrollmentRequest req = new EnrollmentRequest("profile 1", "label 1", null);
         HFCAClient client = HFCAClient.createNewInstance("client", "http://localhost:99", null);
@@ -340,7 +338,7 @@ public class HFCAClientTest {
         thrown.expectMessage("Failed to enroll user admin");
 
         CryptoSuite cryptoSuite = CryptoSuite.Factory.getCryptoSuite();
-        cryptoSuite.init();
+        //  cryptoSuite.init();
 
         EnrollmentRequest req = new EnrollmentRequest("profile 1", "label 1", null);
         req.setCSR("abc");

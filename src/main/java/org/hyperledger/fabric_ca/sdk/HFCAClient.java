@@ -187,11 +187,11 @@ public class HFCAClient {
 
     public void setCryptoSuite(CryptoSuite cryptoSuite) {
         this.cryptoPrimitives = (CryptoPrimitives) cryptoSuite;
-        try {
-            cryptoPrimitives.init();
-        } catch (Exception e) {
-            logger.error(e);
-        }
+//        try {
+//            cryptoPrimitives.init();
+//        } catch (Exception e) {
+//            logger.error(e);
+//        }
     }
 
     public CryptoSuite getCryptoSuite() {
