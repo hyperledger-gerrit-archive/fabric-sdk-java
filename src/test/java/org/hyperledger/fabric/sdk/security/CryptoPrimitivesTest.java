@@ -51,7 +51,6 @@ import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
-import org.hyperledger.fabric.sdk.testutils.TestUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -62,6 +61,9 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.hyperledger.fabric.sdk.testutils.TestUtils.getField;
+import static org.hyperledger.fabric.sdk.testutils.TestUtils.setConfigProperty;
+import static org.hyperledger.fabric.sdk.testutils.TestUtils.setField;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -79,7 +81,6 @@ public class CryptoPrimitivesTest {
     // These are automatically deleted when each test completes
     @Rule
     public final TemporaryFolder tempFolder = new TemporaryFolder();
-
 
     // run End2EndIT test and copy from first peer ProposalResponse ( fabric at
     // commit level 230f3cc )
@@ -156,7 +157,7 @@ public class CryptoPrimitivesTest {
 
         try {
             // Set the cert format to something invalid
-            oldVal = TestUtils.setConfigProperty(Config.CERTIFICATE_FORMAT, "abc123");
+            oldVal = setConfigProperty(Config.CERTIFICATE_FORMAT, "abc123");
 
             CryptoPrimitives crypto = new CryptoPrimitives();
             crypto.init();
@@ -164,52 +165,77 @@ public class CryptoPrimitivesTest {
         } finally {
 
             // Reset the property for subsequent tests
-            TestUtils.setConfigProperty(Config.CERTIFICATE_FORMAT, oldVal);
+            setConfigProperty(Config.CERTIFICATE_FORMAT, oldVal);
         }
     }
 
+    @Test
+    public void testDefaultCrypto() throws Exception {
+
+        CryptoSuite cryptoSuite = CryptoSuiteFactory.getDefault().getCryptoSuite();
+        assertEquals("secp256r1", getField(cryptoSuite, "curveName"));
+        assertEquals(256, getField(cryptoSuite, "securityLevel"));
+        assertEquals("SHA2", getField(cryptoSuite, "hashAlgorithm"));
+        //  assertEquals(BouncyCastleProvider.class, getField(cryptoSuite, "SECURITY_PROVIDER").getClass());
+
+        //    assertNull(getField(cryptoSuite, "SECURITY_PROVIDER")); // null means use JDKs defined default.
+
+        // Should be exactly same instance as it has the same properties.
+        assertEquals(cryptoSuite, CryptoSuiteFactory.getDefault().getCryptoSuite());
+    }
 
     @Test
-    public void testGetSetProperties() {
-        CryptoPrimitives testCrypto = new CryptoPrimitives();
-        Properties cryptoProps = testCrypto.getProperties();
-        String hashAlg = config.getHashAlgorithm();
-        assertEquals(cryptoProps.getProperty(Config.HASH_ALGORITHM), hashAlg);
+    public void testGetSetProperties() throws Exception {
         Properties propsIn = new Properties();
         try {
+            final String expectHash = "SHA3"; // use something different than default!
             propsIn.setProperty(Config.SECURITY_LEVEL, "384");
-            testCrypto.setProperties(propsIn);
-            cryptoProps = testCrypto.getProperties();
+            propsIn.setProperty(Config.HASH_ALGORITHM, expectHash);
+            //    testCrypto.setProperties(propsIn);
+            //   testCrypto.init();
+            CryptoSuite testCrypto = CryptoSuiteFactory.getDefault().getCryptoSuite(propsIn);
+
+            //          assertEquals(BouncyCastleProvider.class, getField(testCrypto, "SECURITY_PROVIDER").getClass());
+
+            String expectedCurve = config.getSecurityCurveMapping().get(384);
+            assertEquals("secp384r1", expectedCurve);
+            assertEquals(expectedCurve, getField(testCrypto, "curveName"));
+            assertEquals(384, getField(testCrypto, "securityLevel"));
+            Properties cryptoProps = ((CryptoPrimitives) testCrypto).getProperties();
             assertEquals(cryptoProps.getProperty(Config.SECURITY_LEVEL), "384");
-            testCrypto.setProperties(null);
             cryptoProps = testCrypto.getProperties();
-            assertEquals(cryptoProps.getProperty(Config.HASH_ALGORITHM), hashAlg);
+            assertEquals(cryptoProps.getProperty(Config.HASH_ALGORITHM), expectHash);
+            assertEquals(expectHash, getField(testCrypto, "hashAlgorithm"));
             assertEquals(cryptoProps.getProperty(Config.SECURITY_LEVEL), "384");
+
+            // Should be exactly same instance as it has the same properties.
+            assertEquals(testCrypto, CryptoSuiteFactory.getDefault().getCryptoSuite(propsIn));
+
         } catch (CryptoException | InvalidArgumentException e) {
             fail("testGetSetProperties should not throw exception. Error: " + e.getMessage());
         }
     }
 
     @Test (expected = InvalidArgumentException.class)
-    public void testSecurityLevel() throws InvalidArgumentException {
+    public void testSecurityLevel() throws InvalidArgumentException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         CryptoPrimitives testCrypto = new CryptoPrimitives();
         testCrypto.setSecurityLevel(2001);
     }
 
     @Test (expected = InvalidArgumentException.class)
-    public void testSetHashAlgorithm() throws InvalidArgumentException {
+    public void testSetHashAlgorithm() throws InvalidArgumentException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         CryptoPrimitives testCrypto = new CryptoPrimitives();
         testCrypto.setHashAlgorithm(null);
     }
 
     @Test (expected = InvalidArgumentException.class)
-    public void testSetHashAlgorithmBadArg() throws InvalidArgumentException {
+    public void testSetHashAlgorithmBadArg() throws InvalidArgumentException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         CryptoPrimitives testCrypto = new CryptoPrimitives();
         testCrypto.setHashAlgorithm("FAKE");
     }
 
     @Test
-    public void testGetTrustStore() {
+    public void testGetTrustStore() throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         // getTrustStore should have created a KeyStore if setTrustStore hasn't
         // been called
         try {
@@ -243,7 +269,7 @@ public class CryptoPrimitivesTest {
     }
 
     @Test
-    public void testSetTrustStore() {
+    public void testSetTrustStore() throws IllegalAccessException, InstantiationException, ClassNotFoundException {
 
         try {
             CryptoPrimitives myCrypto = new CryptoPrimitives();
@@ -320,15 +346,15 @@ public class CryptoPrimitivesTest {
         KeyStore tmpKeyStore = KeyStore.getInstance(KeyStore.getDefaultType());
 
         // Ensure that crypto is using that store
-        KeyStore saveKeyStore = (KeyStore) TestUtils.setField(crypto, "trustStore", tmpKeyStore);
+        KeyStore saveKeyStore = (KeyStore) setField(crypto, "trustStore", tmpKeyStore);
 
         try {
             crypto.addCACertificateToTrustStore(testCACert, "alias");
         } finally {
             // Ensure we set it back so that subsequent tests will not be affected
-            TestUtils.setField(crypto, "trustStore", saveKeyStore);
+            setField(crypto, "trustStore", saveKeyStore);
         }
-   }
+    }
 
     @Test (expected = CryptoException.class)
     public void testAddCACertificateToTrustStoreNoFile() throws CryptoException {
@@ -593,7 +619,7 @@ public class CryptoPrimitivesTest {
 
     // Try to generate a key without initializing crypto
     @Test
-    public void testKeyGenBadCrypto() throws CryptoException {
+    public void testKeyGenBadCrypto() throws CryptoException, IllegalAccessException, InstantiationException, ClassNotFoundException {
 
         thrown.expect(CryptoException.class);
         thrown.expectMessage("Unable to generate");
@@ -642,10 +668,9 @@ public class CryptoPrimitivesTest {
         byte[] input = "TheQuickBrownFox".getBytes(UTF_8);
         String expectedHash = "feb69c5c360a15802de6af23a3f5622da9d96aff2be78c8f188cce57a3549db6";
 
-        crypto.setHashAlgorithm("sha3");
+        crypto.setHashAlgorithm("SHA3");
         byte[] hash = crypto.hash(input);
         Assert.assertEquals(expectedHash, Hex.toHexString(hash));
     }
-
 
 }

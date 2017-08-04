@@ -30,6 +30,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
@@ -45,9 +46,14 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPrivateKey;
 import java.security.spec.ECGenParameterSpec;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.security.auth.x500.X500Principal;
 import javax.xml.bind.DatatypeConverter;
@@ -57,7 +63,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.DERSequenceGenerator;
-import org.bouncycastle.asn1.nist.NISTNamedCurves;
+import org.bouncycastle.asn1.x9.ECNamedCurveTable;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.SHA256Digest;
@@ -78,18 +84,22 @@ import org.bouncycastle.util.io.pem.PemReader;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
-import org.hyperledger.fabric.sdk.helper.Utils;
+
+import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.helper.Utils.isNullOrEmpty;
 
 public class CryptoPrimitives implements CryptoSuite {
     private final Config config = Config.getConfig();
 
     private String curveName;
     private CertificateFactory cf;
-    private final String SECURITY_PROVIDER = BouncyCastleProvider.PROVIDER_NAME;
+    private Provider SECURITY_PROVIDER;
     private String hashAlgorithm = config.getHashAlgorithm();
     private int securityLevel = config.getSecurityLevel();
     private String CERTIFICATE_FORMAT = config.getCertificateFormat();
     private String DEFAULT_SIGNATURE_ALGORITHM = config.getSignatureAlgorithm();
+
+    private Map<Integer, String> securityCurveMapping = config.getSecurityCurveMapping();
 
     // Following configuration settings are hardcoded as they don't deal with any interactions with Fabric MSP and BCCSP components
     // If you wish to make these customizable, follow the logic from setProperties();
@@ -103,8 +113,38 @@ public class CryptoPrimitives implements CryptoSuite {
 
     private static final Log logger = LogFactory.getLog(CryptoPrimitives.class);
 
-    public CryptoPrimitives() {
-        Security.addProvider(new BouncyCastleProvider());
+    public CryptoPrimitives() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+        String securityProviderClassName = config.getSecurityProviderClassName();
+
+        SECURITY_PROVIDER = setUpExplictProvider(securityProviderClassName);
+
+        //Decided TO NOT do this as it can have affects over the whole JVM and could have
+        // unexpected results.  The embedding application can easily do this!
+        // Leaving this here as a warning.
+        // Security.insertProviderAt(SECURITY_PROVIDER, 1); // 1 is top not 0 :)
+    }
+
+    Provider setUpExplictProvider(String securityProviderClassName) throws InstantiationException, ClassNotFoundException, IllegalAccessException {
+        if (null == securityProviderClassName) {
+            throw new InstantiationException(format("Security provider class name property (%s) set to null  ", Config.SECURITY_PROVIDER_CLASS_NAME));
+        }
+
+        if (CryptoSuiteFactory.DEFAULT_JDK_PROVIDER.equals(securityProviderClassName)) {
+            return null;
+        }
+
+        Class<?> aClass = Class.forName(securityProviderClassName);
+        if (null == aClass) {
+            throw new InstantiationException(format("Getting class for security provider %s returned null  ", securityProviderClassName));
+        }
+        if (!Provider.class.isAssignableFrom(aClass)) {
+            throw new InstantiationException(format("Class for security provider %s is not a Java security provider", aClass.getName()));
+        }
+        Provider securityProvider = (Provider) aClass.newInstance();
+        if (securityProvider == null) {
+            throw new InstantiationException(format("Creating instance of security %s returned null  ", aClass.getName()));
+        }
+        return securityProvider;
     }
 
 //    /**
@@ -133,28 +173,89 @@ public class CryptoPrimitives implements CryptoSuite {
             throw new CryptoException("bytesToCertificate: input null or zero length");
         }
 
-        X509Certificate certificate;
-        try {
-            BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(certBytes));
-            CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_FORMAT);
-            certificate = (X509Certificate) certFactory.generateCertificate(pem);
-        } catch (CertificateException e) {
-            String emsg = "Unable to converts byte array to certificate. error : " + e.getMessage();
-            logger.error(emsg);
-            logger.debug("input bytes array :" + new String(certBytes));
-            throw new CryptoException(emsg, e);
-        }
-
-        return certificate;
+        return getX509Certificate(certBytes);
+//        X509Certificate certificate;
+//        try {
+//            BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(certBytes));
+//            CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_FORMAT);
+//            certificate = (X509Certificate) certFactory.generateCertificate(pem);
+//        } catch (CertificateException e) {
+//            String emsg = "Unable to converts byte array to certificate. error : " + e.getMessage();
+//            logger.error(emsg);
+//            logger.debug("input bytes array :" + new String(certBytes));
+//            throw new CryptoException(emsg, e);
+//        }
+//
+//        return certificate;
     }
 
     /**
-     * @inheritDoc
+     * Return X509Certificate  from pem bytes.
+     * So you may ask why this ?  Well some providers (BC) seems to have problems with creating the
+     * X509 cert from bytes so here we go through all available providers till one can convert. :)
+     *
+     * @param pemCertificate
+     * @return
      */
+
+    private X509Certificate getX509Certificate(byte[] pemCertificate) throws CryptoException {
+        X509Certificate ret = null;
+        CryptoException rete = null;
+
+        List<Provider> providerList = new LinkedList<>(Arrays.asList(Security.getProviders()));
+        if (SECURITY_PROVIDER != null) { //Add
+            providerList.add(0, SECURITY_PROVIDER);
+        }
+        try {
+            providerList.add(BouncyCastleProvider.class.newInstance());
+        } catch (Exception e) {
+            logger.warn(e);
+
+        }
+        for (Provider provider : providerList) {
+            try {
+                if (null == provider) {
+                    continue;
+                }
+                CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_FORMAT, provider);
+                if (null != certFactory) {
+
+                    //   BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(pemCertificate));
+                    Certificate certificate = certFactory.generateCertificate(new ByteArrayInputStream(pemCertificate));
+                    if (certificate instanceof X509Certificate) {
+                        ret = (X509Certificate) certificate;
+                        rete = null;
+                        break;
+                    }
+
+                }
+            } catch (Exception e) {
+
+                rete = new CryptoException(e.getMessage(), e);
+
+            }
+
+        }
+
+        if (null != rete) {
+
+            throw rete;
+
+        }
+
+        if (ret == null) {
+
+            logger.error("Could not convert pem bytes");
+
+        }
+
+        return ret;
+
+    }
 
     @Override
     public boolean verify(byte[] pemCertificate, String signatureAlgorithm, byte[] signature, byte[] plainText) throws CryptoException {
-        boolean isVerified;
+        boolean isVerified = false;
 
         if (plainText == null || signature == null || pemCertificate == null) {
             return false;
@@ -169,19 +270,25 @@ public class CryptoPrimitives implements CryptoSuite {
         }
 
         try {
-            BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(pemCertificate));
-            CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_FORMAT);
-            X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(pem);
 
-            isVerified = validateCertificate(certificate);
-            if (isVerified) { // only proceed if cert is trusted
+            X509Certificate certificate = getX509Certificate(pemCertificate);
+//            BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(pemCertificate));
+//            //  CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_FORMAT, SECURITY_PROVIDER);
+//            CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_FORMAT);
+//            X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(pem);
 
-                Signature sig = Signature.getInstance(signatureAlgorithm);
-                sig.initVerify(certificate);
-                sig.update(plainText);
-                isVerified = sig.verify(signature);
+            if (certificate != null) {
+
+                isVerified = validateCertificate(certificate);
+                if (isVerified) { // only proceed if cert is trusted
+
+                    Signature sig = Signature.getInstance(signatureAlgorithm);
+                    sig.initVerify(certificate);
+                    sig.update(plainText);
+                    isVerified = sig.verify(signature);
+                }
             }
-        } catch (InvalidKeyException | CertificateException e) {
+        } catch (InvalidKeyException e) {
             CryptoException ex = new CryptoException("Cannot verify signature. Error is: "
                     + e.getMessage() + "\r\nCertificate: "
                     + DatatypeConverter.printHexBinary(pemCertificate), e);
@@ -374,11 +481,14 @@ public class CryptoPrimitives implements CryptoSuite {
         }
 
         try {
-            BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(certPEM));
-            CertificateFactory certFactory = CertificateFactory.getInstance(CERTIFICATE_FORMAT);
-            X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(pem);
+
+            X509Certificate certificate = getX509Certificate(certPEM);
+            if (null == certificate) {
+                throw new Exception("Certificate transformation returned null");
+            }
+
             return validateCertificate(certificate);
-        } catch (CertificateException e) {
+        } catch (Exception e) {
             logger.error("Cannot validate certificate. Error is: " + e.getMessage() + "\r\nCertificate (PEM, hex): "
                     + DatatypeConverter.printHexBinary(certPEM));
             return false;
@@ -423,27 +533,49 @@ public class CryptoPrimitives implements CryptoSuite {
      * @param securityLevel currently 256 or 384
      * @throws InvalidArgumentException
      */
-    void setSecurityLevel(int securityLevel) throws InvalidArgumentException {
-        if (securityLevel != 256 && securityLevel != 384) {
-            throw new InvalidArgumentException("Illegal level: " + securityLevel + " must be either 256 or 384");
+    void setSecurityLevel(final int securityLevel) throws InvalidArgumentException {
+        logger.trace(format("setSecurityLevel to %d", securityLevel));
+
+        if (securityCurveMapping.isEmpty()) {
+            throw new InvalidArgumentException("Security curve mapping has no entries.");
         }
 
-        // TODO need to get set of supported curves from #fabric-crypto team
-        if (this.securityLevel == 256) {
-            this.curveName = "P-256";
-        } else if (this.securityLevel == 384) {
-            this.curveName = "secp384r1";
+        if (!securityCurveMapping.containsKey(securityLevel)) {
+            StringBuilder sb = new StringBuilder();
+            String sp = "";
+            for (int x : securityCurveMapping.keySet()) {
+                sb.append(sp).append(x);
+
+                sp = ", ";
+
+            }
+            throw new InvalidArgumentException(format("Illegal security level: %d. Valid values are: %s", securityLevel, sb.toString()));
+        }
+
+        curveName = securityCurveMapping.get(securityLevel);
+        logger.debug(format("Mapped curve strength %d to %s", securityLevel, curveName));
+
+        X9ECParameters params = ECNamedCurveTable.getByName(curveName);
+        //Check if can match curve name to requested strength.
+        if (params == null) {
+
+            InvalidArgumentException invalidArgumentException = new InvalidArgumentException(
+                    format("Curve %s defined for security strength %d was not found.", curveName, securityLevel));
+
+            logger.error(invalidArgumentException);
+            throw invalidArgumentException;
+
         }
     }
 
     void setHashAlgorithm(String algorithm) throws InvalidArgumentException {
-        if (Utils.isNullOrEmpty(algorithm)
-                || !(algorithm.equalsIgnoreCase("SHA2") || algorithm.equalsIgnoreCase("SHA3"))) {
+        if (isNullOrEmpty(algorithm)
+                || !("SHA2".equals(algorithm) || "SHA3".equals(algorithm))) {
             throw new InvalidArgumentException("Illegal Hash function family: "
-                    + this.hashAlgorithm + " - must be either SHA2 or SHA3");
+                    + algorithm + " - must be either SHA2 or SHA3");
         }
 
-        this.hashAlgorithm = algorithm;
+        hashAlgorithm = algorithm;
     }
 
     @Override
@@ -452,13 +584,14 @@ public class CryptoPrimitives implements CryptoSuite {
     }
 
     private KeyPair ecdsaKeyGen() throws CryptoException {
-        return generateKey("ECDSA", this.curveName);
+        return generateKey("EC", curveName);
     }
 
     private KeyPair generateKey(String encryptionName, String curveName) throws CryptoException {
         try {
             ECGenParameterSpec ecGenSpec = new ECGenParameterSpec(curveName);
-            KeyPairGenerator g = KeyPairGenerator.getInstance(encryptionName, SECURITY_PROVIDER);
+            KeyPairGenerator g = SECURITY_PROVIDER == null ? KeyPairGenerator.getInstance(encryptionName) :
+                    KeyPairGenerator.getInstance(encryptionName, SECURITY_PROVIDER);
             g.initialize(ecGenSpec, new SecureRandom());
             return g.generateKeyPair();
         } catch (Exception exp) {
@@ -473,7 +606,7 @@ public class CryptoPrimitives implements CryptoSuite {
 //    public PublicKey decodePublicKey(String data) throws CryptoException {
 //        try {
 //            logger.debug("input encoded public key: " + data);
-//            KeyFactory asymmetricKeyFactory = KeyFactory.getInstance(ASYMMETRIC_KEY_TYPE, SECURITY_PROVIDER);
+//            KeyFactory asymmetricKeyFactory = KeyFactory.getInstance(ASYMMETRIC_KEY_TYPE, SECURITY_PROVIDER_NAME);
 //            X509EncodedKeySpec pubX509 = new X509EncodedKeySpec(Hex.decode(data));
 //            return asymmetricKeyFactory.generatePublic(pubX509);
 //        } catch (Exception e) {
@@ -495,13 +628,13 @@ public class CryptoPrimitives implements CryptoSuite {
 //
 //            // Parsing public key.
 //            ECParameterSpec asymmetricKeyParams = generateECParameterSpec();
-//            KeyFactory asymmetricKeyFactory = KeyFactory.getInstance(ASYMMETRIC_KEY_TYPE, SECURITY_PROVIDER);
+//            KeyFactory asymmetricKeyFactory = KeyFactory.getInstance(ASYMMETRIC_KEY_TYPE, SECURITY_PROVIDER_NAME);
 //
 //            PublicKey ephemeralPublicKey = asymmetricKeyFactory.generatePublic(new ECPublicKeySpec(
 //                    asymmetricKeyParams.getCurve().decodePoint(ephemeralPublicKeyBytes), asymmetricKeyParams));
 //
 //            // Deriving shared secret.
-//            KeyAgreement keyAgreement = KeyAgreement.getInstance(KEY_AGREEMENT_ALGORITHM, SECURITY_PROVIDER);
+//            KeyAgreement keyAgreement = KeyAgreement.getInstance(KEY_AGREEMENT_ALGORITHM, SECURITY_PROVIDER_NAME);
 //            keyAgreement.init(keyPair.getPrivate());
 //            keyAgreement.doPhase(ephemeralPublicKey, true);
 //            byte[] sharedSecret = keyAgreement.generateSecret();
@@ -590,10 +723,7 @@ public class CryptoPrimitives implements CryptoSuite {
         try {
             final byte[] encoded = hash(data);
 
-            // char[] hexenncoded = Hex.encodeHex(encoded);
-            // encoded = new String(hexenncoded).getBytes();
-
-            X9ECParameters params = NISTNamedCurves.getByName(this.curveName);
+            X9ECParameters params = ECNamedCurveTable.getByName(curveName);
             BigInteger curveN = params.getN();
 
             ECDomainParameters ecParams = new ECDomainParameters(params.getCurve(), params.getG(), curveN,
@@ -683,7 +813,9 @@ public class CryptoPrimitives implements CryptoSuite {
 
         JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder("SHA256withECDSA");
 
-        // csBuilder.setProvider("EC");
+        if (null != SECURITY_PROVIDER) {
+            csBuilder.setProvider(SECURITY_PROVIDER);
+        }
         ContentSigner signer = csBuilder.build(pair.getPrivate());
 
         return p10Builder.build(signer);
@@ -712,7 +844,7 @@ public class CryptoPrimitives implements CryptoSuite {
 //    public PrivateKey ecdsaKeyFromPrivate(byte[] key) throws CryptoException {
 //        try {
 //            EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(key);
-//            KeyFactory generator = KeyFactory.getInstance("ECDSA", SECURITY_PROVIDER);
+//            KeyFactory generator = KeyFactory.getInstance("ECDSA", SECURITY_PROVIDER_NAME);
 //            PrivateKey privateKey = generator.generatePrivate(privateKeySpec);
 //
 //            return privateKey;
@@ -731,12 +863,24 @@ public class CryptoPrimitives implements CryptoSuite {
     }
 
     @Override
+    public CryptoSuiteFactory getCryptoSuiteFactory() {
+        return HLSDKJCryptoSuiteFactory.instance(); //Factory for this crypto suite.
+    }
+
+    final AtomicBoolean inited = new AtomicBoolean(false);
+
+    @Override
     public void init() throws CryptoException, InvalidArgumentException {
-        resetConfiguration();
+        if (inited.getAndSet(true)) {
+            throw new InvalidArgumentException("Crypto suite already initialized");
+        } else {
+            resetConfiguration();
+        }
+
     }
 
     private Digest getHashDigest() {
-        if (this.hashAlgorithm.equalsIgnoreCase("SHA3")) {
+        if ("SHA3".equals(hashAlgorithm)) {
             return new SHA3Digest();
         } else {
             // Default to SHA2
@@ -780,9 +924,9 @@ public class CryptoPrimitives implements CryptoSuite {
      */
     private void resetConfiguration() throws CryptoException, InvalidArgumentException {
 
-        this.setSecurityLevel(this.securityLevel);
+        setSecurityLevel(securityLevel);
 
-        this.setHashAlgorithm(this.hashAlgorithm);
+        setHashAlgorithm(hashAlgorithm);
 
         try {
             cf = CertificateFactory.getInstance(CERTIFICATE_FORMAT);
@@ -798,15 +942,34 @@ public class CryptoPrimitives implements CryptoSuite {
      */
     @Override
     public void setProperties(Properties properties) throws CryptoException, InvalidArgumentException {
-        if (properties != null) {
-            hashAlgorithm = Optional.ofNullable(properties.getProperty(Config.HASH_ALGORITHM)).orElse(hashAlgorithm);
-            String secLevel = Optional.ofNullable(properties.getProperty(Config.SECURITY_LEVEL)).orElse(Integer.toString(securityLevel));
-            securityLevel = Integer.parseInt(secLevel);
-            CERTIFICATE_FORMAT = Optional.ofNullable(properties.getProperty(Config.CERTIFICATE_FORMAT)).orElse(CERTIFICATE_FORMAT);
-            DEFAULT_SIGNATURE_ALGORITHM = Optional.ofNullable(properties.getProperty(Config.SIGNATURE_ALGORITHM)).orElse(DEFAULT_SIGNATURE_ALGORITHM);
-
-            resetConfiguration();
+        if (properties == null) {
+            throw new InvalidArgumentException("properties must not be null");
         }
+        //        if (properties != null) {
+        hashAlgorithm = Optional.ofNullable(properties.getProperty(Config.HASH_ALGORITHM)).orElse(hashAlgorithm);
+        String secLevel = Optional.ofNullable(properties.getProperty(Config.SECURITY_LEVEL)).orElse(Integer.toString(securityLevel));
+        securityLevel = Integer.parseInt(secLevel);
+        if (properties.containsKey(Config.SECURITY_CURVE_MAPPING)) {
+            securityCurveMapping = Config.parseSecurityCurveMappings(properties.getProperty(Config.SECURITY_CURVE_MAPPING));
+        } else {
+            securityCurveMapping = config.getSecurityCurveMapping();
+        }
+
+        final String providerName = properties.containsKey(Config.SECURITY_PROVIDER_CLASS_NAME) ?
+                properties.getProperty(Config.SECURITY_PROVIDER_CLASS_NAME) :
+                config.getSecurityProviderClassName();
+
+        try {
+            SECURITY_PROVIDER = setUpExplictProvider(providerName);
+        } catch (Exception e) {
+            throw new InvalidArgumentException(format("Getting provider for class name: %s", providerName), e);
+
+        }
+        CERTIFICATE_FORMAT = Optional.ofNullable(properties.getProperty(Config.CERTIFICATE_FORMAT)).orElse(CERTIFICATE_FORMAT);
+        DEFAULT_SIGNATURE_ALGORITHM = Optional.ofNullable(properties.getProperty(Config.SIGNATURE_ALGORITHM)).orElse(DEFAULT_SIGNATURE_ALGORITHM);
+
+        resetConfiguration();
+        //       }
     }
 
     /* (non-Javadoc)
