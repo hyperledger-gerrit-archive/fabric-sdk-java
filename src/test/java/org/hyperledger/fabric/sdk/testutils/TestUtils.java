@@ -29,9 +29,9 @@ public class TestUtils {
     /**
      * Sets the value of a field on an object
      *
-     * @param o The object that contains the field
+     * @param o         The object that contains the field
      * @param fieldName The name of the field
-     * @param value The new value
+     * @param value     The new value
      * @return The previous value of the field
      */
     public static Object setField(Object o, String fieldName, Object value) {
@@ -48,13 +48,29 @@ public class TestUtils {
     }
 
     /**
+     * Reset config.
+     */
+    public static void resetConfig() {
+
+        try {
+            final Field field = Config.class.getDeclaredField("config");
+            field.setAccessible(true);
+            field.set(Config.class, null);
+            Config.getConfig();
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot reset config", e);
+        }
+
+    }
+
+    /**
      * Sets a Config property value
-     *
+     * <p>
      * The Config instance is initialized once on startup which means that
      * its properties don't change throughout its lifetime.
      * This method allows a Config property to be changed temporarily for testing purposes
      *
-     * @param key The key of the property (eg Config.LOGGERLEVEL)
+     * @param key   The key of the property (eg Config.LOGGERLEVEL)
      * @param value The new value
      * @return The previous value
      */
@@ -78,6 +94,5 @@ public class TestUtils {
 
         return oldVal;
     }
-
 
 }

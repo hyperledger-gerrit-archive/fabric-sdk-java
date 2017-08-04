@@ -34,6 +34,7 @@ import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.User.userContextCheck;
@@ -42,7 +43,11 @@ public class HFClient {
 
     private CryptoSuite cryptoSuite;
 
+    private CryptoSuiteFactory cryptoSuiteFactory;
+
     static {
+
+        System.err.println("\n\n\nDOING INIT DOING INIT \n\n\n");
 
         if (null == System.getProperty("org.hyperledger.fabric.sdk.logGRPC")) {
             // Turn this off by default!
@@ -81,13 +86,56 @@ public class HFClient {
     }
 
     public void setCryptoSuite(CryptoSuite cryptoSuite) throws CryptoException, InvalidArgumentException {
+        if (null == cryptoSuite) {
+            throw new InvalidArgumentException("CryptoSuite paramter is null.");
+        }
         if (this.cryptoSuite != null) {
             throw new InvalidArgumentException("CryptoSuite may only be set once.");
 
         }
+        if (cryptoSuiteFactory == null) {
+            cryptoSuiteFactory = cryptoSuite.getCryptoSuiteFactory();
+        } else {
+            if (cryptoSuiteFactory != cryptoSuite.getCryptoSuiteFactory()) {
+                throw new InvalidArgumentException("CryptoSuite does not derivied from cryptosuite factory");
+            }
+        }
 
-        cryptoSuite.init();
+        //      cryptoSuite.init();
         this.cryptoSuite = cryptoSuite;
+
+    }
+
+    public void setCryptoSuiteFactory(CryptoSuiteFactory cryptoSuiteFactory) throws InvalidArgumentException {
+        if (null == cryptoSuiteFactory) {
+            throw new InvalidArgumentException("CryptoSuiteFactory may not be set to null");
+        }
+        if (this.cryptoSuiteFactory != null) {
+            throw new InvalidArgumentException("CryptoSuiteFactory has already been set.");
+        }
+        this.cryptoSuiteFactory = cryptoSuiteFactory;
+
+    }
+
+    public CryptoSuite getNewCryptoSuite(Properties properties) throws InvalidArgumentException, CryptoException {
+        if (null == properties) {
+
+            throw new InvalidArgumentException("Properties parameter may not be null.");
+
+        }
+        if (cryptoSuiteFactory == null) {
+            throw new InvalidArgumentException("Crypto suite factory not set.");
+        }
+        return cryptoSuiteFactory.getCryptoSuite(properties);
+
+    }
+
+    public CryptoSuite getNewCryptoSuite() throws InvalidArgumentException, CryptoException {
+
+        if (cryptoSuiteFactory == null) {
+            throw new InvalidArgumentException("Crypto suite factory not set.");
+        }
+        return cryptoSuiteFactory.getCryptoSuite();
 
     }
 
@@ -523,6 +571,10 @@ public class HFClient {
 
         if (null == cryptoSuite) {
             throw new InvalidArgumentException("No cryptoSuite has been set.");
+        }
+
+        if (null == cryptoSuiteFactory) {
+            throw new InvalidArgumentException("No cryptoSuiteFactory has been set.");
         }
 
         userContextCheck(userContext);
