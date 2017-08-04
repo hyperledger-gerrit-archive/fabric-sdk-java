@@ -61,13 +61,13 @@ import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.HFCAInfo;
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hyperledger.fabric.sdk.BlockInfo.EnvelopeType.TRANSACTION_ENVELOPE;
+import static org.hyperledger.fabric.sdk.testutils.TestUtils.resetConfig;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -102,7 +102,9 @@ public class End2endIT {
     @Before
     public void checkConfig() throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException, MalformedURLException, org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException {
         out("\n\n\nRUNNING: End2endIT.\n");
-        configHelper.clearConfig();
+        //   configHelper.clearConfig();
+        //   assertEquals(256, Config.getConfig().getSecurityLevel());
+        resetConfig();
         configHelper.customizeConfig();
 
         testSampleOrgs = testConfig.getIntegrationTestsSampleOrgs();
@@ -118,13 +120,6 @@ public class End2endIT {
         }
     }
 
-    @After
-    public void clearConfig() {
-        try {
-            configHelper.clearConfig();
-        } catch (Exception e) {
-        }
-    }
 
     @Test
     public void setup() {
