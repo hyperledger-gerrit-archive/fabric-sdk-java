@@ -170,7 +170,7 @@ public class CryptoPrimitivesTest {
 
 
     @Test
-    public void testGetSetProperties() {
+    public void testGetSetProperties() throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         CryptoPrimitives testCrypto = new CryptoPrimitives();
         Properties cryptoProps = testCrypto.getProperties();
         String hashAlg = config.getHashAlgorithm();
@@ -191,25 +191,25 @@ public class CryptoPrimitivesTest {
     }
 
     @Test (expected = InvalidArgumentException.class)
-    public void testSecurityLevel() throws InvalidArgumentException {
+    public void testSecurityLevel() throws InvalidArgumentException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         CryptoPrimitives testCrypto = new CryptoPrimitives();
         testCrypto.setSecurityLevel(2001);
     }
 
     @Test (expected = InvalidArgumentException.class)
-    public void testSetHashAlgorithm() throws InvalidArgumentException {
+    public void testSetHashAlgorithm() throws InvalidArgumentException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         CryptoPrimitives testCrypto = new CryptoPrimitives();
         testCrypto.setHashAlgorithm(null);
     }
 
     @Test (expected = InvalidArgumentException.class)
-    public void testSetHashAlgorithmBadArg() throws InvalidArgumentException {
+    public void testSetHashAlgorithmBadArg() throws InvalidArgumentException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         CryptoPrimitives testCrypto = new CryptoPrimitives();
         testCrypto.setHashAlgorithm("FAKE");
     }
 
     @Test
-    public void testGetTrustStore() {
+    public void testGetTrustStore() throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         // getTrustStore should have created a KeyStore if setTrustStore hasn't
         // been called
         try {
@@ -243,7 +243,7 @@ public class CryptoPrimitivesTest {
     }
 
     @Test
-    public void testSetTrustStore() {
+    public void testSetTrustStore() throws IllegalAccessException, InstantiationException, ClassNotFoundException {
 
         try {
             CryptoPrimitives myCrypto = new CryptoPrimitives();
@@ -593,7 +593,7 @@ public class CryptoPrimitivesTest {
 
     // Try to generate a key without initializing crypto
     @Test
-    public void testKeyGenBadCrypto() throws CryptoException {
+    public void testKeyGenBadCrypto() throws CryptoException, IllegalAccessException, InstantiationException, ClassNotFoundException {
 
         thrown.expect(CryptoException.class);
         thrown.expectMessage("Unable to generate");
