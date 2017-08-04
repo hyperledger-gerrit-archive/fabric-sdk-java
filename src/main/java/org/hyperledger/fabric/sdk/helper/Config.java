@@ -21,6 +21,7 @@ import java.util.Properties;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Level;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 /**
  * Config allows for a global config of the toolkit. Central location for all
@@ -37,8 +38,9 @@ public class Config {
 
     private static final String DEFAULT_CONFIG = "config.properties";
     public static final String ORG_HYPERLEDGER_FABRIC_SDK_CONFIGURATION = "org.hyperledger.fabric.sdk.configuration";
-    public static final String SECURITY_LEVEL = "org.hyperledger.fabric.sdk.security_level";
-    public static final String HASH_ALGORITHM = "org.hyperledger.fabric.sdk.hash_algorithm";
+    /**
+     * Timeout settings
+     **/
     public static final String PROPOSAL_WAIT_TIME = "org.hyperledger.fabric.sdk.proposal.wait.time";
     public static final String CHANNEL_CONFIG_WAIT_TIME = "org.hyperledger.fabric.sdk.channelconfig.wait_time";
     public static final String ORDERER_RETRY_WAIT_TIME = "org.hyperledger.fabric.sdk.orderer_retry.wait_time";
@@ -46,8 +48,15 @@ public class Config {
     public static final String EVENTHUB_CONNECTION_WAIT_TIME = "org.hyperledger.fabric.sdk.eventhub_connection.wait_time";
     public static final String PROPOSAL_CONSISTENCY_VALIDATION = "org.hyperledger.fabric.sdk.proposal.consistency_validation";
     public static final String GENESISBLOCK_WAIT_TIME = "org.hyperledger.fabric.sdk.channel.genesisblock_wait_time";
+    /**
+     * Crypto configuration settings
+     **/
+    public static final String SECURITY_LEVEL = "org.hyperledger.fabric.sdk.security_level";
+    public static final String SECURITY_PROVIDER_CLASS_NAME = "org.hyperledger.fabric.sdk.security_provider_class_name";
+    public static final String HASH_ALGORITHM = "org.hyperledger.fabric.sdk.hash_algorithm";
     public static final String ASYMMETRIC_KEY_TYPE = "org.hyperledger.fabric.sdk.crypto.asymmetric_key_type";
     public static final String KEY_AGREEMENT_ALGORITHM = "org.hyperledger.fabric.sdk.crypto.key_agreement_algorithm";
+    public static final String DEFAULT_CRYPTO_SUITE_FACTORY = "org.hyperledger.fabric.sdk.crypto.default_crypto_suite_factory";
     public static final String SYMMETRIC_KEY_TYPE = "org.hyperledger.fabric.sdk.crypto.symmetric_key_type";
     public static final String SYMMETRIC_KEY_BYTE_COUNT = "org.hyperledger.fabric.sdk.crypto.symmetric_key_byte_count";
     public static final String SYMMETRIC_ALGORITHM = "org.hyperledger.fabric.sdk.crypto.symmetric_algorithm";
@@ -89,6 +98,7 @@ public class Config {
             defaultProperty(CERTIFICATE_FORMAT, "X.509");
             defaultProperty(SIGNATURE_ALGORITHM, "SHA256withECDSA");
             defaultProperty(SECURITY_LEVEL, "256");
+            defaultProperty(SECURITY_PROVIDER_CLASS_NAME, BouncyCastleProvider.class.getName());
             defaultProperty(HASH_ALGORITHM, "SHA2");
             defaultProperty(PROPOSAL_CONSISTENCY_VALIDATION, "true");
 
@@ -102,6 +112,8 @@ public class Config {
             defaultProperty(ORDERER_RETRY_WAIT_TIME, "200");
             defaultProperty(ORDERER_WAIT_TIME, "3000");
             defaultProperty(EVENTHUB_CONNECTION_WAIT_TIME, "1000");
+            defaultProperty(DEFAULT_CRYPTO_SUITE_FACTORY, "org.hyperledger.fabric.sdk.security.HLSDKJCryptoSuiteFactory");
+            defaultProperty(SECURITY_LEVEL, "256");
 
             final String inLogLevel = sdkProperties.getProperty(LOGGERLEVEL);
 
@@ -208,6 +220,18 @@ public class Config {
     }
 
     /**
+     * Get the configured security provider.
+     * This is the security provider used for the default SDK crypto suite factory.
+     *
+     * @return the security provider.
+     */
+    public String getSecurityProviderClassName() {
+
+        return getProperty(SECURITY_PROVIDER_CLASS_NAME);
+
+    }
+
+    /**
      * Get the name of the configured hash algorithm, used for digital signatures.
      *
      * @return the hash algorithm name.
@@ -291,6 +315,10 @@ public class Config {
 
     public String getSignatureAlgorithm() {
         return getProperty(SIGNATURE_ALGORITHM);
+    }
+
+    public String getDefaultCryptoSuiteFactory() {
+        return getProperty(DEFAULT_CRYPTO_SUITE_FACTORY);
     }
 
     public int maxLogStringLength() {
