@@ -49,11 +49,11 @@ import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.testutils.TestUtils.resetConfig;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -94,8 +94,10 @@ public class End2endAndBackAgainIT {
 
         out("\n\n\nRUNNING: End2endAndBackAgainIT\n");
 
-        configHelper.clearConfig();
+        //      configHelper.clearConfig();
+        resetConfig();
         configHelper.customizeConfig();
+        //      assertEquals(256, Config.getConfig().getSecurityLevel());
 
         testSampleOrgs = testConfig.getIntegrationTestsSampleOrgs();
         //Set up hfca for each sample org
@@ -106,13 +108,13 @@ public class End2endAndBackAgainIT {
         }
     }
 
-    @After
-    public void clearConfig() {
-        try {
-            configHelper.clearConfig();
-        } catch (Exception e) {
-        }
-    }
+//    @After
+//    public void clearConfig() {
+//        try {
+// //           configHelper.clearConfig();
+//        } catch (Exception e) {
+//        }
+//    }
 
     @Test
     public void setup() {
