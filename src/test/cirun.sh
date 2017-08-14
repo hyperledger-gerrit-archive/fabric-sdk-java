@@ -17,13 +17,31 @@ export ORG_HYPERLEDGER_FABRIC_SDK_LOGLEVEL=TRACE
 export ORG_HYPERLEDGER_FABRIC_CA_SDK_LOGLEVEL=TRACE
 export ORG_HYPERLEDGER_FABRIC_SDK_LOG_EXTRALOGLEVEL=10
 
+ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION=${ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION:-}
+
+if [ "$ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION" == "1.0.0" ]; then
+export ORG_HYPERLEDGER_FABRIC_SDKTEST_ITSUITE="-Dorg.hyperledger.fabric.sdktest.ITSuite=IntegrationSuiteV1.java"
+else
+export ORG_HYPERLEDGER_FABRIC_SDKTEST_ITSUITE=""
+fi
+
 cd $WD/src/test/fixture/sdkintegration
 ./fabric.sh restart >dockerlogfile.log 2>&1 &
 cd $WD
-sleep 30
+
+i=0
+
+until [ "`docker inspect -f {{.State.Running}} peer1.org2.example.com`" == "true" ]  || [ $i -gt 32 ]; do
+   i=$((i + 1))
+   echo "Waiting.. $i"
+   sleep 10;
+done;
+
+sleep 20
+
 docker images
 docker ps -a
 export ORG_HYPERLEDGER_FABRIC_SDK_DIAGNOSTICFILEDIR=target/diagDump
-mvn clean install -DskipITs=false -Dmaven.test.failure.ignore=false javadoc:javadoc
+mvn clean install -DskipITs=false -Dmaven.test.failure.ignore=false javadoc:javadoc ${ORG_HYPERLEDGER_FABRIC_SDKTEST_ITSUITE}
 docker images
 docker ps -a
