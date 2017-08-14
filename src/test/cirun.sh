@@ -24,6 +24,6 @@ sleep 30
 docker images
 docker ps -a
 export ORG_HYPERLEDGER_FABRIC_SDK_DIAGNOSTICFILEDIR=target/diagDump
-mvn clean install -DskipITs=false -Dmaven.test.failure.ignore=false javadoc:javadoc
+mvn clean install -DskipITs=false -Dmaven.test.failure.ignore=false javadoc:javadoc ${ORG_HYPERLEDGER_FABRIC_SDKTEST_ITSUITE}
 docker images
 docker ps -a
