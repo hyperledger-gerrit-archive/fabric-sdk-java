@@ -59,6 +59,7 @@ import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
+import org.hyperledger.fabric_ca.sdk.HFCAInfo;
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.junit.After;
 import org.junit.Before;
@@ -156,9 +157,14 @@ public class End2endIT {
             for (SampleOrg sampleOrg : testSampleOrgs) {
 
                 HFCAClient ca = sampleOrg.getCAClient();
+
                 final String orgName = sampleOrg.getName();
                 final String mspid = sampleOrg.getMSPID();
                 ca.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
+
+                HFCAInfo info = ca.info(); //just check if we connect at all.
+                assertNotNull(info);
+
                 SampleUser admin = sampleStore.getMember(TEST_ADMIN_NAME, orgName);
                 if (!admin.isEnrolled()) {  //Preregistered admin only needs to be enrolled with Fabric caClient.
                     admin.setEnrollment(ca.enroll(admin.getName(), "adminpw"));
