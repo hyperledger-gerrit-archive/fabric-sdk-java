@@ -205,7 +205,7 @@ public class HFCAClientIT {
     public void testRevokeNotAuthorized() throws Exception {
 
         thrown.expect(RevocationException.class);
-        thrown.expectMessage("does not have attribute 'hf.Revoker'");
+        thrown.expectMessage("Caller does not have authority to revoke");
 
         // See if a normal user can revoke the admin...
         SampleUser user = getEnrolledUser(TEST_ADMIN_ORG);
