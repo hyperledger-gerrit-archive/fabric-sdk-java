@@ -14,6 +14,7 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -23,6 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.sdk.NetworkConfig.PeerRole;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
 
@@ -40,6 +42,9 @@ public class Peer {
     private final String url;
     private boolean shutdown = false;
     private Channel channel;
+
+    // Contains the various roles that this peer can perform
+    private HashMap<PeerRole, Boolean> roles = new HashMap<PeerRole, Boolean>();
 
     Peer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
 
@@ -117,6 +122,30 @@ public class Peer {
     public String getUrl() {
 
         return this.url;
+    }
+
+    /**
+     * Configures this peer to have or not have the specified role
+     *
+     * @param role The role to be set
+     * @param hasRole true if the peer has the role, false otherwise
+     */
+    void setRole(PeerRole role, boolean hasRole) {
+        roles.put(role, hasRole);
+    }
+
+    /**
+     * Returns whether or not this peer has the specified role.
+     * <p>
+     * By default a peer has all available roles, and hence this method will only return false
+     * if the role has explicitly been "unset"
+     *
+     * @param role The role to be checked
+     * @return true if this peer has the specified role
+     */
+    boolean hasRole(PeerRole role) {
+        Boolean b = roles.get(role);
+        return b == null ? true : b;
     }
 
     /**
