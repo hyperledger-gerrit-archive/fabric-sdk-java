@@ -14,6 +14,12 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -25,15 +31,23 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
+import javax.json.JsonReader;
+
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
+import org.hyperledger.fabric.sdk.Peer.PeerRole;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.yaml.snakeyaml.Yaml;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.User.userContextCheck;
@@ -41,6 +55,7 @@ import static org.hyperledger.fabric.sdk.User.userContextCheck;
 public class HFClient {
 
     private CryptoSuite cryptoSuite;
+    private NetworkConfig networkConfig;
 
     static {
 
@@ -91,6 +106,11 @@ public class HFClient {
 
     }
 
+
+    private void setNetworkConfig(NetworkConfig config) {
+        this.networkConfig = config;
+    }
+
     /**
      * createNewInstance create a new instance of the HFClient
      *
@@ -98,6 +118,101 @@ public class HFClient {
      */
     public static HFClient createNewInstance() {
         return new HFClient();
+    }
+
+    /**
+     * Creates a new HFClient instance configured with details supplied in a JSON or YAML file.
+     * <p>
+     * If the file's extension starts with a "y", the data is assumed to be in YAML format, otherwise
+     * it should be in JSON format
+     *
+     * @param configFile    The file containing the network configuration
+     * @return A new HFClient instance
+     * @throws InvalidArgumentException
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
+    public static HFClient loadFromConfig(File configFile) throws InvalidArgumentException, FileNotFoundException, IOException {
+
+        // Sanity check
+        if (configFile == null) {
+            throw new InvalidArgumentException("configFile must be specified");
+        }
+
+        HFClient client = null;
+
+        // Determine if this looks like a json or a yaml file
+        // If the file extension starts with a "y" then we assume yaml. Otherwise json
+        String ext = FilenameUtils.getExtension(configFile.getName());
+        if (ext.toLowerCase().startsWith("y")) {
+            // Yaml file
+            String yaml = new String(Files.readAllBytes(configFile.toPath()));
+            JsonObject json = convertYamlToJson(yaml);
+            client = loadFromConfig(json);
+
+        } else {
+            // Json file
+            InputStream stream = null;
+
+            try {
+                stream = new FileInputStream(configFile);
+                client = loadFromConfig(stream);
+
+            } finally {
+                if (stream != null) {
+                    try {
+                        stream.close();
+                    } catch (IOException e) {
+                        // Not really much we can do here!
+                        logger.error("Failed to close the stream!", e);
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+
+        return client;
+    }
+
+    /**
+     * Creates a new HFClient instance configured with details supplied in JSON format
+     *
+     * @param configStream A stream opened on a JSON file containing network configuration details
+     * @return A new HFClient instance
+     * @throws InvalidArgumentException
+     */
+    public static HFClient loadFromConfig(InputStream configStream) throws InvalidArgumentException {
+
+        // Sanity check
+        if (configStream == null) {
+            throw new InvalidArgumentException("configStream must be specified");
+        }
+
+        // Read the input stream and convert to JSON
+        JsonReader reader = Json.createReader(configStream);
+        JsonObject config = (JsonObject) reader.read();
+
+        return loadFromConfig(config);
+    }
+
+    /**
+     * Creates a new HFClient instance configured with details supplied in a JSON object
+     *
+     * @param jsonConfig JSON object containing network configuration details
+     * @return A new HFClient instance
+     * @throws InvalidArgumentException
+     */
+    public static HFClient loadFromConfig(JsonObject jsonConfig) throws InvalidArgumentException {
+
+        // Sanity check
+        if (jsonConfig == null) {
+            throw new InvalidArgumentException("jsonConfig must be specified");
+        }
+
+        HFClient client = createNewInstance();
+        NetworkConfig config = NetworkConfig.load(jsonConfig, client);
+        client.setNetworkConfig(config);
+        return client;
     }
 
     /**
@@ -219,13 +334,21 @@ public class HFClient {
 
     /**
      * getChannel by name
+     * <p>
+     * If the channel does not exist and the client was created using a Network Configuration file,
+     * the channel will be created if possible using the details from the configuration file.
      *
-     * @param name
-     * @return a channel
+     * @param name The channel name
+     * @return a channel (or null if the channel does not exist)
      */
 
     public Channel getChannel(String name) {
-        return channels.get(name);
+        Channel channel = channels.get(name);
+        if (channel == null && networkConfig != null) {
+            // Let's try to obtain one from the network config
+            channel = networkConfig.getChannel(name);
+        }
+        return channel;
     }
 
     /**
@@ -518,6 +641,32 @@ public class HFClient {
         return systemChannel.sendInstallProposal(installProposalRequest, peers);
 
     }
+
+    /**
+     * Returns a peer from the specified organization and having the desired role.
+     * <p>
+     * Note that if more than one peer matches the supplied attributes, it is arbitrary which peer will be returned.
+     *
+     * @param orgName The name of the organization (or null to use the client organization)
+     * @param role The desired role (or null for any role)
+     * @return A matching peer (or null if a suitable peer was not found)
+     */
+    public Peer getPeerFromConfig(String orgName, PeerRole role) {
+        return networkConfig.findPeerWithRole(orgName, role);
+    }
+
+    // Converts a string containing YAML to a JsonObject
+    private static JsonObject convertYamlToJson(String yamlString) {
+        Yaml yaml = new Yaml();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = (Map<String, Object>) yaml.load(yamlString);
+
+        JsonObjectBuilder builder = Json.createObjectBuilder(map);
+
+        return builder.build();
+    }
+
 
     private void clientCheck() throws InvalidArgumentException {
 

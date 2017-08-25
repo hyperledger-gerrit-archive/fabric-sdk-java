@@ -79,6 +79,7 @@ import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeQueryResponse;
 import org.hyperledger.fabric.protos.peer.Query.ChannelQueryResponse;
 import org.hyperledger.fabric.sdk.BlockEvent.TransactionEvent;
+import org.hyperledger.fabric.sdk.Peer.PeerRole;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
@@ -2135,8 +2136,10 @@ public class Channel {
      */
 
     public Collection<ProposalResponse> queryByChaincode(QueryByChaincodeRequest queryByChaincodeRequest) throws InvalidArgumentException, ProposalException {
-        return sendProposal(queryByChaincodeRequest, peers);
+        return queryByChaincode(queryByChaincodeRequest, filterPeersByRole(PeerRole.CHAINCODE_QUERY));
     }
+
+
 
     /**
      * Send Query proposal
@@ -2150,6 +2153,22 @@ public class Channel {
 
     public Collection<ProposalResponse> queryByChaincode(QueryByChaincodeRequest queryByChaincodeRequest, Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
         return sendProposal(queryByChaincodeRequest, peers);
+    }
+
+    /**
+     * Returns a collection of peers that have the specified role
+     *
+     * @param role The required role
+     * @return The peers that have the role
+     */
+    private Collection<Peer> filterPeersByRole(PeerRole role) {
+        Collection<Peer> filteredPeers = new Vector<>();
+        for (Peer peer: peers) {
+            if (peer.hasRole(role)) {
+                filteredPeers.add(peer);
+            }
+        }
+        return filteredPeers;
     }
 
     private Collection<ProposalResponse> sendProposal(TransactionRequest proposalRequest, Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
