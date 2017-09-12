@@ -65,6 +65,49 @@ Add below code in your `pom.xml` to download fabric-sdk-java-1.0.1
 
 `*************************************************`
 
+## 1.1.0-SNAPSHOT builds
+Work in progress 1.1.0 SNAPSHOT builds can be used by adding the following to your application's
+pom.xml
+```
+<dependencies>
+
+        <!-- https://mvnrepository.com/artifact/org.hyperledger.fabric-sdk-java/fabric-sdk-java -->
+        <dependency>
+            <groupId>org.hyperledger.fabric-sdk-java</groupId>
+            <artifactId>fabric-sdk-java</artifactId>
+            <version>1.1.0-SNAPSHOT</version>
+        </dependency>
+
+</dependencies>
+```
+
+Add to your maven's setting.xml typically in the .m2 directory under your home directory:
+```
+<profiles>
+      <profile>
+         <id>allow-snapshots</id>
+         <activation>
+            <activeByDefault>true</activeByDefault>
+         </activation>
+         <repositories>
+            <repository>
+               <id>snapshots-repo</id>
+               <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+               <releases>
+                  <enabled>false</enabled>
+               </releases>
+               <snapshots>
+                  <enabled>true</enabled>
+               </snapshots>
+            </repository>
+         </repositories>
+      </profile>
+</profiles>
+```
+
+
+
+
 
 ## Latest builds of Fabric and Fabric-ca v1.1.0
 
@@ -74,7 +117,7 @@ You can clone these projects by going to the [Hyperledger repository](https://ge
 
 ## Working with the Fabric Vagrant environment
 Vagrant is NOT required if your OS has Docker support and all the requirements needed to build directly in your
-environment.  For non Vagrant envrionment, the steps would be the same as below minus those parts involving Vagrant.
+environment.  For non Vagrant environment, the steps would be the same as below minus those parts involving Vagrant.
  Do the following if you want to run the Fabric components ( peer, orderer, fabric-ca ) in Vagrant:
 
   ```
@@ -261,7 +304,7 @@ your server(s) hostname(s) and port(s).
 
 ### GO Lang chaincode
 Go lang chaincode dependencies must be contained in vendor folder.
- For an explanation of this see [Vender folder explanation](https://blog.gopheracademy.com/advent-2015/vendor-folder/)
+ For an explanation of this see [Vendor folder explanation](https://blog.gopheracademy.com/advent-2015/vendor-folder/)
 
 
 ## Basic Troubleshooting
