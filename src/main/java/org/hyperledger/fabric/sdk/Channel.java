@@ -14,6 +14,9 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,7 +33,6 @@ import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -112,7 +114,8 @@ import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.getSignatureHead
  * The class representing a channel with which the client SDK interacts.
  * <p>
  */
-public class Channel {
+public class Channel implements Serializable {
+    private static final long serialVersionUID = -3266164166893832538L;
     private static final Log logger = LogFactory.getLog(Channel.class);
     private static final boolean IS_DEBUG_LEVEL = logger.isDebugEnabled();
     private static final boolean IS_TRACE_LEVEL = logger.isTraceEnabled();
@@ -129,7 +132,7 @@ public class Channel {
     private final String name;
 
     // The peers on this channel to which the client can connect
-    private final Collection<Peer> peers = new Vector<>();
+    final Collection<Peer> peers = new Vector<>();
 
     // Temporary variables to control how long to wait for deploy and invoke to complete before
     // emitting events.  This will be removed when the SDK is able to receive events from the
@@ -141,10 +144,26 @@ public class Channel {
 
     // The crypto primitives object
     //   private CryptoSuite cryptoSuite;
-    private final Collection<Orderer> orderers = new LinkedList<>();
-    HFClient client;
-    private boolean initialized = false;
-    private boolean shutdown = false;
+    final Collection<Orderer> orderers = new LinkedList<>();
+    transient HFClient client;
+    private transient boolean initialized = false;
+    private transient boolean shutdown = false;
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+
+        in.defaultReadObject();
+        initialized = false;
+        shutdown = false;
+        msps = new HashMap<>();
+        txListeners = new LinkedHashMap<>();
+        channelEventQue = new ChannelEventQue();
+        blockListeners = new LinkedHashMap<>();
+
+        for (EventHub eventHub : getEventHubs()) {
+            eventHub.setEventQue(channelEventQue);
+        }
+
+    }
 
     /**
      * Get all Event Hubs on this channel.
@@ -155,9 +174,8 @@ public class Channel {
         return Collections.unmodifiableCollection(eventHubs);
     }
 
-    private final Collection<EventHub> eventHubs = new LinkedList<>();
-    private ExecutorService executorService;
-    private Block genesisBlock;
+    final Collection<EventHub> eventHubs = new LinkedList<>();
+    private transient Block genesisBlock;
     private final boolean systemChannel;
 
     private Channel(String name, HFClient hfClient, Orderer orderer, ChannelConfiguration channelConfiguration, byte[][] signers) throws InvalidArgumentException, TransactionException {
@@ -461,8 +479,6 @@ public class Channel {
         }
         this.name = name;
         this.client = client;
-        this.executorService = client.getExecutorService();
-
         logger.debug(format("Creating channel: %s, client context %s", isSystemChannel() ? "SYSTEM_CHANNEL" : name, client.getUserContext().getName()));
 
     }
@@ -731,10 +747,10 @@ public class Channel {
      * @throws InvalidArgumentException
      * @throws CryptoException
      */
-    private void loadCACertificates() throws InvalidArgumentException, CryptoException {
+    protected void loadCACertificates() throws InvalidArgumentException, CryptoException {
         logger.debug(format("Channel %s loadCACertificates", name));
 
-        if (msps == null) {
+        if (msps == null || msps.isEmpty()) {
             throw new InvalidArgumentException("Unable to load CA certificates. Channel " + name + " does not have any MSPs.");
         }
 
@@ -822,7 +838,7 @@ public class Channel {
         return genesisBlock;
     }
 
-    private Map<String, MSP> msps = new HashMap<>();
+    private transient Map<String, MSP> msps = new HashMap<>();
 
     boolean isSystemChannel() {
         return systemChannel;
@@ -2585,7 +2601,7 @@ public class Channel {
      * A queue each eventing hub will write events to.
      */
 
-    private final ChannelEventQue channelEventQue = new ChannelEventQue();
+    private transient ChannelEventQue channelEventQue = new ChannelEventQue();
 
     class ChannelEventQue {
 
@@ -2659,7 +2675,7 @@ public class Channel {
      * Runs processing events from event hubs.
      */
 
-    Thread eventQueueThread = null;
+    transient Thread eventQueueThread = null;
 
     private void startEventQue() {
 
@@ -2667,7 +2683,7 @@ public class Channel {
             return;
         }
 
-        executorService.execute(() -> {
+        client.getExecutorService().execute(() -> {
             eventQueueThread = Thread.currentThread();
 
             while (!shutdown) {
@@ -2700,7 +2716,7 @@ public class Channel {
 
                     for (BL l : blcopy) {
                         try {
-                            executorService.execute(() -> l.listener.received(blockEvent));
+                            client.getExecutorService().execute(() -> l.listener.received(blockEvent));
                         } catch (Throwable e) { //Don't let one register stop rest.
                             logger.error("Error trying to call block listener on channel " + blockEvent.getChannelId(), e);
                         }
@@ -2717,7 +2733,7 @@ public class Channel {
 
     private static final String BLOCK_LISTENER_TAG = "BLOCK_LISTENER_HANDLE";
 
-    private final LinkedHashMap<String, BL> blockListeners = new LinkedHashMap<>();
+    private transient LinkedHashMap<String, BL> blockListeners = new LinkedHashMap<>();
 
     class BL {
 
@@ -2791,7 +2807,7 @@ public class Channel {
         });
     }
 
-    private final LinkedHashMap<String, LinkedList<TL>> txListeners = new LinkedHashMap<>();
+    private transient LinkedHashMap<String, LinkedList<TL>> txListeners = new LinkedHashMap<>();
 
     private class TL {
         final String txID;
@@ -2841,9 +2857,9 @@ public class Channel {
             }
 
             if (transactionEvent.isValid()) {
-                executorService.execute(() -> future.complete(transactionEvent));
+                client.getExecutorService().execute(() -> future.complete(transactionEvent));
             } else {
-                executorService.execute(() -> future.completeExceptionally(
+                client.getExecutorService().execute(() -> future.completeExceptionally(
                         new TransactionEventException(format("Received invalid transaction event. Transaction ID %s status %s",
                                 transactionEvent.getTransactionID(),
                                 transactionEvent.getValidationCode()),
@@ -2905,7 +2921,7 @@ public class Channel {
 
         void fire(BlockEvent blockEvent, ChaincodeEvent ce) {
 
-            executorService.execute(() -> chaincodeEventListener.received(handle, blockEvent, ce));
+            client.getExecutorService().execute(() -> chaincodeEventListener.received(handle, blockEvent, ce));
 
         }
     }
@@ -2949,7 +2965,7 @@ public class Channel {
 
     }
 
-    private String blh = null;
+    private transient String blh = null;
 
     /**
      * Unregister an existing chaincode event listener.
@@ -3063,9 +3079,6 @@ public class Channel {
 
         initialized = false;
         shutdown = true;
-
-        executorService = null;
-
         chainCodeListeners.clear();
 
         blockListeners.clear();
