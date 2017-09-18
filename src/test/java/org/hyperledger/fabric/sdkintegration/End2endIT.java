@@ -218,6 +218,7 @@ public class End2endIT {
 
             sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
             Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
+            sampleStore.saveChannel(BAR_CHANNEL_NAME, client.serializeChannel(barChannel));
             runChannel(client, barChannel, true, sampleOrg, 100); //run a newly constructed bar channel with different b value!
             //let bar channel just shutdown so we have both scenarios.
 
@@ -328,7 +329,7 @@ public class End2endIT {
 
                 Set<Peer> peersFromOrg = sampleOrg.getPeers();
                 numInstallProposal = numInstallProposal + peersFromOrg.size();
-                responses = client.sendInstallProposal(installProposalRequest, peersFromOrg);
+                responses = client.sendInstallProposal(installProposalRequest, channel.getPeers());
 
                 for (ProposalResponse response : responses) {
                     if (response.getStatus() == ProposalResponse.Status.SUCCESS) {

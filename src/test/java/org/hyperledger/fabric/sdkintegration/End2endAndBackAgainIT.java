@@ -114,6 +114,8 @@ public class End2endAndBackAgainIT {
         }
     }
 
+    SampleStore sampleStore;
+
     @Test
     public void setup() {
 
@@ -132,13 +134,13 @@ public class End2endAndBackAgainIT {
             ////////////////////////////
             //Set up USERS
 
-            //Persistence is not part of SDK. Sample file store is for demonstration purposes only!
-            //   MUST be replaced with more robust application implementation  (Database, LDAP)
+//            //Persistence is not part of SDK. Sample file store is for demonstration purposes only!
+//            //   MUST be replaced with more robust application implementation  (Database, LDAP)
             File sampleStoreFile = new File(System.getProperty("java.io.tmpdir") + "/HFCSampletest.properties");
 
-            final SampleStore sampleStore = new SampleStore(sampleStoreFile);
+            sampleStore = new SampleStore(sampleStoreFile);
 
-            //SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
+//            //SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
 
             ////////////////////////////
             // get users for all orgs
@@ -465,6 +467,17 @@ public class End2endAndBackAgainIT {
     private Channel reconstructChannel(String name, HFClient client, SampleOrg sampleOrg) throws Exception {
 
         client.setUserContext(sampleOrg.getPeerAdmin());
+
+        if (BAR_CHANNEL_NAME.equals(name)) { // bar channel was stored in samplestore.
+
+            Channel channel = sampleStore.getChannel(client, BAR_CHANNEL_NAME);
+            channel.initialize();
+            out("Getting channel %s from sample store.", BAR_CHANNEL_NAME);
+            return channel;
+
+        }
+        // foo channel do manual reconstruction.
+
         Channel newChannel = client.newChannel(name);
 
         for (String orderName : sampleOrg.getOrdererNames()) {
