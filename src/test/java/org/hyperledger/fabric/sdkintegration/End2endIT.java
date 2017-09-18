@@ -218,6 +218,10 @@ public class End2endIT {
 
             sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
             Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
+            /**
+             * sampleStore.saveChannel uses {@link Channel#serializeChannel()}
+             */
+            sampleStore.saveChannel(barChannel);
             runChannel(client, barChannel, true, sampleOrg, 100); //run a newly constructed bar channel with different b value!
             //let bar channel just shutdown so we have both scenarios.
 
