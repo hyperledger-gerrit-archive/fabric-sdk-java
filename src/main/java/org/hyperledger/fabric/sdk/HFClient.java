@@ -14,6 +14,12 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -163,6 +169,61 @@ public class HFClient {
             return newChannel;
 
         }
+
+    }
+
+    /**
+     * Deserialize a channel serialized by {@link Channel#serializeChannel()}
+     *
+     * @param file a file which contains the bytes to be deserialized.
+     * @return A Channel that has not been initialized.
+     * @throws IOException
+     * @throws ClassNotFoundException
+     * @throws InvalidArgumentException
+     */
+
+    public Channel deSerializeChannel(File file) throws IOException, ClassNotFoundException, InvalidArgumentException {
+
+        if (null == file) {
+            throw new InvalidArgumentException("File parameter may not be null");
+        }
+
+        return deSerializeChannel(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
+    }
+
+    /**
+     * Deserialize a channel serialized by {@link Channel#serializeChannel()}
+     *
+     * @param channelBytes bytes to be deserialized.
+     * @return A Channel that has not been initialized.
+     * @throws IOException
+     * @throws ClassNotFoundException
+     * @throws InvalidArgumentException
+     */
+
+    public Channel deSerializeChannel(byte[] channelBytes) throws IOException, ClassNotFoundException, InvalidArgumentException {
+
+        Channel channel;
+        ObjectInputStream in = null;
+        try {
+            in = new ObjectInputStream(new ByteArrayInputStream(channelBytes));
+            channel = (Channel) in.readObject();
+            if (null != getChannel(channel.getName())) {
+                throw new InvalidArgumentException(format("Channel %s already exists in the client", channel.getName()));
+            }
+            channel.client = this;
+        } finally {
+            try {
+                if (in != null) {
+                    in.close();
+                }
+            } catch (IOException e) {
+                // Best effort here.
+                logger.error(e);
+            }
+        }
+
+        return channel;
 
     }
 
