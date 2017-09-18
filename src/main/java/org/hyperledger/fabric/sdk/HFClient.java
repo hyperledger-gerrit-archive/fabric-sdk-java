@@ -14,6 +14,15 @@
 
 package org.hyperledger.fabric.sdk;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -163,6 +172,108 @@ public class HFClient {
             return newChannel;
 
         }
+
+    }
+
+    /**
+     * Serialize channel to a file using Java serialization.
+     * Deserialzed channel will NOT be initialized.
+     *
+     * @param channel to be serialized.
+     * @param file    file
+     * @throws IOException
+     */
+
+    public void serializeChannel(Channel channel, File file) throws IOException, InvalidArgumentException {
+
+        if (null == file) {
+            throw new InvalidArgumentException("File parameter may not be null");
+        }
+
+        Files.write(Paths.get(file.getAbsolutePath()), serializeChannel(channel),
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+
+    }
+
+    /**
+     * Serialize channel to a byte array using Java serialization.
+     * Deserialzed channel will NOT be initialized.
+     *
+     * @param channel to be serialized.
+     * @throws IOException
+     */
+    public byte[] serializeChannel(Channel channel) throws IOException, InvalidArgumentException {
+
+        if (null == channel) {
+            throw new InvalidArgumentException("Channel parameter may not be null");
+        }
+
+        if (channel.isShutdown()) {
+            throw new InvalidArgumentException(format("Channel %s has been shutdown.", channel.getName()));
+        }
+
+        ByteArrayOutputStream bai = new ByteArrayOutputStream();
+        ObjectOutputStream out = new ObjectOutputStream(bai);
+        out.writeObject(channel);
+
+        out.close();
+        return bai.toByteArray();
+
+    }
+
+    static ThreadLocal<HFClient> threadLocal = new ThreadLocal<>();
+
+    /**
+     * Deserialize a channel serialized by {@link #serializeChannel(Channel)}
+     *
+     * @param file a file which contains the bytes to be deserialize.
+     * @return A Channel that has not been initialized.
+     * @throws IOException
+     * @throws ClassNotFoundException
+     * @throws InvalidArgumentException
+     */
+
+    public Channel deSerializeChannel(File file) throws IOException, ClassNotFoundException, InvalidArgumentException {
+
+        if (null == file) {
+            throw new InvalidArgumentException("File parameter may not be null");
+        }
+
+        byte[] data = Files.readAllBytes(Paths.get(file.getAbsolutePath()));
+        return deSerializeChannel(data);
+
+    }
+
+    /**
+     * Deserialize a channel serialized by {@link #serializeChannel(Channel)}
+     *
+     * @param channelBytes bytes to be deserialize.
+     * @return A Channel that has not been initialized.
+     * @throws IOException
+     * @throws ClassNotFoundException
+     * @throws InvalidArgumentException
+     */
+
+    public Channel deSerializeChannel(byte[] channelBytes) throws IOException, ClassNotFoundException, InvalidArgumentException {
+
+        threadLocal.set(this);
+
+        Channel channel;
+        try {
+            ByteArrayInputStream fis = new ByteArrayInputStream(channelBytes);
+            ObjectInputStream in = new ObjectInputStream(fis);
+
+            channel = (Channel) in.readObject();
+            if (null != getChannel(channel.getName())) {
+                throw new InvalidArgumentException(format("Channel %s already exists in the client", channel.getName()));
+
+            }
+            in.close();
+        } finally {
+            threadLocal.remove();
+        }
+
+        return channel;
 
     }
 
