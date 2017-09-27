@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -495,9 +496,10 @@ public class End2endAndBackAgainIT {
 
             for (String peerName : sampleOrg.getPeerNames()) {
                 String peerLocation = sampleOrg.getPeerLocation(peerName);
-                Peer peer = client.newPeer(peerName, peerLocation, testConfig.getPeerProperties(peerName));
+                Properties peerProperties = testConfig.getPeerProperties(peerName);
+                peerProperties.put("org.hyperledger.fabric.sdk.peer.remove_roles", "EVENT_SOURCE");
+                Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
                 newChannel.addPeer(peer);
-                sampleOrg.addPeer(peer);
             }
 
             for (String eventHubName : sampleOrg.getEventHubNames()) {
