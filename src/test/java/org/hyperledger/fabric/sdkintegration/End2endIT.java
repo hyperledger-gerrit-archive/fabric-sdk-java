@@ -683,6 +683,7 @@ public class End2endIT {
             //Example of setting specific options on grpc's NettyChannelBuilder
             peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
             //     peerProperties.put("org.hyperledger.fabric.sdk.peer.roles", "ENDORSING_PEER:CHAINCODE_QUERY:LEDGER_QUERY");
+            peerProperties.put("org.hyperledger.fabric.sdk.peer.eventinterests", "FILTEREDBLOCK");
 
             Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
             newChannel.joinPeer(peer);
