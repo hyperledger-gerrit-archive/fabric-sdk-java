@@ -17,10 +17,12 @@ package org.hyperledger.fabric.sdkintegration;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -37,6 +39,7 @@ import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.Peer;
+import org.hyperledger.fabric.sdk.Peer.PeerRole;
 import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryByChaincodeRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
@@ -195,8 +198,6 @@ public class End2endAndBackAgainIT {
             final boolean changeContext = BAR_CHANNEL_NAME.equals(channel.getName());
 
             out("Running Channel %s with a delta %d", channelName, delta);
-            channel.setTransactionWaitTime(testConfig.getTransactionWaitTime());
-            channel.setDeployWaitTime(testConfig.getDeployWaitTime());
 
             ////////////////////////////
             // Send Query Proposal to all peers see if it's what we expect from end of End2endIT
@@ -483,6 +484,13 @@ public class End2endAndBackAgainIT {
              */
             newChannel = sampleStore.getChannel(client, name);
 
+            if (!testConfig.isRunningAgainstFabric10()) {
+                // Make sure there is one of each type peer at the very least. see End2end for how peers were constructed.
+                assertTrue(!newChannel.getPeers(EnumSet.of(PeerRole.EVENT_SOURCE)).isEmpty());
+                assertTrue(!newChannel.getPeers(PeerRole.NO_EVENT_SOURCE).isEmpty());
+
+            }
+            assertEquals(2, newChannel.getEventHubs().size());
             out("Retrieved channel %s from sample store.", name);
 
         } else {
@@ -497,15 +505,18 @@ public class End2endAndBackAgainIT {
 
             for (String peerName : sampleOrg.getPeerNames()) {
                 String peerLocation = sampleOrg.getPeerLocation(peerName);
-                Peer peer = client.newPeer(peerName, peerLocation, testConfig.getPeerProperties(peerName));
-                newChannel.addPeer(peer);
-                sampleOrg.addPeer(peer);
+                Properties peerProperties = testConfig.getPeerProperties(peerName);
+                Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
+                newChannel.addPeer(peer, testConfig.isRunningAgainstFabric10() ? PeerRole.NO_EVENT_SOURCE : PeerRole.ALL);
             }
 
-            for (String eventHubName : sampleOrg.getEventHubNames()) {
-                EventHub eventHub = client.newEventHub(eventHubName, sampleOrg.getEventHubLocation(eventHubName),
-                        testConfig.getEventHubProperties(eventHubName));
-                newChannel.addEventHub(eventHub);
+            //For testing mix it up. For v1.1 use just peer eventing service for foo channel.
+            if (testConfig.isRunningAgainstFabric10()) {
+                for (String eventHubName : sampleOrg.getEventHubNames()) {
+                    EventHub eventHub = client.newEventHub(eventHubName, sampleOrg.getEventHubLocation(eventHubName),
+                            testConfig.getEventHubProperties(eventHubName));
+                    newChannel.addEventHub(eventHub);
+                }
             }
         }
 
@@ -514,12 +525,12 @@ public class End2endAndBackAgainIT {
         assertTrue(client == TestUtils.getField(newChannel, "client"));
         assertEquals(name, newChannel.getName());
         assertEquals(2, newChannel.getPeers().size());
-        assertEquals(2, newChannel.getEventHubs().size());
         assertEquals(1, newChannel.getOrderers().size());
         assertFalse(newChannel.isShutdown());
         assertFalse(newChannel.isInitialized());
 
         newChannel.initialize();
+        assertTrue(newChannel.isInitialized());
 
         //Query the actual peer for which channels it belongs to and check it belongs to this channel
         for (Peer peer : newChannel.getPeers()) {
