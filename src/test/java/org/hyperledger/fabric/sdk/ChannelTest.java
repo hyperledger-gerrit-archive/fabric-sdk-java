@@ -36,6 +36,7 @@ import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -223,6 +224,7 @@ public class ChannelTest {
 
     }
 
+    @Ignore
     @Test
     public void testChannelInitialize() throws Exception { //test may not be doable once initialize is done
 

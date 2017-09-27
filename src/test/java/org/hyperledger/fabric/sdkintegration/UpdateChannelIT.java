@@ -20,6 +20,8 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Properties;
 import java.util.Set;
 
 import org.apache.http.HttpEntity;
@@ -77,7 +79,6 @@ public class UpdateChannelIT {
 
         testSampleOrgs = testConfig.getIntegrationTestsSampleOrgs();
     }
-
 
     @Test
     public void setup() {
@@ -232,7 +233,9 @@ public class UpdateChannelIT {
 
         for (String peerName : sampleOrg.getPeerNames()) {
             String peerLocation = sampleOrg.getPeerLocation(peerName);
-            Peer peer = client.newPeer(peerName, peerLocation, testConfig.getPeerProperties(peerName));
+            Properties peerProperties = testConfig.getPeerProperties(peerName);
+            peerProperties.put("org.hyperledger.fabric.sdk.peer.remove_roles", "EVENT_SOURCE");
+            Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
 
             //Query the actual peer for which channels it belongs to and check it belongs to this channel
             Set<String> channels = client.queryChannels(peer);
@@ -240,8 +243,9 @@ public class UpdateChannelIT {
                 throw new AssertionError(format("Peer %s does not appear to belong to channel %s", peerName, name));
             }
 
-            newChannel.addPeer(peer);
-            sampleOrg.addPeer(peer);
+            newChannel.addPeer(peer, EnumSet.of(Peer.PeerRole.CHAINCODE_QUERY,
+                    Peer.PeerRole.ENDORSING_PEER, Peer.PeerRole.LEDGER_QUERY));
+
         }
 
         for (String eventHubName : sampleOrg.getEventHubNames()) {
