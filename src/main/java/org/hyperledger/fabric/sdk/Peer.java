@@ -15,8 +15,13 @@
 package org.hyperledger.fabric.sdk;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.internal.StringUtil;
@@ -24,8 +29,10 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
+import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.helper.Utils.checkGrpcUrl;
@@ -38,11 +45,36 @@ public class Peer implements Serializable {
     private static final Log logger = LogFactory.getLog(Peer.class);
     private static final long serialVersionUID = -5273194649991828876L;
     private transient volatile EndorserClient endorserClent;
+
     private final Properties properties;
     private final String name;
     private final String url;
     private transient boolean shutdown = false;
     private Channel channel;
+    private final boolean isEventing;
+
+    // The possible roles that a peer can perform
+    // Package private for now pending further analysis on the required functionality
+    public enum PeerRole {
+        ENDORSING_PEER("endorsingPeer"),
+        CHAINCODE_QUERY("chaincodeQuery"),
+        LEDGER_QUERY("ledgerQuery"),
+        EVENT_SOURCE("eventSource");
+
+        private String propertyName;
+
+        PeerRole(String propertyName) {
+            this.propertyName = propertyName;
+        }
+
+        public String getPropertyName() {
+            return propertyName;
+        }
+    }
+
+    static final String PEER_BASE_PROPERTY_NAME = "org.hyperledger.fabric.sdk.peer.";
+
+    private Set<PeerRole> roles = EnumSet.allOf(PeerRole.class).clone();
 
     Peer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
 
@@ -60,6 +92,33 @@ public class Peer implements Serializable {
         this.name = name;
         this.properties = properties == null ? null : (Properties) properties.clone(); //keep our own copy.
 
+        if (null != properties) {
+            String role = properties.getProperty(PEER_BASE_PROPERTY_NAME + "roles");
+
+            if (role != null) {
+                roles = new HashSet<>();
+                final String[] split = role.split("[ \t]*:[ \t]*");
+                for (String r : split) {
+                    roles.add(PeerRole.valueOf(r));
+                }
+            }
+
+            role = properties.getProperty(PEER_BASE_PROPERTY_NAME + "remove_roles");
+
+            if (role != null) {
+                final String[] split = role.split("[ \t]*:[ \t]*");
+                for (String r : split) {
+                    roles.remove(PeerRole.valueOf(r));
+
+                }
+            }
+
+            if (roles.isEmpty()) {
+                throw new InvalidArgumentException(format("Peer %s must have at least one role.", name));
+            }
+        }
+
+        isEventing = hasRole(PeerRole.EVENT_SOURCE);
     }
 
     /**
@@ -79,6 +138,21 @@ public class Peer implements Serializable {
     }
 
     /**
+     * Returns whether or not this peer has the specified role.
+     * <p>
+     * By default a peer has all available roles, and hence this method will only return false
+     * if the role has explicitly been "unset"
+     *
+     * @param role The role to be checked
+     * @return true if this peer has the specified role
+     */
+    boolean hasRole(PeerRole role) {
+        return roles.contains(role);
+    }
+
+    private transient PeerEventingClient peerEventingClient;
+
+    /**
      * Set the channel the peer is on.
      *
      * @param channel
@@ -92,11 +166,28 @@ public class Peer implements Serializable {
         }
 
         this.channel = channel;
-
     }
 
     void unsetChannel() {
+
         channel = null;
+    }
+
+    ExecutorService getExecutorService() {
+        return channel.getExecutorService();
+    }
+
+    void initiateEventing(TransactionContext transactionContext) throws EventHubException, InvalidArgumentException {
+
+        if (isEventing) {
+            if (peerEventingClient == null) {
+
+                peerEventingClient = new PeerEventingClient(this, new HashSet<Channel>(Arrays.asList(new Channel[] {channel})));
+
+                peerEventingClient.connect(transactionContext);
+
+            }
+        }
 
     }
 
@@ -223,11 +314,15 @@ public class Peer implements Serializable {
 
         endorserClent = null;
 
-        if (lendorserClent == null) {
-            return;
+        if (lendorserClent != null) {
+            lendorserClent.shutdown(force);
         }
 
-        lendorserClent.shutdown(force);
+        if (null != peerEventingClient) {
+            PeerEventingClient lsEventHub = peerEventingClient;
+            peerEventingClient = null;
+            lsEventHub.shutdown();
+        }
     }
 
     @Override
