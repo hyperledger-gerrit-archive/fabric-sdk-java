@@ -15,8 +15,11 @@
 package org.hyperledger.fabric.sdk;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.internal.StringUtil;
@@ -24,8 +27,10 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
+import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
+import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.helper.Utils.checkGrpcUrl;
@@ -38,6 +43,7 @@ public class Peer implements Serializable {
     private static final Log logger = LogFactory.getLog(Peer.class);
     private static final long serialVersionUID = -5273194649991828876L;
     private transient volatile EndorserClient endorserClent;
+
     private final Properties properties;
     private final String name;
     private final String url;
@@ -78,6 +84,8 @@ public class Peer implements Serializable {
         return properties == null ? null : (Properties) properties.clone();
     }
 
+    PeerEventingClient peerEventingClient;
+
     /**
      * Set the channel the peer is on.
      *
@@ -93,10 +101,22 @@ public class Peer implements Serializable {
 
         this.channel = channel;
 
+        peerEventingClient = new PeerEventingClient(this, new HashSet<Channel>(Arrays.asList(new Channel[] {channel})));
+
     }
 
     void unsetChannel() {
+
         channel = null;
+    }
+
+    ExecutorService getExecutorService() {
+        return channel.getExecutorService();
+    }
+
+    void initiateEventing(TransactionContext transactionContext) throws EventHubException {
+
+        peerEventingClient.connect(transactionContext);
 
     }
 
@@ -223,11 +243,15 @@ public class Peer implements Serializable {
 
         endorserClent = null;
 
-        if (lendorserClent == null) {
-            return;
+        if (lendorserClent != null) {
+            lendorserClent.shutdown(force);
         }
 
-        lendorserClent.shutdown(force);
+        if (null != peerEventingClient) {
+            PeerEventingClient lsEventHub = peerEventingClient;
+            peerEventingClient = null;
+            lsEventHub.shutdown();
+        }
     }
 
     @Override
