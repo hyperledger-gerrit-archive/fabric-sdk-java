@@ -36,10 +36,11 @@ import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.hyperledger.fabric.sdk.Channel;
-import org.hyperledger.fabric.sdk.Channel.PeerOptions;
+import org.hyperledger.fabric.sdk.Channel.PeerChannelOptions;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.Peer;
+import org.hyperledger.fabric.sdk.Peer.PeerRole;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.UpdateChannelConfiguration;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
@@ -244,8 +245,9 @@ public class UpdateChannelIT {
                 throw new AssertionError(format("Peer %s does not appear to belong to channel %s", peerName, name));
             }
 
-            newChannel.addPeer(peer, PeerOptions.create().setPeerRoles(EnumSet.of(Peer.PeerRole.CHAINCODE_QUERY,
-                    Peer.PeerRole.ENDORSING_PEER, Peer.PeerRole.LEDGER_QUERY)));
+//            newChannel.addPeer(peer, PeerChannelOptions.create().setPeerRoles(EnumSet.of(PeerRole.CHAINCODE_QUERY,
+//                    PeerRole.ENDORSING_PEER, PeerRole.LEDGER_QUERY)));
+            newChannel.addPeer(peer, PeerChannelOptions.create().setPeerRoles(PeerRole.ALL).setEventTypeFilterdBlock());
 
         }
 

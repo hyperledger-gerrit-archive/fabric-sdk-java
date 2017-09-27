@@ -60,7 +60,7 @@ public class PeerEventingClient implements Serializable {
     private final String name;
     private final Properties properties;
     private final Peer peer;
-    final PeerEvents.Interest interest;
+    private final PeerEvents.Interest interest;
     private transient ManagedChannel managedChannel;
     private transient boolean connected = false;
     private transient ChannelGrpc.ChannelStub events;
@@ -73,6 +73,7 @@ public class PeerEventingClient implements Serializable {
     private transient boolean shutdown = false;
     //   private Channel channel;
     private transient TransactionContext transactionContext;
+    private Properties peerChannelOptions;
 
     /**
      * Get disconnected time.
@@ -117,7 +118,7 @@ public class PeerEventingClient implements Serializable {
 
     private Set<String> channelNames = new HashSet<>();
 
-    PeerEventingClient(Peer peer, Set<Channel> channels) throws InvalidArgumentException {
+    PeerEventingClient(Peer peer, Properties peerChannelOptions, Set<Channel> channels) throws InvalidArgumentException {
 
         // Exception e = checkGrpcUrl(grpcURL);
 //        if (e != null) {
@@ -133,23 +134,26 @@ public class PeerEventingClient implements Serializable {
         this.peer = peer;
         this.name = peer.getName();
         this.properties = peer.getProperties() == null ? null : (Properties) peer.getProperties().clone(); //keep our own copy.
+        this.peerChannelOptions = peerChannelOptions;
         for (Channel channel : channels) {
             channelNames.add(channel.getName());
         }
 
-        PeerEvents.EventType blockPreference = PeerEvents.EventType.BLOCK;
+        PeerEvents.EventType eventType;
+        switch (peerChannelOptions.getProperty("eventType")) {
 
-        if (null != properties) {
-
-            String interest = properties.getProperty(Peer.PEER_BASE_PROPERTY_NAME + "eventinterests");
-            interest = interest == null ? null : interest.trim();
-            if (interest != null && "FILTEREDBLOCK".equals(interest)) {
-                blockPreference = PeerEvents.EventType.FILTEREDBLOCK;
-            }
-
+            case "FILTEREDBLOCK":
+                eventType = PeerEvents.EventType.FILTEREDBLOCK;
+                break;
+            case "BLOCK":
+                eventType = PeerEvents.EventType.BLOCK;
+                break;
+            case "BLOCKORFILTEREDBLOCK": // fall through
+            default:
+                eventType = PeerEvents.EventType.BLOCKORFILTEREDBLOCK;
         }
 
-        interest = PeerEvents.Interest.newBuilder().setEventType(blockPreference).build();
+        interest = PeerEvents.Interest.newBuilder().setEventType(eventType).build();
 
     }
 
@@ -199,6 +203,7 @@ public class PeerEventingClient implements Serializable {
     private transient StreamObserver<PeerEvents.Event> eventStream = null; // Saved here to avoid potential garbage collection
 
     synchronized boolean connect(final TransactionContext transactionContext) throws EventHubException {
+        this.peerChannelOptions = peerChannelOptions;
         if (connected) {
             logger.warn(format("%s already connected.", toString()));
             return true;
@@ -219,7 +224,20 @@ public class PeerEventingClient implements Serializable {
 
                 logger.debug(format("Peer eventing %s got  event type: %s", PeerEventingClient.this.name, event.getEventCase().name()));
 
-                if (event.getEventCase() == PeerEvents.Event.EventCase.BLOCK) {
+//                if (event.getEventCase() == PeerEvents.Event.EventCase.FILTERED_BLOCK) {
+//
+//                    try {
+//                        final BlockEvent blockEvent = new BlockEvent(peer, event);
+//                        if (blockEvent.isFiltered()) {
+//                            TestblockWalker(blockEvent);
+//                        }
+//                    } catch (InvalidProtocolBufferException e) {
+//                        e.printStackTrace();
+//                    }
+//
+//                }
+
+                if (event.getEventCase() == PeerEvents.Event.EventCase.BLOCK || event.getEventCase() == PeerEvents.Event.EventCase.FILTERED_BLOCK) {
                     try {
                         peer.getChannel().getChannelEventQue().addBEvent(new BlockEvent(peer, event));  //add to channel queue
                     } catch (InvalidProtocolBufferException e) {
@@ -227,6 +245,33 @@ public class PeerEventingClient implements Serializable {
                         logger.error(eventHubException.getMessage());
                         threw.add(eventHubException);
                     }
+//                }
+//                if (event.getEventCase() == PeerEvents.Event.EventCase.FILTERED_BLOCK) {
+//
+//                    final PeerEvents.FilteredBlock filteredBlock = event.getFilteredBlock();
+//                    final String channelId = filteredBlock.getChannelId();
+//                    final long number = filteredBlock.getNumber();
+//                    filteredBlock.getFilteredTxCount();
+//
+//                    for (PeerEvents.FilteredTransaction transaction : filteredBlock.getFilteredTxList()) {
+//                        final ChaincodeEventOuterClass.ChaincodeEvent ccEvent = transaction.getCcEvent();
+//
+//                        final String txid = transaction.getTxid();
+//                        System.err.println("txid:" + txid);
+//                        final FabricTransaction.TxValidationCode txValidationCode = transaction.getTxValidationCode();
+//
+//                        if (transaction.hasCcEvent()) {
+//                            System.err.println("hasCC");
+//                            System.err.println("ccEvent:" + ccEvent);
+//                            final String txIdcc = ccEvent.getTxId();
+//                            System.err.println("txIdcc:" + txIdcc);
+//
+//                            final String chaincodeId = ccEvent.getChaincodeId();
+//                            System.err.println("chaincodeId:" + chaincodeId);
+//                        }
+//
+//                    }
+
                 } else if (event.getEventCase() == PeerEvents.Event.EventCase.CHANNEL_SERVICE_RESPONSE) {
 
                     PeerEvents.ChannelServiceResponse channelServiceResponse = event.getChannelServiceResponse();
@@ -477,5 +522,4 @@ public class PeerEventingClient implements Serializable {
         disconnectedHandler = newEventHubDisconnectedHandler;
         return ret;
     }
-
 }
