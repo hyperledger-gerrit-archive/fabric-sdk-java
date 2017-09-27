@@ -218,7 +218,7 @@ public class PeerEventingClient implements Serializable {
 
                 logger.debug(format("EventHub %s got  event type: %s", PeerEventingClient.this.name, event.getEventCase().name()));
 
-                if (event.getEventCase() == PeerEvents.Event.EventCase.BLOCK) {
+                if (event.getEventCase() == PeerEvents.Event.EventCase.BLOCK || event.getEventCase() == PeerEvents.Event.EventCase.FILTERED_BLOCK) {
                     try {
                         peer.getChannel().getChannelEventQue().addBEvent(new BlockEvent(peer, event));  //add to channel queue
                     } catch (InvalidProtocolBufferException e) {
@@ -226,6 +226,33 @@ public class PeerEventingClient implements Serializable {
                         logger.error(eventHubException.getMessage());
                         threw.add(eventHubException);
                     }
+//                }
+//                if (event.getEventCase() == PeerEvents.Event.EventCase.FILTERED_BLOCK) {
+//
+//                    final PeerEvents.FilteredBlock filteredBlock = event.getFilteredBlock();
+//                    final String channelId = filteredBlock.getChannelId();
+//                    final long number = filteredBlock.getNumber();
+//                    filteredBlock.getFilteredTxCount();
+//
+//                    for (PeerEvents.FilteredTransaction transaction : filteredBlock.getFilteredTxList()) {
+//                        final ChaincodeEventOuterClass.ChaincodeEvent ccEvent = transaction.getCcEvent();
+//
+//                        final String txid = transaction.getTxid();
+//                        System.err.println("txid:" + txid);
+//                        final FabricTransaction.TxValidationCode txValidationCode = transaction.getTxValidationCode();
+//
+//                        if (transaction.hasCcEvent()) {
+//                            System.err.println("hasCC");
+//                            System.err.println("ccEvent:" + ccEvent);
+//                            final String txIdcc = ccEvent.getTxId();
+//                            System.err.println("txIdcc:" + txIdcc);
+//
+//                            final String chaincodeId = ccEvent.getChaincodeId();
+//                            System.err.println("chaincodeId:" + chaincodeId);
+//                        }
+//
+//                    }
+
                 } else if (event.getEventCase() == PeerEvents.Event.EventCase.CHANNEL_SERVICE_RESPONSE) {
 
                     PeerEvents.ChannelServiceResponse channelServiceResponse = event.getChannelServiceResponse();
