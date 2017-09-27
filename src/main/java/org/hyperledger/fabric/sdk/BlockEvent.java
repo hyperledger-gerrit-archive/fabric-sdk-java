@@ -33,13 +33,24 @@ public class BlockEvent extends BlockInfo {
     /**
      * Get the Event Hub that received the event.
      *
-     * @return an Event Hub.
+     * @return an Event Hub. Maybe null if new peer eventing services is being used.
+     * @deprecated Use new peer eventing services
      */
     public EventHub getEventHub() {
         return eventHub;
     }
 
+    /**
+     * The Peer that received this event.
+     *
+     * @return Peer that received this event. Maybe null if source is legacy event hub.
+     */
+    public Peer getPeer() {
+        return peer;
+    }
+
     private final EventHub eventHub;
+    private final Peer peer;
     private final Event event;
 
     /**
@@ -62,6 +73,14 @@ public class BlockEvent extends BlockInfo {
     BlockEvent(EventHub eventHub, Event event) throws InvalidProtocolBufferException {
         super(event.getBlock());
         this.eventHub = eventHub;
+        this.peer = null;
+        this.event = event;
+    }
+
+    BlockEvent(Peer peer, Event event) throws InvalidProtocolBufferException {
+        super(event.getBlock());
+        this.peer = peer;
+        eventHub = null;
         this.event = event;
     }
 
@@ -78,12 +97,24 @@ public class BlockEvent extends BlockInfo {
         /**
          * The event hub that received this event.
          *
-         * @return
+         * @return May return null if peer eventing service detected the event.
+         * @deprecated use new peer eventing services {@link #getPeer()}
          */
 
         public EventHub getEventHub() {
 
             return BlockEvent.this.getEventHub();
+        }
+
+        /**
+         * The peer that received this event.
+         *
+         * @return May return null if deprecated eventhubs are still being used, otherwise return the peer.
+         */
+
+        public Peer getPeer() {
+
+            return BlockEvent.this.getPeer();
         }
     }
 

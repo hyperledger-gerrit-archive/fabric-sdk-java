@@ -3,12 +3,10 @@ package org.hyperledger.fabric.sdkintegration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 
@@ -28,9 +26,8 @@ import org.hyperledger.fabric_ca.sdk.HFCAClient;
 
 /**
  * Sample Organization Representation
- *
+ * <p>
  * Keeps track which resources are defined for the Organization it represents.
- *
  */
 public class SampleOrg {
     final String name;
@@ -41,13 +38,12 @@ public class SampleOrg {
     Map<String, String> peerLocations = new HashMap<>();
     Map<String, String> ordererLocations = new HashMap<>();
     Map<String, String> eventHubLocations = new HashMap<>();
-    Set<Peer> peers = new HashSet<>();
+
     private SampleUser admin;
     private String caLocation;
     private Properties caProperties = null;
 
     private SampleUser peerAdmin;
-
 
     private String domainName;
 
@@ -117,7 +113,6 @@ public class SampleOrg {
         return Collections.unmodifiableSet(peerLocations.keySet());
     }
 
-
     public Set<String> getOrdererNames() {
 
         return Collections.unmodifiableSet(ordererLocations.keySet());
@@ -158,14 +153,6 @@ public class SampleOrg {
         return Collections.unmodifiableCollection(eventHubLocations.values());
     }
 
-    public Set<Peer> getPeers() {
-        return Collections.unmodifiableSet(peers);
-    }
-
-    public void addPeer(Peer peer) {
-        peers.add(peer);
-    }
-
     public void setCAProperties(Properties caProperties) {
         this.caProperties = caProperties;
     }
@@ -173,7 +160,6 @@ public class SampleOrg {
     public Properties getCAProperties() {
         return caProperties;
     }
-
 
     public SampleUser getPeerAdmin() {
         return peerAdmin;

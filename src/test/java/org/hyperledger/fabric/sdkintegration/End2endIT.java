@@ -20,6 +20,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -38,6 +39,7 @@ import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
 import org.hyperledger.fabric.sdk.ChaincodeEvent;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.Channel;
+import org.hyperledger.fabric.sdk.Channel.PeerOptions;
 import org.hyperledger.fabric.sdk.ChannelConfiguration;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
@@ -45,6 +47,7 @@ import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.InstantiateProposalRequest;
 import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
+import org.hyperledger.fabric.sdk.Peer.PeerRole;
 import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryByChaincodeRequest;
 import org.hyperledger.fabric.sdk.SDKUtils;
@@ -254,8 +257,6 @@ public class End2endIT {
             final String channelName = channel.getName();
             boolean isFooChain = FOO_CHANNEL_NAME.equals(channelName);
             out("Running channel %s", channelName);
-            channel.setTransactionWaitTime(testConfig.getTransactionWaitTime());
-            channel.setDeployWaitTime(testConfig.getDeployWaitTime());
 
             Collection<Orderer> orderers = channel.getOrderers();
             final ChaincodeID chaincodeID;
@@ -271,11 +272,13 @@ public class End2endIT {
 
                         chaincodeEvents.add(new ChaincodeEventCapture(handle, blockEvent, chaincodeEvent));
 
+                        String es = blockEvent.getPeer() != null ? blockEvent.getPeer().getName() : blockEvent.getEventHub().getName();
+
                         out("RECEIVED Chaincode event with handle: %s, chhaincode Id: %s, chaincode event name: %s, "
                                         + "transaction id: %s, event payload: \"%s\", from eventhub: %s",
                                 handle, chaincodeEvent.getChaincodeId(),
                                 chaincodeEvent.getEventName(), chaincodeEvent.getTxId(),
-                                new String(chaincodeEvent.getPayload()), blockEvent.getEventHub().toString());
+                                new String(chaincodeEvent.getPayload()), es);
 
                     });
 
@@ -326,9 +329,9 @@ public class End2endIT {
                 //    Set<String> orgs = orgPeers.keySet();
                 //   for (SampleOrg org : testSampleOrgs) {
 
-                Set<Peer> peersFromOrg = sampleOrg.getPeers();
-                numInstallProposal = numInstallProposal + peersFromOrg.size();
-                responses = client.sendInstallProposal(installProposalRequest, peersFromOrg);
+                Collection<Peer> peers = channel.getPeers();
+                numInstallProposal = numInstallProposal + peers.size();
+                responses = client.sendInstallProposal(installProposalRequest, peers);
 
                 for (ProposalResponse response : responses) {
                     if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
@@ -555,7 +558,7 @@ public class End2endIT {
 
             // We can only send channel queries to peers that are in the same org as the SDK user context
             // Get the peers from the current org being used and pick one randomly to send the queries to.
-            Set<Peer> peerSet = sampleOrg.getPeers();
+            //  Set<Peer> peerSet = sampleOrg.getPeers();
             //  Peer queryPeer = peerSet.iterator().next();
             //   out("Using peer %s for channel queries", queryPeer.getName());
 
@@ -596,17 +599,18 @@ public class End2endIT {
                 channel.unregisterChaincodeEventListener(chaincodeEventListenerHandle);
                 //Should be two. One event in chaincode and two notification for each of the two event hubs
 
-                final int numberEventHubs = channel.getEventHubs().size();
+                final int numberEventsExpected = channel.getEventHubs().size() +
+                        channel.getPeers(EnumSet.of(PeerRole.EVENT_SOURCE)).size();
                 //just make sure we get the notifications.
                 for (int i = 15; i > 0; --i) {
-                    if (chaincodeEvents.size() == numberEventHubs) {
+                    if (chaincodeEvents.size() == numberEventsExpected) {
                         break;
                     } else {
                         Thread.sleep(90); // wait for the events.
                     }
 
                 }
-                assertEquals(numberEventHubs, chaincodeEvents.size());
+                assertEquals(numberEventsExpected, chaincodeEvents.size());
 
                 for (ChaincodeEventCapture chaincodeEventCapture : chaincodeEvents) {
                     assertEquals(chaincodeEventListenerHandle, chaincodeEventCapture.handle);
@@ -617,7 +621,7 @@ public class End2endIT {
 
                     BlockEvent blockEvent = chaincodeEventCapture.blockEvent;
                     assertEquals(channelName, blockEvent.getChannelId());
-                    assertTrue(channel.getEventHubs().contains(blockEvent.getEventHub()));
+                    //   assertTrue(channel.getEventHubs().contains(blockEvent.getEventHub()));
 
                 }
 
@@ -641,6 +645,8 @@ public class End2endIT {
         //
 
         out("Constructing channel %s", name);
+
+        boolean doPeerEventing = !testConfig.isRunningAgainstFabric10() && BAR_CHANNEL_NAME.equals(name);
 
         //Only peer Admin org
         client.setUserContext(sampleOrg.getPeerAdmin());
@@ -673,6 +679,7 @@ public class End2endIT {
 
         out("Created channel %s", name);
 
+        boolean everyother = true;
         for (String peerName : sampleOrg.getPeerNames()) {
             String peerLocation = sampleOrg.getPeerLocation(peerName);
 
@@ -682,11 +689,24 @@ public class End2endIT {
             }
             //Example of setting specific options on grpc's NettyChannelBuilder
             peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
+            //     peerProperties.put("org.hyperledger.fabric.sdk.peer.roles", "ENDORSING_PEER:CHAINCODE_QUERY:LEDGER_QUERY");
 
             Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
-            newChannel.joinPeer(peer);
+            if (doPeerEventing && everyother) {
+                newChannel.joinPeer(peer); //Default is all roles.
+            } else {
+                newChannel.joinPeer(peer, PeerOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
+            }
+
             out("Peer %s joined channel %s", peerName, name);
-            sampleOrg.addPeer(peer);
+            everyother = !everyother;
+        }
+        //just for testing ...
+        if (doPeerEventing) {
+            // Make sure there is one of each type peer at the very least.
+            assertTrue(!newChannel.getPeers(EnumSet.of(PeerRole.EVENT_SOURCE)).isEmpty());
+            assertTrue(!newChannel.getPeers(PeerRole.NO_EVENT_SOURCE).isEmpty());
+
         }
 
         for (Orderer orderer : orderers) { //add remaining orderers if any.
