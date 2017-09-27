@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.hyperledger.fabric.protos.common.Common.Block;
+import org.hyperledger.fabric.protos.peer.PeerEvents;
 import org.hyperledger.fabric.protos.peer.PeerEvents.Event;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
 
@@ -78,7 +79,7 @@ public class BlockEvent extends BlockInfo {
     }
 
     BlockEvent(Peer peer, Event event) throws InvalidProtocolBufferException {
-        super(event.getBlock());
+        super(event);
         this.peer = peer;
         eventHub = null;
         this.event = event;
@@ -86,12 +87,17 @@ public class BlockEvent extends BlockInfo {
 
     TransactionEvent getTransactionEvent(int index) throws InvalidProtocolBufferException {
 
-        return new TransactionEvent((TransactionEnvelopeInfo) getEnvelopeInfo(index), index);
+        return isFiltered() ? new TransactionEvent(getEnvelopeInfo(index).filteredTx) :
+                new TransactionEvent((TransactionEnvelopeInfo) getEnvelopeInfo(index));
     }
 
     public class TransactionEvent extends TransactionEnvelopeInfo {
-        TransactionEvent(TransactionEnvelopeInfo transactionEnvelopeInfo, int index) {
-            super(transactionEnvelopeInfo.getTransactionDeserializer(), index);
+        TransactionEvent(TransactionEnvelopeInfo transactionEnvelopeInfo) {
+            super(transactionEnvelopeInfo.getTransactionDeserializer());
+        }
+
+        TransactionEvent(PeerEvents.FilteredTransaction filteredTransaction) {
+            super(filteredTransaction);
         }
 
         /**
