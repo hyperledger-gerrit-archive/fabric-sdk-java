@@ -69,7 +69,7 @@ public class PeerEventingClient implements Serializable {
     private final String name;
     private final Properties properties;
     private final Peer peer;
-    final PeerEvents.Interest interest;
+    private final PeerEvents.Interest interest;
     private transient ManagedChannel managedChannel;
     private transient boolean connected = false;
     private transient ChannelGrpc.ChannelStub events;
@@ -83,6 +83,7 @@ public class PeerEventingClient implements Serializable {
     private transient boolean shutdown = false;
     //   private Channel channel;
     private transient TransactionContext transactionContext;
+    private Properties peerChannelOptions;
 
     /**
      * Get disconnected time.
@@ -127,29 +128,32 @@ public class PeerEventingClient implements Serializable {
 
     private Set<String> channelNames = new HashSet<>();
 
-    PeerEventingClient(Peer peer, Set<Channel> channels) throws InvalidArgumentException {
+    PeerEventingClient(Peer peer, Properties peerChannelOptions, Set<Channel> channels) throws InvalidArgumentException {
 
         this.url = peer.getUrl();
         this.peer = peer;
         this.name = peer.getName();
         this.properties = peer.getProperties() == null ? null : (Properties) peer.getProperties().clone(); //keep our own copy.
+        this.peerChannelOptions = peerChannelOptions;
         for (Channel channel : channels) {
             channelNames.add(channel.getName());
         }
 
-        PeerEvents.EventType blockPreference = PeerEvents.EventType.BLOCK;
+        PeerEvents.EventType eventType;
+        switch (peerChannelOptions.getProperty("eventType")) {
 
-        if (null != properties) {
-
-            String interest = properties.getProperty(Peer.PEER_BASE_PROPERTY_NAME + "eventinterests");
-            interest = interest == null ? null : interest.trim();
-            if (interest != null && "FILTEREDBLOCK".equals(interest)) {
-                blockPreference = PeerEvents.EventType.FILTEREDBLOCK;
+            case "FILTEREDBLOCK":
+                eventType = PeerEvents.EventType.FILTEREDBLOCK;
+                break;
+            case "BLOCK":
+                eventType = PeerEvents.EventType.BLOCK;
+                break;
+            case "BLOCKORFILTEREDBLOCK": // fall through
+            default:
+                eventType = PeerEvents.EventType.BLOCKORFILTEREDBLOCK;
             }
 
-        }
-
-        interest = PeerEvents.Interest.newBuilder().setEventType(blockPreference).build();
+        interest = PeerEvents.Interest.newBuilder().setEventType(eventType).build();
 
     }
 
