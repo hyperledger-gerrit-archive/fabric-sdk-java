@@ -78,7 +78,7 @@ public class BlockEvent extends BlockInfo {
     }
 
     BlockEvent(Peer peer, Event event) throws InvalidProtocolBufferException {
-        super(event.getBlock());
+        super(event);
         this.peer = peer;
         eventHub = null;
         this.event = event;
@@ -86,12 +86,12 @@ public class BlockEvent extends BlockInfo {
 
     TransactionEvent getTransactionEvent(int index) throws InvalidProtocolBufferException {
 
-        return new TransactionEvent((TransactionEnvelopeInfo) getEnvelopeInfo(index), index);
+        return new TransactionEvent((TransactionEnvelopeInfo) getEnvelopeInfo(index));
     }
 
     public class TransactionEvent extends TransactionEnvelopeInfo {
-        TransactionEvent(TransactionEnvelopeInfo transactionEnvelopeInfo, int index) {
-            super(transactionEnvelopeInfo.getTransactionDeserializer(), index);
+        TransactionEvent(TransactionEnvelopeInfo transactionEnvelopeInfo) {
+            super(transactionEnvelopeInfo.getTransactionDeserializer());
         }
 
         /**

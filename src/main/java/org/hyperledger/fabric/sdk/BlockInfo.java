@@ -20,9 +20,13 @@ import java.util.List;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.ledger.rwset.Rwset.TxReadWriteSet;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
+import org.hyperledger.fabric.protos.peer.FabricTransaction;
+import org.hyperledger.fabric.protos.peer.PeerEvents;
+import org.hyperledger.fabric.protos.peer.PeerEvents.FilteredTransaction;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
 import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 
@@ -34,27 +38,45 @@ import static org.hyperledger.fabric.protos.peer.FabricProposalResponse.Endorsem
 public class BlockInfo {
     private final BlockDeserializer block;
 
+    private final PeerEvents.FilteredBlock filteredBlock;
+
     BlockInfo(Block block) {
+
+        filteredBlock = null;
         this.block = new BlockDeserializer(block);
+    }
+
+    BlockInfo(PeerEvents.Event event) {
+        if (event.getEventCase() == PeerEvents.Event.EventCase.FILTERED_BLOCK) {
+            block = null;
+            filteredBlock = event.getFilteredBlock();
+        } else {
+            this.block = new BlockDeserializer(event.getBlock());
+            filteredBlock = null;
+        }
+    }
+
+    public boolean isFilteredBlock() {
+        return filteredBlock != null;
     }
 
     public String getChannelId() throws InvalidProtocolBufferException {
 
-        return getEnvelopeInfo(0).getChannelId();
+        return isFilteredBlock() ? filteredBlock.getChannelId() : getEnvelopeInfo(0).getChannelId();
     }
 
     /**
      * @return the raw {@link Block}
      */
     public Block getBlock() {
-        return block.getBlock();
+        return isFilteredBlock() ? null : block.getBlock();
     }
 
     /**
      * @return the {@link Block} previousHash value
      */
     public byte[] getPreviousHash() {
-        return block.getPreviousHash().toByteArray();
+        return isFilteredBlock() ? null : block.getPreviousHash().toByteArray();
     }
 
     /**
@@ -62,7 +84,7 @@ public class BlockInfo {
      */
     public byte[] getDataHash() {
 
-        return block.getDataHash().toByteArray();
+        return isFilteredBlock() ? null : block.getDataHash().toByteArray();
     }
 
     /**
@@ -70,14 +92,14 @@ public class BlockInfo {
      */
     public byte[] getTransActionsMetaData() {
 
-        return block.getTransActionsMetaData();
+        return isFilteredBlock() ? null : block.getTransActionsMetaData();
     }
 
     /**
      * @return the {@link Block} index number
      */
     public long getBlockNumber() {
-        return block.getNumber();
+        return isFilteredBlock() ? filteredBlock.getNumber() : block.getNumber();
     }
 
     /**
@@ -87,59 +109,90 @@ public class BlockInfo {
      */
 
     public int getEnvelopeCount() {
-        return block.getData().getDataCount();
+        return isFilteredBlock() ? filteredBlock.getFilteredTxCount() : block.getData().getDataCount();
     }
 
     public class EnvelopeInfo {
         private final EnvelopeDeserializer envelopeDeserializer;
-        HeaderDeserializer headerDeserializer;
+        private final HeaderDeserializer headerDeserializer;
+        protected final FilteredTransaction filteredTx;
+
+        boolean isFiltered() {
+            return filteredTx != null;
+
+        }
 
         //private final EnvelopeDeserializer envelopeDeserializer;
 
-        EnvelopeInfo(EnvelopeDeserializer envelopeDeserializer, int blockIndex) {
+        EnvelopeInfo(EnvelopeDeserializer envelopeDeserializer) {
             this.envelopeDeserializer = envelopeDeserializer;
             headerDeserializer = envelopeDeserializer.getPayload().getHeader();
-            headerDeserializer.getChannelHeader().getType();
+            filteredTx = null;
+        }
+
+        public EnvelopeInfo(FilteredTransaction filteredTx) {
+            this.filteredTx = filteredTx;
+            envelopeDeserializer = null;
+            headerDeserializer = null;
+
         }
 
         public String getChannelId() {
 
-            return headerDeserializer.getChannelHeader().getChannelId();
+            return isFilteredBlock() ? filteredBlock.getChannelId() : headerDeserializer.getChannelHeader().getChannelId();
         }
 
         public String getTransactionID() {
 
-            return headerDeserializer.getChannelHeader().getTxId();
+            return isFilteredBlock() ? filteredTx.getTxid() : headerDeserializer.getChannelHeader().getTxId();
         }
 
         public long getEpoch() {
 
-            return headerDeserializer.getChannelHeader().getEpoch();
+            return isFilteredBlock() ? -1 : headerDeserializer.getChannelHeader().getEpoch();
         }
 
         public Date getTimestamp() {
 
-            return ProtoUtils.getDateFromTimestamp(headerDeserializer.getChannelHeader().getTimestamp());
+            return isFilteredBlock() ? null :
+                    ProtoUtils.getDateFromTimestamp(headerDeserializer.getChannelHeader().getTimestamp());
         }
 
         /**
          * @return whether this Transaction is marked as TxValidationCode.VALID
          */
         public boolean isValid() {
-            return envelopeDeserializer.isValid();
+            return isFilteredBlock() ? filteredTx.getTxValidationCode().getNumber() == FabricTransaction.TxValidationCode.VALID_VALUE
+                    : envelopeDeserializer.isValid();
         }
 
         /**
          * @return the validation code of this Transaction (enumeration TxValidationCode in Transaction.proto)
          */
         public byte getValidationCode() {
+            if (isFilteredBlock()) {
+
+                return (byte) filteredTx.getTxValidationCode().getNumber();
+
+            }
             return envelopeDeserializer.validationCode();
         }
 
         public EnvelopeType getType() {
 
-            switch (headerDeserializer.getChannelHeader().getType()) {
-                case 3:
+            final int type;
+
+            if (isFilteredBlock()) {
+
+                type = filteredBlock.getType().getNumber();
+
+            } else {
+                type = headerDeserializer.getChannelHeader().getType();
+
+            }
+
+            switch (type) {
+                case Common.HeaderType.ENDORSER_TRANSACTION_VALUE:
                     return EnvelopeType.TRANSACTION_ENVELOPE;
 
                 default:
@@ -164,18 +217,34 @@ public class BlockInfo {
 
             EnvelopeInfo ret;
 
-            EnvelopeDeserializer ed = EnvelopeDeserializer.newInstance(block.getBlock().getData().getData(envelopeIndex), block.getTransActionsMetaData()[envelopeIndex]);
+            if (isFilteredBlock()) {
 
-            switch (ed.getType()) {
-                case 3:
-                    ret = new TransactionEnvelopeInfo((EndorserTransactionEnvDeserializer) ed, envelopeIndex);
-                    break;
-                default: //just assume base properties.
-                    ret = new EnvelopeInfo(ed, envelopeIndex);
-                    break;
+                switch (filteredBlock.getType().getNumber()) {
+                    case Common.HeaderType.ENDORSER_TRANSACTION_VALUE:
+                        ret = new TransactionEnvelopeInfo(this.filteredBlock.getFilteredTx(envelopeIndex));
+                        break;
+                    default: //just assume base properties.
+                        ret = new EnvelopeInfo(this.filteredBlock.getFilteredTx(envelopeIndex));
+                        break;
+                }
 
+                return ret;
+
+            } else {
+
+                EnvelopeDeserializer ed = EnvelopeDeserializer.newInstance(block.getBlock().getData().getData(envelopeIndex), block.getTransActionsMetaData()[envelopeIndex]);
+
+                switch (ed.getType()) {
+                    case Common.HeaderType.ENDORSER_TRANSACTION_VALUE:
+                        ret = new TransactionEnvelopeInfo((EndorserTransactionEnvDeserializer) ed);
+                        break;
+                    default: //just assume base properties.
+                        ret = new EnvelopeInfo(ed);
+                        break;
+
+                }
+                return ret;
             }
-            return ret;
 
         } catch (InvalidProtocolBufferRuntimeException e) {
             throw e.getCause();
@@ -196,22 +265,25 @@ public class BlockInfo {
 
     public class TransactionEnvelopeInfo extends EnvelopeInfo {
 
+        public TransactionEnvelopeInfo(FilteredTransaction filteredTx) {
+            super(filteredTx);
+            this.transactionDeserializer = null;
+        }
+
         EndorserTransactionEnvDeserializer getTransactionDeserializer() {
             return transactionDeserializer;
         }
 
         protected final EndorserTransactionEnvDeserializer transactionDeserializer;
 
-        public TransactionEnvelopeInfo(EndorserTransactionEnvDeserializer transactionDeserializer, int blockIndex) {
-            super(transactionDeserializer, blockIndex);
+        public TransactionEnvelopeInfo(EndorserTransactionEnvDeserializer transactionDeserializer) {
+            super(transactionDeserializer);
 
             this.transactionDeserializer = transactionDeserializer;
-            this.headerDeserializer = transactionDeserializer.getPayload().getHeader();
-
         }
 
         public int getTransactionActionInfoCount() {
-            return transactionDeserializer.getPayload().getTransaction().getActionsCount();
+            return isFilteredBlock() ? filteredTx.getFilteredActionCount() : transactionDeserializer.getPayload().getTransaction().getActionsCount();
         }
 
         public Iterable<TransactionActionInfo> getTransactionActionInfos() {
@@ -222,28 +294,45 @@ public class BlockInfo {
         public class TransactionActionInfo {
 
             private final TransactionActionDeserializer transactionAction;
+            private final PeerEvents.FilteredAction filteredAction;
             List<EndorserInfo> endorserInfos = null;
+
+            private boolean isFiltered() {
+                return filteredAction != null;
+
+            }
 
             TransactionActionInfo(TransactionActionDeserializer transactionAction) {
 
                 this.transactionAction = transactionAction;
+                filteredAction = null;
+            }
+
+            public TransactionActionInfo(PeerEvents.FilteredAction filteredAction) {
+                this.filteredAction = filteredAction;
+                transactionAction = null;
+
             }
 
             public byte[] getResponseMessageBytes() {
-                return transactionAction.getPayload().getAction().getProposalResponsePayload().getExtension().getResponseMessageBytes();
+                return isFiltered() ? null : transactionAction.getPayload().getAction().getProposalResponsePayload().getExtension().getResponseMessageBytes();
             }
 
             public String getResponseMessage() {
-                return transactionAction.getPayload().getAction().getProposalResponsePayload().getExtension().getResponseMessage();
+                return isFiltered() ? null :
+                        transactionAction.getPayload().getAction().getProposalResponsePayload().getExtension().getResponseMessage();
             }
 
             public int getResponseStatus() {
-                return transactionAction.getPayload().getAction().getProposalResponsePayload().getExtension().getResponseStatus();
+                return isFiltered() ? -1 : transactionAction.getPayload().getAction().getProposalResponsePayload().getExtension().getResponseStatus();
             }
 
             int getChaincodeInputArgsCount = -1;
 
             public int getChaincodeInputArgsCount() {
+                if (isFiltered()) {
+                    return 0;
+                }
                 if (getChaincodeInputArgsCount < 0) {
                     getChaincodeInputArgsCount = transactionAction.getPayload().getChaincodeProposalPayload().
                             getChaincodeInvocationSpec().getChaincodeInput().getChaincodeInput().getArgsCount();
@@ -252,6 +341,9 @@ public class BlockInfo {
             }
 
             public byte[] getChaincodeInputArgs(int index) {
+                if (isFiltered()) {
+                    return null;
+                }
 
                 ChaincodeInput input = transactionAction.getPayload().getChaincodeProposalPayload().
                         getChaincodeInvocationSpec().getChaincodeInput().getChaincodeInput();
@@ -262,6 +354,9 @@ public class BlockInfo {
             int getEndorsementsCount = -1;
 
             public int getEndorsementsCount() {
+                if (isFiltered()) {
+                    return 0;
+                }
                 if (getEndorsementsCount < 0) {
                     getEndorsementsCount = transactionAction.getPayload().getAction().getEndorsementsCount();
                 }
@@ -269,6 +364,9 @@ public class BlockInfo {
             }
 
             public EndorserInfo getEndorsementInfo(int index) {
+                if (isFiltered()) {
+                    return null;
+                }
                 if (null == endorserInfos) {
                     endorserInfos = new ArrayList<>();
 
@@ -284,12 +382,18 @@ public class BlockInfo {
             }
 
             public byte[] getProposalResponseMessageBytes() {
+                if (isFiltered()) {
+                    return null;
+                }
 
                 return transactionAction.getPayload().getAction().getProposalResponsePayload().getExtension().getResponseMessageBytes();
 
             }
 
             public byte[] getProposalResponsePayload() {
+                if (isFiltered()) {
+                    return null;
+                }
                 byte[] ret = null;
 
                 ByteString retByteString = transactionAction.getPayload().getAction().getProposalResponsePayload().
@@ -303,6 +407,9 @@ public class BlockInfo {
             }
 
             public int getProposalResponseStatus() {
+                if (isFiltered()) {
+                    return -1;
+                }
 
                 return transactionAction.getPayload().getAction().getProposalResponsePayload().
                         getExtension().getResponseStatus();
@@ -318,13 +425,19 @@ public class BlockInfo {
 
             public TxReadWriteSetInfo getTxReadWriteSet() {
 
-                TxReadWriteSet txReadWriteSet = transactionAction.getPayload().getAction().getProposalResponsePayload()
-                        .getExtension().getResults();
-                if (txReadWriteSet == null) {
+                if (isFilteredBlock()) {
                     return null;
-                }
 
-                return new TxReadWriteSetInfo(txReadWriteSet);
+                } else {
+
+                    TxReadWriteSet txReadWriteSet = transactionAction.getPayload().getAction().getProposalResponsePayload()
+                            .getExtension().getResults();
+                    if (txReadWriteSet == null) {
+                        return null;
+                    }
+
+                    return new TxReadWriteSetInfo(txReadWriteSet);
+                }
 
             }
 
@@ -335,6 +448,9 @@ public class BlockInfo {
              */
 
             public ChaincodeEvent getEvent() {
+                if (isFiltered()) {
+                    return new ChaincodeEvent(filteredAction.getCcEvent().toByteString());
+                }
 
                 return transactionAction.getPayload().getAction().getProposalResponsePayload()
                         .getExtension().getEvent();
@@ -344,7 +460,8 @@ public class BlockInfo {
         }
 
         public TransactionActionInfo getTransactionActionInfo(int index) {
-            return new TransactionActionInfo(transactionDeserializer.getPayload().getTransaction().getTransactionAction(index));
+            return isFilteredBlock() ? new TransactionActionInfo(filteredTx.getFilteredAction(index))
+                    : new TransactionActionInfo(transactionDeserializer.getPayload().getTransaction().getTransactionAction(index));
         }
 
         public class TransactionActionInfoIterator implements Iterator<TransactionActionInfo> {
@@ -365,7 +482,8 @@ public class BlockInfo {
             @Override
             public TransactionActionInfo next() {
 
-                return getTransactionActionInfo(ci++);
+                return isFilteredBlock() ? new TransactionActionInfo(filteredTx.getFilteredAction(ci++))
+                        : getTransactionActionInfo(ci++);
 
             }
         }
@@ -377,7 +495,6 @@ public class BlockInfo {
                 return new TransactionActionInfoIterator();
             }
         }
-
     }
 
     class EnvelopeInfoIterator implements Iterator<EnvelopeInfo> {
@@ -385,7 +502,7 @@ public class BlockInfo {
         final int max;
 
         EnvelopeInfoIterator() {
-            max = block.getData().getDataCount();
+            max = isFilteredBlock() ? filteredBlock.getFilteredTxCount() : block.getData().getDataCount();
 
         }
 
