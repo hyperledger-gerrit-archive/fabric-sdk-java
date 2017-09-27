@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -195,8 +196,6 @@ public class End2endAndBackAgainIT {
             final boolean changeContext = BAR_CHANNEL_NAME.equals(channel.getName());
 
             out("Running Channel %s with a delta %d", channelName, delta);
-            channel.setTransactionWaitTime(testConfig.getTransactionWaitTime());
-            channel.setDeployWaitTime(testConfig.getDeployWaitTime());
 
             ////////////////////////////
             // Send Query Proposal to all peers see if it's what we expect from end of End2endIT
@@ -497,9 +496,10 @@ public class End2endAndBackAgainIT {
 
             for (String peerName : sampleOrg.getPeerNames()) {
                 String peerLocation = sampleOrg.getPeerLocation(peerName);
-                Peer peer = client.newPeer(peerName, peerLocation, testConfig.getPeerProperties(peerName));
+                Properties peerProperties = testConfig.getPeerProperties(peerName);
+                //peerProperties.put("org.hyperledger.fabric.sdk.peer.remove_roles", "EVENT_SOURCE");
+                Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
                 newChannel.addPeer(peer);
-                sampleOrg.addPeer(peer);
             }
 
             for (String eventHubName : sampleOrg.getEventHubNames()) {

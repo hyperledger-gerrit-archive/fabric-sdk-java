@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,8 +40,11 @@ import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -139,11 +143,7 @@ public class Channel implements Serializable {
 
     // The peers on this channel to which the client can connect
     final Collection<Peer> peers = new Vector<>();
-
-    // Temporary variables to control how long to wait for deploy and invoke to complete before
-    // emitting events.  This will be removed when the SDK is able to receive events from the
-    private int deployWaitTime = 20;
-    private int transactionWaitTime = 5;
+    final Set<Peer> eventingPeers = Collections.synchronizedSet(new HashSet<>());
 
     // contains the anchor peers parsed from the channel's configBlock
 //    private Set<Anchor> anchorPeers;
@@ -515,10 +515,19 @@ public class Channel implements Serializable {
             throw new InvalidArgumentException("Peer is invalid can not be null.");
         }
 
+        if (peer.getChannel() != null && peer.getChannel() != this) {
+            throw new InvalidArgumentException(format("Peer already connected to channel %s", peer.getChannel().getName()));
+        }
+
         peer.setChannel(this);
 
-        peers.add(peer);
+        if (!peers.contains(peer)) {
+            peers.add(peer);
+        }
 
+        if (peer.hasRole(Peer.PeerRole.EVENT_SOURCE)) {
+            eventingPeers.add(peer);
+        }
         return this;
     }
 
@@ -568,25 +577,28 @@ public class Channel implements Serializable {
             if (pro.getStatus() == ProposalResponse.Status.SUCCESS) {
                 logger.info(format("Peer %s joined into channel %s", peer.getName(), name));
             } else {
-                peers.remove(peer);
-                peer.unsetChannel();
+                removePeer(peer);
                 throw new ProposalException(format("Join peer to channel %s failed.  Status %s, details: %s",
                         name, pro.getStatus().toString(), pro.getMessage()));
 
             }
         } catch (ProposalException e) {
-            peers.remove(peer);
-            peer.unsetChannel();
+            removePeer(peer);
             logger.error(e);
             throw e;
         } catch (Exception e) {
             peers.remove(peer);
-            peer.unsetChannel();
             logger.error(e);
             throw new ProposalException(e.getMessage(), e);
         }
 
         return this;
+    }
+
+    private void removePeer(Peer peer) {
+        peers.remove(peer);
+        eventingPeers.remove(peer);
+        peer.unsetChannel();
     }
 
     /**
@@ -649,43 +661,6 @@ public class Channel implements Serializable {
     }
 
     /**
-     * Get the deploy wait time in seconds.
-     *
-     * @return number of seconds.
-     */
-    public int getDeployWaitTime() {
-        return deployWaitTime;
-    }
-
-    /**
-     * Set the deploy wait time in seconds.
-     *
-     * @param waitTime Deploy wait time
-     */
-    public void setDeployWaitTime(int waitTime) {
-        this.deployWaitTime = waitTime;
-    }
-
-    /**
-     * Get the transaction wait time in seconds
-     *
-     * @return transaction wait time
-     */
-    public int getTransactionWaitTime() {
-        return this.transactionWaitTime;
-    }
-
-    /**
-     * Set the transaction wait time in seconds.
-     *
-     * @param waitTime Invoke wait time
-     */
-    public void setTransactionWaitTime(int waitTime) {
-        logger.trace("setTransactionWaitTime is:" + waitTime);
-        transactionWaitTime = waitTime;
-    }
-
-    /**
      * Initialize the Channel.  Starts the channel. event hubs will connect.
      *
      * @return this channel.
@@ -720,8 +695,14 @@ public class Channel implements Serializable {
             startEventQue(); //Run the event for event messages from event hubs.
             logger.debug(format("Eventque started %s", "" + eventQueueThread));
 
+            TransactionContext transactionContext = getTransactionContext();
+
             for (EventHub eh : eventHubs) { //Connect all event hubs
-                eh.connect(getTransactionContext());
+                eh.connect(transactionContext);
+            }
+
+            for (Peer peer : eventingPeers) {
+                peer.initiateEventing(transactionContext);
             }
 
             logger.debug(format("%d eventhubs initialized", getEventHubs().size()));
@@ -886,6 +867,14 @@ public class Channel implements Serializable {
         } finally {
             logger.debug("finally done");
         }
+    }
+
+    ChannelEventQue getChannelEventQue() {
+        return channelEventQue;
+    }
+
+    ExecutorService getExecutorService() {
+        return client.getExecutorService();
     }
 
     /**
@@ -2764,6 +2753,8 @@ public class Channel implements Serializable {
         }
     }
 
+    private static final long DELTA_SWEEP = config.getTransactionListenerCleanUpTimeout();
+
     //////////  Transaction monitoring  /////////////////////////////
 
     /**
@@ -2793,13 +2784,15 @@ public class Channel implements Serializable {
                     if (null != list) {
                         txL.addAll(list);
                     }
+
                 }
 
                 for (TL l : txL) {
                     try {
                         // only if we get events from each eventhub on the channel fire the transactions event.
                         //   if (getEventHubs().containsAll(l.eventReceived(transactionEvent.getEventHub()))) {
-                        if (getEventHubs().size() == l.eventReceived(transactionEvent.getEventHub()).size()) {
+
+                        if (l.eventReceived(transactionEvent)) {
                             l.fire(transactionEvent);
                         }
 
@@ -2808,6 +2801,32 @@ public class Channel implements Serializable {
                     }
                 }
             }
+
+//            synchronized (txListeners) {
+//                final long ct = System.currentTimeMillis();
+//                if (nextSweep <= 0) {
+//                    nextSweep = ct + DELTA_SWEEP;
+//                } else if (nextSweep < ct) {
+//                    //Sweep for stale transaction listeners. THIS DOES NOT complete any futures!
+//                    // Users need to put their own timeouts on futures they get for timeouts.
+//                    // This is only for internal bookkeeping cleanup
+//
+//                    for (Iterator<Map.Entry<String, LinkedList<TL>>> it = txListeners.entrySet().iterator(); it.hasNext();
+//                            ) {
+//
+//                        Map.Entry<String, LinkedList<TL>> es = it.next();
+//
+//                        LinkedList<TL> tlLinkedList = es.getValue();
+//                        tlLinkedList.removeIf(TL::sweepMe);
+//
+//                        if (tlLinkedList.isEmpty()) {
+//                            it.remove();
+//                        }
+//                    }
+//
+//                    nextSweep = System.currentTimeMillis() + DELTA_SWEEP;
+//                }
+//            }
         });
     }
 
@@ -2815,28 +2834,94 @@ public class Channel implements Serializable {
 
     private class TL {
         final String txID;
+        final long creatTime = System.currentTimeMillis();
+        long sweepTime = System.currentTimeMillis() + (long) (DELTA_SWEEP * 1.5);
+
         final AtomicBoolean fired = new AtomicBoolean(false);
         final CompletableFuture<TransactionEvent> future;
-        final Set<EventHub> seenEventHubs = Collections.synchronizedSet(new HashSet<>());
+        final Set<EventHub> unSeenEventHubs = Collections.synchronizedSet(new HashSet<>());
+        final Set<Peer> unSeenPeers = Collections.synchronizedSet(new HashSet<>());
 
-        Set<EventHub> eventReceived(EventHub eventHub) {
+        /**
+         * Record transactions event.
+         *
+         * @param transactionEvent
+         * @return True if transactions have been seen on all eventing peers and eventhubs.
+         */
+        boolean eventReceived(TransactionEvent transactionEvent) {
+            sweepTime = System.currentTimeMillis() + DELTA_SWEEP; //seen activity keep it active.
 
-            logger.debug(format("Channel %s seen transaction event %s for eventHub %s", name, txID, eventHub.toString()));
-            seenEventHubs.add(eventHub);
-            return seenEventHubs;
+            Peer peer = transactionEvent.getPeer();
+            if (peer != null) {
+                unSeenPeers.remove(peer);
+                logger.debug(format("Channel %s seen transaction event %s for peer %s", name, txID, peer.getName()));
+            } else if (null != transactionEvent.getEventHub()) {
+                EventHub eventHub = transactionEvent.getEventHub();
+                logger.debug(format("Channel %s seen transaction event %s for eventHub %s", name, txID, eventHub.toString()));
+
+                unSeenEventHubs.remove(eventHub);
+
+            } else {
+                logger.error(format("Channel %s seen transaction event with no associated peer or eventhub", name, txID));
+            }
+
+            boolean isEmpty;
+            synchronized (this) {
+                isEmpty = unSeenEventHubs.isEmpty() && unSeenPeers.isEmpty();
+            }
+
+            return isEmpty;
         }
 
         TL(String txID, CompletableFuture<BlockEvent.TransactionEvent> future) {
             this.txID = txID;
             this.future = future;
+            unSeenPeers.addAll(eventingPeers);
+            unSeenEventHubs.addAll(eventHubs);
             addListener();
         }
 
         private void addListener() {
+            runSweeper();
             synchronized (txListeners) {
                 LinkedList<TL> tl = txListeners.computeIfAbsent(txID, k -> new LinkedList<>());
                 tl.add(this);
             }
+        }
+
+        boolean sweepMe() { // Sweeps DO NOT fire future. user needs to put timeout on their futures for timeouts.
+
+            final boolean ret = sweepTime < System.currentTimeMillis() || fired.get() || future.isDone();
+
+            if (IS_DEBUG_LEVEL && ret) {
+
+                StringBuilder sb = new StringBuilder(10000);
+                sb.append("Non reporting event hubs:");
+                String sep = "";
+                for (EventHub eh : unSeenEventHubs) {
+                    sb.append(sep).append(eh.getName());
+                    sep = ",";
+
+                }
+                if (sb.length() != 0) {
+                    sb.append(". ");
+
+                }
+                sep = "Non reporting peers: ";
+                for (Peer peer : unSeenPeers) {
+                    sb.append(sep).append(peer.getName());
+                    sep = ",";
+                }
+
+                logger.debug(format("Force removing transaction listener after %d ms for transaction %s. %s" +
+                                ". sweep timeout: %b, fired: %b, future done:%b",
+                        System.currentTimeMillis() - creatTime, txID, sb.toString(),
+                        sweepTime < System.currentTimeMillis(), fired.get(), future.isDone()));
+
+            }
+
+            return ret;
+
         }
 
         void fire(BlockEvent.TransactionEvent transactionEvent) {
@@ -2861,14 +2946,61 @@ public class Channel implements Serializable {
             }
 
             if (transactionEvent.isValid()) {
+                logger.debug(format("Completing future for channel %s and transaction id: %s", name, txID));
                 client.getExecutorService().execute(() -> future.complete(transactionEvent));
             } else {
+                logger.debug(format("Completing future as exception for channel %s and transaction id: %s, validation code: %02X",
+                        name, txID, transactionEvent.getValidationCode()));
                 client.getExecutorService().execute(() -> future.completeExceptionally(
                         new TransactionEventException(format("Received invalid transaction event. Transaction ID %s status %s",
                                 transactionEvent.getTransactionID(),
                                 transactionEvent.getValidationCode()),
                                 transactionEvent)));
             }
+        }
+
+    }
+
+    //Cleans up any transaction listeners that will probably never complete.
+    private transient ScheduledFuture<?> sweeper = null;
+
+    void runSweeper() {
+
+        if (shutdown || DELTA_SWEEP < 1) {
+            return;
+        }
+
+        if (sweeper == null) {
+
+            sweeper = Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = Executors.defaultThreadFactory().newThread(r);
+                t.setDaemon(true);
+                return t;
+            }).scheduleAtFixedRate(() -> {
+                try {
+
+                    if (txListeners != null) {
+
+                        synchronized (txListeners) {
+
+                            for (Iterator<Map.Entry<String, LinkedList<TL>>> it = txListeners.entrySet().iterator(); it.hasNext();
+                                    ) {
+
+                                Map.Entry<String, LinkedList<TL>> es = it.next();
+
+                                LinkedList<TL> tlLinkedList = es.getValue();
+                                tlLinkedList.removeIf(TL::sweepMe);
+                                if (tlLinkedList.isEmpty()) {
+                                    it.remove();
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn("Sweeper got error:" + e.getMessage(), e);
+                }
+
+            }, 0, DELTA_SWEEP, TimeUnit.MILLISECONDS);
         }
 
     }
@@ -3132,15 +3264,18 @@ public class Channel implements Serializable {
 
         }
         eventHubs.clear();
-        for (Peer peer : getPeers()) {
+        for (Peer peer : new ArrayList<>(getPeers())) {
 
             try {
+                removePeer(peer);
                 peer.shutdown(force);
             } catch (Exception e) {
                 // Best effort.
             }
         }
-        peers.clear();
+
+        peers.clear(); // make sure.
+        eventingPeers.clear();
 
         for (Orderer orderer : getOrderers()) {
             orderer.shutdown(force);
@@ -3155,6 +3290,13 @@ public class Channel implements Serializable {
             }
             eventQueueThread = null;
         }
+
+        if (null != sweeper) {
+            sweeper.cancel(true);
+            sweeper = null;
+
+        }
+
     }
 
     /**
