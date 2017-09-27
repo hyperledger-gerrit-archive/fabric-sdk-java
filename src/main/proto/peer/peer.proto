@@ -20,6 +20,7 @@ option go_package = "github.com/hyperledger/fabric/protos/peer";
 
 package protos;
 
+import "peer/events.proto";
 import "peer/proposal.proto";
 import "peer/proposal_response.proto";
 
@@ -34,4 +35,8 @@ message PeerEndpoint {
 
 service Endorser {
 	rpc ProcessProposal(SignedProposal) returns (ProposalResponse) {}
+}
+service Channel {
+    rpc Chat (stream SignedEvent) returns (stream Event) {
+    }
 }
