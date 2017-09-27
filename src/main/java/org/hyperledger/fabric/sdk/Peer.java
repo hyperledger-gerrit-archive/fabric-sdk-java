@@ -196,11 +196,11 @@ public class Peer implements Serializable {
         return channel.getExecutorService();
     }
 
-    void initiateEventing(TransactionContext transactionContext) throws EventHubException, InvalidArgumentException {
+    void initiateEventing(TransactionContext transactionContext, Properties peerChannelOptions) throws EventHubException, InvalidArgumentException {
 
         if (peerEventingClient == null) {
 
-            peerEventingClient = new PeerEventingClient(this, new HashSet<Channel>(Arrays.asList(new Channel[] {channel})));
+            peerEventingClient = new PeerEventingClient(this, peerChannelOptions, new HashSet<Channel>(Arrays.asList(new Channel[] {channel})));
 
             peerEventingClient.connect(transactionContext);
 
