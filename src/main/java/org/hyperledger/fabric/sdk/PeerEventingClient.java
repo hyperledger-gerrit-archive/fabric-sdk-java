@@ -32,7 +32,9 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.peer.ChaincodeEventOuterClass;
 import org.hyperledger.fabric.protos.peer.ChannelGrpc;
+import org.hyperledger.fabric.protos.peer.FabricTransaction;
 import org.hyperledger.fabric.protos.peer.PeerEvents;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
@@ -226,6 +228,32 @@ public class PeerEventingClient implements Serializable {
                         logger.error(eventHubException.getMessage());
                         threw.add(eventHubException);
                     }
+                }
+                if (event.getEventCase() == PeerEvents.Event.EventCase.FILTERED_BLOCK) {
+
+                    final PeerEvents.FilteredBlock filteredBlock = event.getFilteredBlock();
+                    final String channelId = filteredBlock.getChannelId();
+                    final long number = filteredBlock.getNumber();
+
+                    for (PeerEvents.FilteredTransaction transaction : filteredBlock.getFilteredTxList()) {
+                        final ChaincodeEventOuterClass.ChaincodeEvent ccEvent = transaction.getCcEvent();
+
+                        final String txid = transaction.getTxid();
+                        System.err.println("txid:" + txid);
+                        final FabricTransaction.TxValidationCode txValidationCode = transaction.getTxValidationCode();
+
+                        if (transaction.hasCcEvent()) {
+                            System.err.println("hasCC");
+                            System.err.println("ccEvent:" + ccEvent);
+                            final String txIdcc = ccEvent.getTxId();
+                            System.err.println("txIdcc:" + txIdcc);
+
+                            final String chaincodeId = ccEvent.getChaincodeId();
+                            System.err.println("chaincodeId:" + chaincodeId);
+                        }
+
+                    }
+
                 } else if (event.getEventCase() == PeerEvents.Event.EventCase.CHANNEL_SERVICE_RESPONSE) {
 
                     PeerEvents.ChannelServiceResponse channelServiceResponse = event.getChannelServiceResponse();
