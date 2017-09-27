@@ -23,6 +23,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.ledger.rwset.Rwset.TxReadWriteSet;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
+import org.hyperledger.fabric.protos.peer.FabricTransaction;
+import org.hyperledger.fabric.protos.peer.PeerEvents;
+import org.hyperledger.fabric.protos.peer.PeerEvents.FilteredTransaction;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
 import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 
@@ -34,27 +37,45 @@ import static org.hyperledger.fabric.protos.peer.FabricProposalResponse.Endorsem
 public class BlockInfo {
     private final BlockDeserializer block;
 
+    private final PeerEvents.FilteredBlock filteredBlock;
+
     BlockInfo(Block block) {
+
+        filteredBlock = null;
         this.block = new BlockDeserializer(block);
+    }
+
+    BlockInfo(PeerEvents.Event event) {
+        if (event.getEventCase() == PeerEvents.Event.EventCase.FILTERED_BLOCK) {
+            block = null;
+            filteredBlock = event.getFilteredBlock();
+        } else {
+            this.block = new BlockDeserializer(event.getBlock());
+            filteredBlock = null;
+        }
+    }
+
+    public boolean isFilteredBlock() {
+        return filteredBlock != null;
     }
 
     public String getChannelId() throws InvalidProtocolBufferException {
 
-        return getEnvelopeInfo(0).getChannelId();
+        return isFilteredBlock() ? filteredBlock.getChannelId() : getEnvelopeInfo(0).getChannelId();
     }
 
     /**
      * @return the raw {@link Block}
      */
     public Block getBlock() {
-        return block.getBlock();
+        return isFilteredBlock() ? null : block.getBlock();
     }
 
     /**
      * @return the {@link Block} previousHash value
      */
     public byte[] getPreviousHash() {
-        return block.getPreviousHash().toByteArray();
+        return isFilteredBlock() ? null : block.getPreviousHash().toByteArray();
     }
 
     /**
@@ -62,7 +83,7 @@ public class BlockInfo {
      */
     public byte[] getDataHash() {
 
-        return block.getDataHash().toByteArray();
+        return isFilteredBlock() ? null : block.getDataHash().toByteArray();
     }
 
     /**
@@ -70,14 +91,14 @@ public class BlockInfo {
      */
     public byte[] getTransActionsMetaData() {
 
-        return block.getTransActionsMetaData();
+        return isFilteredBlock() ? null : block.getTransActionsMetaData();
     }
 
     /**
      * @return the {@link Block} index number
      */
     public long getBlockNumber() {
-        return block.getNumber();
+        return isFilteredBlock() ? filteredBlock.getNumber() : block.getNumber();
     }
 
     /**
@@ -87,63 +108,84 @@ public class BlockInfo {
      */
 
     public int getEnvelopeCount() {
-        return block.getData().getDataCount();
+        return isFilteredBlock() ? filteredBlock.getFilteredTxCount() : block.getData().getDataCount();
     }
 
     public class EnvelopeInfo {
         private final EnvelopeDeserializer envelopeDeserializer;
-        HeaderDeserializer headerDeserializer;
+        private final HeaderDeserializer headerDeserializer;
+        private final FilteredTransaction filteredTx;
 
         //private final EnvelopeDeserializer envelopeDeserializer;
 
-        EnvelopeInfo(EnvelopeDeserializer envelopeDeserializer, int blockIndex) {
+        EnvelopeInfo(EnvelopeDeserializer envelopeDeserializer) {
             this.envelopeDeserializer = envelopeDeserializer;
             headerDeserializer = envelopeDeserializer.getPayload().getHeader();
-            headerDeserializer.getChannelHeader().getType();
+            filteredTx = null;
+        }
+
+        public EnvelopeInfo(FilteredTransaction filteredTx) {
+            this.filteredTx = filteredTx;
+            envelopeDeserializer = null;
+            headerDeserializer = null;
+
         }
 
         public String getChannelId() {
 
-            return headerDeserializer.getChannelHeader().getChannelId();
+            return isFilteredBlock() ? filteredBlock.getChannelId() : headerDeserializer.getChannelHeader().getChannelId();
         }
 
         public String getTransactionID() {
 
-            return headerDeserializer.getChannelHeader().getTxId();
+            return isFilteredBlock() ? filteredTx.getTxid() : headerDeserializer.getChannelHeader().getTxId();
         }
 
         public long getEpoch() {
 
-            return headerDeserializer.getChannelHeader().getEpoch();
+            return isFilteredBlock() ? -1 : headerDeserializer.getChannelHeader().getEpoch();
         }
 
         public Date getTimestamp() {
 
-            return ProtoUtils.getDateFromTimestamp(headerDeserializer.getChannelHeader().getTimestamp());
+            return isFilteredBlock() ? null :
+                    ProtoUtils.getDateFromTimestamp(headerDeserializer.getChannelHeader().getTimestamp());
         }
 
         /**
          * @return whether this Transaction is marked as TxValidationCode.VALID
          */
         public boolean isValid() {
-            return envelopeDeserializer.isValid();
+            return isFilteredBlock() ? filteredTx.getTxValidationCode().getNumber() == FabricTransaction.TxValidationCode.VALID_VALUE
+                    : envelopeDeserializer.isValid();
         }
 
         /**
          * @return the validation code of this Transaction (enumeration TxValidationCode in Transaction.proto)
          */
         public byte getValidationCode() {
+            if (isFilteredBlock()) {
+
+                return (byte) filteredTx.getTxValidationCode().getNumber();
+
+            }
             return envelopeDeserializer.validationCode();
         }
 
         public EnvelopeType getType() {
 
-            switch (headerDeserializer.getChannelHeader().getType()) {
-                case 3:
-                    return EnvelopeType.TRANSACTION_ENVELOPE;
+            if (isFilteredBlock()) {
+                return filteredBlock.getFilteredTxCount() > 0 ? //TODO the api should handle this better
+                        EnvelopeType.TRANSACTION_ENVELOPE : EnvelopeType.ENVELOPE;
+            } else {
 
-                default:
-                    return EnvelopeType.ENVELOPE;
+                switch (headerDeserializer.getChannelHeader().getType()) {
+                    case 3:
+                        return EnvelopeType.TRANSACTION_ENVELOPE;
+
+                    default:
+                        return EnvelopeType.ENVELOPE;
+                }
             }
 
         }
@@ -164,18 +206,25 @@ public class BlockInfo {
 
             EnvelopeInfo ret;
 
-            EnvelopeDeserializer ed = EnvelopeDeserializer.newInstance(block.getBlock().getData().getData(envelopeIndex), block.getTransActionsMetaData()[envelopeIndex]);
+            if (isFilteredBlock()) {
 
-            switch (ed.getType()) {
-                case 3:
-                    ret = new TransactionEnvelopeInfo((EndorserTransactionEnvDeserializer) ed, envelopeIndex);
-                    break;
-                default: //just assume base properties.
-                    ret = new EnvelopeInfo(ed, envelopeIndex);
-                    break;
+                return new EnvelopeInfo(filteredBlock.getFilteredTx(envelopeIndex));
 
+            } else {
+
+                EnvelopeDeserializer ed = EnvelopeDeserializer.newInstance(block.getBlock().getData().getData(envelopeIndex), block.getTransActionsMetaData()[envelopeIndex]);
+
+                switch (ed.getType()) {
+                    case 3:
+                        ret = new TransactionEnvelopeInfo((EndorserTransactionEnvDeserializer) ed);
+                        break;
+                    default: //just assume base properties.
+                        ret = new EnvelopeInfo(ed);
+                        break;
+
+                }
+                return ret;
             }
-            return ret;
 
         } catch (InvalidProtocolBufferRuntimeException e) {
             throw e.getCause();
@@ -202,16 +251,14 @@ public class BlockInfo {
 
         protected final EndorserTransactionEnvDeserializer transactionDeserializer;
 
-        public TransactionEnvelopeInfo(EndorserTransactionEnvDeserializer transactionDeserializer, int blockIndex) {
-            super(transactionDeserializer, blockIndex);
+        public TransactionEnvelopeInfo(EndorserTransactionEnvDeserializer transactionDeserializer) {
+            super(transactionDeserializer);
 
             this.transactionDeserializer = transactionDeserializer;
-            this.headerDeserializer = transactionDeserializer.getPayload().getHeader();
-
         }
 
         public int getTransactionActionInfoCount() {
-            return transactionDeserializer.getPayload().getTransaction().getActionsCount();
+            return isFilteredBlock() ? 0 : transactionDeserializer.getPayload().getTransaction().getActionsCount();
         }
 
         public Iterable<TransactionActionInfo> getTransactionActionInfos() {
@@ -344,7 +391,7 @@ public class BlockInfo {
         }
 
         public TransactionActionInfo getTransactionActionInfo(int index) {
-            return new TransactionActionInfo(transactionDeserializer.getPayload().getTransaction().getTransactionAction(index));
+            return isFilteredBlock() ? null : new TransactionActionInfo(transactionDeserializer.getPayload().getTransaction().getTransactionAction(index));
         }
 
         public class TransactionActionInfoIterator implements Iterator<TransactionActionInfo> {
@@ -358,14 +405,14 @@ public class BlockInfo {
 
             @Override
             public boolean hasNext() {
-                return ci < max;
+                return isFilteredBlock() ? false : ci < max;
 
             }
 
             @Override
             public TransactionActionInfo next() {
 
-                return getTransactionActionInfo(ci++);
+                return isFilteredBlock() ? null : getTransactionActionInfo(ci++);
 
             }
         }
@@ -385,7 +432,7 @@ public class BlockInfo {
         final int max;
 
         EnvelopeInfoIterator() {
-            max = block.getData().getDataCount();
+            max = isFilteredBlock() ? filteredBlock.getFilteredTxCount() : block.getData().getDataCount();
 
         }
 
