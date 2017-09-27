@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -34,7 +35,7 @@ import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.ChaincodeResponse.Status;
 import org.hyperledger.fabric.sdk.Channel;
-import org.hyperledger.fabric.sdk.Channel.PeerOptions;
+import org.hyperledger.fabric.sdk.Channel.PeerChannelOptions;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
@@ -506,10 +507,11 @@ public class End2endAndBackAgainIT {
 
             for (String peerName : sampleOrg.getPeerNames()) {
                 String peerLocation = sampleOrg.getPeerLocation(peerName);
+
                 Properties peerProperties = testConfig.getPeerProperties(peerName);
                 Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
                 newChannel.addPeer(peer, IS_FABRIC_V10 ?
-                        PeerOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE) : PeerOptions.create());
+                        PeerChannelOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE) : PeerChannelOptions.create());
             }
 
             //For testing mix it up. For v1.1 use just peer eventing service for foo channel.

@@ -39,7 +39,7 @@ import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
 import org.hyperledger.fabric.sdk.ChaincodeEvent;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.Channel;
-import org.hyperledger.fabric.sdk.Channel.PeerOptions;
+import org.hyperledger.fabric.sdk.Channel.PeerChannelOptions;
 import org.hyperledger.fabric.sdk.ChannelConfiguration;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
@@ -689,13 +689,12 @@ public class End2endIT {
             }
             //Example of setting specific options on grpc's NettyChannelBuilder
             peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
-            //     peerProperties.put("org.hyperledger.fabric.sdk.peer.roles", "ENDORSING_PEER:CHAINCODE_QUERY:LEDGER_QUERY");
 
             Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
             if (doPeerEventing && everyother) {
                 newChannel.joinPeer(peer); //Default is all roles.
             } else {
-                newChannel.joinPeer(peer, PeerOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
+                newChannel.joinPeer(peer, PeerChannelOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
             }
 
             out("Peer %s joined channel %s", peerName, name);
