@@ -27,20 +27,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
-import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -87,6 +92,7 @@ import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeQueryResponse;
 import org.hyperledger.fabric.protos.peer.Query.ChannelQueryResponse;
 import org.hyperledger.fabric.sdk.BlockEvent.TransactionEvent;
+import org.hyperledger.fabric.sdk.Peer.PeerRole;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
@@ -138,18 +144,19 @@ public class Channel implements Serializable {
     private final String name;
 
     // The peers on this channel to which the client can connect
-    final Collection<Peer> peers = new Vector<>();
+    private final Collection<Peer> peers = Collections.synchronizedSet(new HashSet<>());
+    // final Set<Peer> eventingPeers = Collections.synchronizedSet(new HashSet<>());
 
-    // Temporary variables to control how long to wait for deploy and invoke to complete before
-    // emitting events.  This will be removed when the SDK is able to receive events from the
-    private int deployWaitTime = 20;
-    private int transactionWaitTime = 5;
+    private final Map<PeerRole, Set<Peer>> peerRoleSetMap = Collections.synchronizedMap(new HashMap<>());
 
-    // contains the anchor peers parsed from the channel's configBlock
-//    private Set<Anchor> anchorPeers;
+    {
+        for (Peer.PeerRole peerRole : PeerRole.ALL) {
 
-    // The crypto primitives object
-    //   private CryptoSuite cryptoSuite;
+            peerRoleSetMap.put(peerRole, Collections.synchronizedSet(new HashSet<>()));
+
+        }
+    }
+
     final Collection<Orderer> orderers = new LinkedList<>();
     transient HFClient client;
     private transient boolean initialized = false;
@@ -507,6 +514,65 @@ public class Channel implements Serializable {
      */
     public Channel addPeer(Peer peer) throws InvalidArgumentException {
 
+        return addPeer(peer, PeerOptions.create());
+
+    }
+
+    /**
+     * Options for the peer.
+     */
+    public static class PeerOptions { // allows for future options with list likelihood of breaking api.
+
+        private EnumSet<PeerRole> peerRoles;
+        private String blockType = "Filter"; // not yet used.
+
+        private PeerOptions() {
+
+        }
+
+        public EnumSet<PeerRole> getPeerRoles() {
+            if (peerRoles == null) {
+                return PeerRole.ALL;
+            }
+            return peerRoles;
+        }
+
+        public String getBlockType() {
+            return blockType;
+        }
+
+        public PeerOptions setPeerRoles(EnumSet<PeerRole> peerRoles) {
+
+            peerRoles = peerRoles;
+            return this;
+        }
+
+        public PeerOptions addPeerRole(PeerRole peerRole) {
+
+            if (peerRoles == null) {
+                peerRoles = EnumSet.noneOf(PeerRole.class);
+
+            }
+            peerRoles.add(peerRole);
+            return this;
+        }
+
+        public static PeerOptions create() {
+            return new PeerOptions();
+        }
+
+    }
+
+    /**
+     * Add a peer to the channel
+     *
+     * @param peer        The Peer to add.
+     * @param peerOptions see {@link PeerRole}
+     * @return Channel The current channel added.
+     * @throws InvalidArgumentException
+     */
+    public Channel addPeer(Peer peer, PeerOptions peerOptions) throws InvalidArgumentException {
+
         if (shutdown) {
             throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
         }
@@ -515,14 +581,56 @@ public class Channel implements Serializable {
             throw new InvalidArgumentException("Peer is invalid can not be null.");
         }
 
+        if (peer.getChannel() != null && peer.getChannel() != this) {
+            throw new InvalidArgumentException(format("Peer already connected to channel %s", peer.getChannel().getName()));
+        }
+
+        if (null == peerOptions) {
+            throw new InvalidArgumentException("Peer is invalid can not be null.");
+        }
+
         peer.setChannel(this);
 
         peers.add(peer);
 
+        for (Map.Entry<PeerRole, Set<Peer>> peerRole : peerRoleSetMap.entrySet()) {
+            if (peerOptions.getPeerRoles().contains(peerRole.getKey())) {
+                peerRole.getValue().add(peer);
+            }
+        }
         return this;
     }
 
     public Channel joinPeer(Peer peer) throws ProposalException {
+        return joinPeer(peer, PeerOptions.create());
+    }
+
+    private Collection<Peer> getEventingPeers() {
+
+        return Collections.unmodifiableCollection(peerRoleSetMap.get(PeerRole.EVENT_SOURCE));
+    }
+
+    private Collection<Peer> getEndorsingPeers() {
+
+        return Collections.unmodifiableCollection(peerRoleSetMap.get(PeerRole.ENDORSING_PEER));
+    }
+
+    private Collection<Peer> getChaincodePeers() {
+
+        return Collections.unmodifiableCollection(getPeers(EnumSet.of(PeerRole.CHAINCODE_QUERY, PeerRole.ENDORSING_PEER)));
+    }
+
+    private Collection<Peer> getChaincodeQueryPeers() {
+
+        return Collections.unmodifiableCollection(peerRoleSetMap.get(PeerRole.CHAINCODE_QUERY));
+    }
+
+    private Collection<Peer> getLedgerQueryPeers() {
+
+        return Collections.unmodifiableCollection(peerRoleSetMap.get(PeerRole.LEDGER_QUERY));
+    }
+
+    public Channel joinPeer(Peer peer, PeerOptions peerOptions) throws ProposalException {
 
         logger.debug(format("Channel %s joining peer %s, url: %s", name, peer.getName(), peer.getUrl()));
 
@@ -558,7 +666,7 @@ public class Channel implements Serializable {
             SignedProposal signedProposal = getSignedProposal(transactionContext, joinProposal);
             logger.debug("Got signed proposal.");
 
-            addPeer(peer); //need to add peer.
+            addPeer(peer, peerOptions); //need to add peer.
 
             Collection<ProposalResponse> resp = sendProposalToPeers(new ArrayList<>(Collections.singletonList(peer)),
                     signedProposal, transactionContext);
@@ -568,25 +676,31 @@ public class Channel implements Serializable {
             if (pro.getStatus() == ProposalResponse.Status.SUCCESS) {
                 logger.info(format("Peer %s joined into channel %s", peer.getName(), name));
             } else {
-                peers.remove(peer);
-                peer.unsetChannel();
+                removePeer(peer);
                 throw new ProposalException(format("Join peer to channel %s failed.  Status %s, details: %s",
                         name, pro.getStatus().toString(), pro.getMessage()));
 
             }
         } catch (ProposalException e) {
-            peers.remove(peer);
-            peer.unsetChannel();
+            removePeer(peer);
             logger.error(e);
             throw e;
         } catch (Exception e) {
             peers.remove(peer);
-            peer.unsetChannel();
             logger.error(e);
             throw new ProposalException(e.getMessage(), e);
         }
 
         return this;
+    }
+
+    private void removePeer(Peer peer) {
+        peers.remove(peer);
+
+        for (Set<Peer> peerRoleSet : peerRoleSetMap.values()) {
+            peerRoleSet.remove(peer);
+        }
+        peer.unsetChannel();
     }
 
     /**
@@ -649,40 +763,18 @@ public class Channel implements Serializable {
     }
 
     /**
-     * Get the deploy wait time in seconds.
+     * Get the peers for this channel.
      *
-     * @return number of seconds.
+     * @return the peers.
      */
-    public int getDeployWaitTime() {
-        return deployWaitTime;
-    }
+    public Collection<Peer> getPeers(EnumSet<PeerRole> roles) {
 
-    /**
-     * Set the deploy wait time in seconds.
-     *
-     * @param waitTime Deploy wait time
-     */
-    public void setDeployWaitTime(int waitTime) {
-        this.deployWaitTime = waitTime;
-    }
+        Set<Peer> ret = new HashSet<>(getPeers().size());
 
-    /**
-     * Get the transaction wait time in seconds
-     *
-     * @return transaction wait time
-     */
-    public int getTransactionWaitTime() {
-        return this.transactionWaitTime;
-    }
-
-    /**
-     * Set the transaction wait time in seconds.
-     *
-     * @param waitTime Invoke wait time
-     */
-    public void setTransactionWaitTime(int waitTime) {
-        logger.trace("setTransactionWaitTime is:" + waitTime);
-        transactionWaitTime = waitTime;
+        for (PeerRole peerRole : roles) {
+            ret.addAll(peerRoleSetMap.get(peerRole));
+        }
+        return Collections.unmodifiableCollection(ret);
     }
 
     /**
@@ -720,8 +812,14 @@ public class Channel implements Serializable {
             startEventQue(); //Run the event for event messages from event hubs.
             logger.debug(format("Eventque started %s", "" + eventQueueThread));
 
+            TransactionContext transactionContext = getTransactionContext();
+
             for (EventHub eh : eventHubs) { //Connect all event hubs
-                eh.connect(getTransactionContext());
+                eh.connect(transactionContext);
+            }
+
+            for (Peer peer : getEventingPeers()) {
+                peer.initiateEventing(transactionContext);
             }
 
             logger.debug(format("%d eventhubs initialized", getEventHubs().size()));
@@ -886,6 +984,14 @@ public class Channel implements Serializable {
         } finally {
             logger.debug("finally done");
         }
+    }
+
+    ChannelEventQue getChannelEventQue() {
+        return channelEventQue;
+    }
+
+    ExecutorService getExecutorService() {
+        return client.getExecutorService();
     }
 
     /**
@@ -1360,7 +1466,7 @@ public class Channel implements Serializable {
 
     public Collection<ProposalResponse> sendInstantiationProposal(InstantiateProposalRequest instantiateProposalRequest) throws InvalidArgumentException, ProposalException {
 
-        return sendInstantiationProposal(instantiateProposalRequest, peers);
+        return sendInstantiationProposal(instantiateProposalRequest, getChaincodePeers());
     }
 
     /**
@@ -1427,7 +1533,7 @@ public class Channel implements Serializable {
 
     Collection<ProposalResponse> sendInstallProposal(InstallProposalRequest installProposalRequest)
             throws ProposalException, InvalidArgumentException {
-        return sendInstallProposal(installProposalRequest, peers);
+        return sendInstallProposal(installProposalRequest, getChaincodePeers());
 
     }
 
@@ -1484,7 +1590,7 @@ public class Channel implements Serializable {
 
     public Collection<ProposalResponse> sendUpgradeProposal(UpgradeProposalRequest upgradeProposalRequest) throws ProposalException, InvalidArgumentException {
 
-        return sendUpgradeProposal(upgradeProposalRequest, peers);
+        return sendUpgradeProposal(upgradeProposalRequest, getChaincodePeers());
 
     }
 
@@ -1553,7 +1659,7 @@ public class Channel implements Serializable {
         if (blockHash == null) {
             throw new InvalidArgumentException("blockHash parameter is null.");
         }
-        return queryBlockByHash(getRandomPeer(), blockHash);
+        return queryBlockByHash(getRandomLedgerQueryPeer(), blockHash);
     }
 
     private void checkChannelState() throws InvalidArgumentException {
@@ -1627,26 +1733,31 @@ public class Channel implements Serializable {
      * @throws ProposalException
      */
     public BlockInfo queryBlockByNumber(long blockNumber) throws InvalidArgumentException, ProposalException {
-        return queryBlockByNumber(getRandomPeer(), blockNumber);
+        return queryBlockByNumber(getRandomLedgerQueryPeer(), blockNumber);
     }
 
-    private Peer getRandomPeer() throws InvalidArgumentException {
+    private static final Random RANDOM = new Random();
 
-        if (getPeers().isEmpty()) {
-            throw new InvalidArgumentException("Channel " + name + " does not have any peers associated with it.");
+    private Peer getRandomLedgerQueryPeer() throws InvalidArgumentException {
+        final ArrayList<Peer> ledgerQueryPeers = new ArrayList<>(new HashSet<>(getLedgerQueryPeers())); //copy to avoid unlikely changes
+
+        if (ledgerQueryPeers.isEmpty()) {
+            throw new InvalidArgumentException("Channel " + name + " does not have any ledger querying peers associated with it.");
         }
 
-        return getPeers().iterator().next(); //TODO make this random
+        return ledgerQueryPeers.get(RANDOM.nextInt(ledgerQueryPeers.size()));
 
     }
 
     private Orderer getRandomOrderer() throws InvalidArgumentException {
 
-        if (getOrderers().isEmpty()) {
+        final ArrayList<Orderer> randPicks = new ArrayList<>(new HashSet<>(getOrderers())); //copy to avoid unlikely changes
+
+        if (randPicks.isEmpty()) {
             throw new InvalidArgumentException("Channel " + name + " does not have any orderers associated with it.");
         }
 
-        return getOrderers().iterator().next(); //TODO make this random
+        return randPicks.get(RANDOM.nextInt(randPicks.size()));
 
     }
 
@@ -1756,7 +1867,7 @@ public class Channel implements Serializable {
      */
     public BlockInfo queryBlockByTransactionID(String txID) throws InvalidArgumentException, ProposalException {
 
-        return queryBlockByTransactionID(getRandomPeer(), txID);
+        return queryBlockByTransactionID(getRandomLedgerQueryPeer(), txID);
     }
 
     /**
@@ -1819,7 +1930,7 @@ public class Channel implements Serializable {
      */
     public BlockchainInfo queryBlockchainInfo() throws ProposalException, InvalidArgumentException {
 
-        return queryBlockchainInfo(getRandomPeer());
+        return queryBlockchainInfo(getRandomLedgerQueryPeer());
     }
 
     /**
@@ -1875,7 +1986,7 @@ public class Channel implements Serializable {
      */
     public TransactionInfo queryTransactionByID(String txID) throws ProposalException, InvalidArgumentException {
 
-        return queryTransactionByID(getRandomPeer(), txID);
+        return queryTransactionByID(getRandomLedgerQueryPeer(), txID);
     }
 
     /**
@@ -2130,7 +2241,7 @@ public class Channel implements Serializable {
      */
     public Collection<ProposalResponse> sendTransactionProposal(TransactionProposalRequest transactionProposalRequest) throws ProposalException, InvalidArgumentException {
 
-        return sendProposal(transactionProposalRequest, peers);
+        return sendProposal(transactionProposalRequest, getEndorsingPeers());
     }
 
     /**
@@ -2157,7 +2268,7 @@ public class Channel implements Serializable {
      */
 
     public Collection<ProposalResponse> queryByChaincode(QueryByChaincodeRequest queryByChaincodeRequest) throws InvalidArgumentException, ProposalException {
-        return sendProposal(queryByChaincodeRequest, peers);
+        return sendProposal(queryByChaincodeRequest, getChaincodeQueryPeers());
     }
 
     /**
@@ -2470,6 +2581,7 @@ public class Channel implements Serializable {
 
     /**
      * Build response details
+     *
      * @param resp
      * @return
      */
@@ -2764,6 +2876,8 @@ public class Channel implements Serializable {
         }
     }
 
+    private static final long DELTA_SWEEP = config.getTransactionListenerCleanUpTimeout();
+
     //////////  Transaction monitoring  /////////////////////////////
 
     /**
@@ -2793,13 +2907,15 @@ public class Channel implements Serializable {
                     if (null != list) {
                         txL.addAll(list);
                     }
+
                 }
 
                 for (TL l : txL) {
                     try {
                         // only if we get events from each eventhub on the channel fire the transactions event.
                         //   if (getEventHubs().containsAll(l.eventReceived(transactionEvent.getEventHub()))) {
-                        if (getEventHubs().size() == l.eventReceived(transactionEvent.getEventHub()).size()) {
+
+                        if (l.eventReceived(transactionEvent)) {
                             l.fire(transactionEvent);
                         }
 
@@ -2808,6 +2924,32 @@ public class Channel implements Serializable {
                     }
                 }
             }
+
+//            synchronized (txListeners) {
+//                final long ct = System.currentTimeMillis();
+//                if (nextSweep <= 0) {
+//                    nextSweep = ct + DELTA_SWEEP;
+//                } else if (nextSweep < ct) {
+//                    //Sweep for stale transaction listeners. THIS DOES NOT complete any futures!
+//                    // Users need to put their own timeouts on futures they get for timeouts.
+//                    // This is only for internal bookkeeping cleanup
+//
+//                    for (Iterator<Map.Entry<String, LinkedList<TL>>> it = txListeners.entrySet().iterator(); it.hasNext();
+//                            ) {
+//
+//                        Map.Entry<String, LinkedList<TL>> es = it.next();
+//
+//                        LinkedList<TL> tlLinkedList = es.getValue();
+//                        tlLinkedList.removeIf(TL::sweepMe);
+//
+//                        if (tlLinkedList.isEmpty()) {
+//                            it.remove();
+//                        }
+//                    }
+//
+//                    nextSweep = System.currentTimeMillis() + DELTA_SWEEP;
+//                }
+//            }
         });
     }
 
@@ -2815,28 +2957,94 @@ public class Channel implements Serializable {
 
     private class TL {
         final String txID;
+        final long creatTime = System.currentTimeMillis();
+        long sweepTime = System.currentTimeMillis() + (long) (DELTA_SWEEP * 1.5);
+
         final AtomicBoolean fired = new AtomicBoolean(false);
         final CompletableFuture<TransactionEvent> future;
-        final Set<EventHub> seenEventHubs = Collections.synchronizedSet(new HashSet<>());
+        final Set<EventHub> unSeenEventHubs = Collections.synchronizedSet(new HashSet<>());
+        final Set<Peer> unSeenPeers = Collections.synchronizedSet(new HashSet<>());
 
-        Set<EventHub> eventReceived(EventHub eventHub) {
+        /**
+         * Record transactions event.
+         *
+         * @param transactionEvent
+         * @return True if transactions have been seen on all eventing peers and eventhubs.
+         */
+        boolean eventReceived(TransactionEvent transactionEvent) {
+            sweepTime = System.currentTimeMillis() + DELTA_SWEEP; //seen activity keep it active.
 
-            logger.debug(format("Channel %s seen transaction event %s for eventHub %s", name, txID, eventHub.toString()));
-            seenEventHubs.add(eventHub);
-            return seenEventHubs;
+            Peer peer = transactionEvent.getPeer();
+            if (peer != null) {
+                unSeenPeers.remove(peer);
+                logger.debug(format("Channel %s seen transaction event %s for peer %s", name, txID, peer.getName()));
+            } else if (null != transactionEvent.getEventHub()) {
+                EventHub eventHub = transactionEvent.getEventHub();
+                logger.debug(format("Channel %s seen transaction event %s for eventHub %s", name, txID, eventHub.toString()));
+
+                unSeenEventHubs.remove(eventHub);
+
+            } else {
+                logger.error(format("Channel %s seen transaction event with no associated peer or eventhub", name, txID));
+            }
+
+            boolean isEmpty;
+            synchronized (this) {
+                isEmpty = unSeenEventHubs.isEmpty() && unSeenPeers.isEmpty();
+            }
+
+            return isEmpty;
         }
 
         TL(String txID, CompletableFuture<BlockEvent.TransactionEvent> future) {
             this.txID = txID;
             this.future = future;
+            unSeenPeers.addAll(getEventingPeers());
+            unSeenEventHubs.addAll(eventHubs);
             addListener();
         }
 
         private void addListener() {
+            runSweeper();
             synchronized (txListeners) {
                 LinkedList<TL> tl = txListeners.computeIfAbsent(txID, k -> new LinkedList<>());
                 tl.add(this);
             }
+        }
+
+        boolean sweepMe() { // Sweeps DO NOT fire future. user needs to put timeout on their futures for timeouts.
+
+            final boolean ret = sweepTime < System.currentTimeMillis() || fired.get() || future.isDone();
+
+            if (IS_DEBUG_LEVEL && ret) {
+
+                StringBuilder sb = new StringBuilder(10000);
+                sb.append("Non reporting event hubs:");
+                String sep = "";
+                for (EventHub eh : unSeenEventHubs) {
+                    sb.append(sep).append(eh.getName());
+                    sep = ",";
+
+                }
+                if (sb.length() != 0) {
+                    sb.append(". ");
+
+                }
+                sep = "Non reporting peers: ";
+                for (Peer peer : unSeenPeers) {
+                    sb.append(sep).append(peer.getName());
+                    sep = ",";
+                }
+
+                logger.debug(format("Force removing transaction listener after %d ms for transaction %s. %s" +
+                                ". sweep timeout: %b, fired: %b, future done:%b",
+                        System.currentTimeMillis() - creatTime, txID, sb.toString(),
+                        sweepTime < System.currentTimeMillis(), fired.get(), future.isDone()));
+
+            }
+
+            return ret;
+
         }
 
         void fire(BlockEvent.TransactionEvent transactionEvent) {
@@ -2861,14 +3069,61 @@ public class Channel implements Serializable {
             }
 
             if (transactionEvent.isValid()) {
+                logger.debug(format("Completing future for channel %s and transaction id: %s", name, txID));
                 client.getExecutorService().execute(() -> future.complete(transactionEvent));
             } else {
+                logger.debug(format("Completing future as exception for channel %s and transaction id: %s, validation code: %02X",
+                        name, txID, transactionEvent.getValidationCode()));
                 client.getExecutorService().execute(() -> future.completeExceptionally(
                         new TransactionEventException(format("Received invalid transaction event. Transaction ID %s status %s",
                                 transactionEvent.getTransactionID(),
                                 transactionEvent.getValidationCode()),
                                 transactionEvent)));
             }
+        }
+
+    }
+
+    //Cleans up any transaction listeners that will probably never complete.
+    private transient ScheduledFuture<?> sweeper = null;
+
+    void runSweeper() {
+
+        if (shutdown || DELTA_SWEEP < 1) {
+            return;
+        }
+
+        if (sweeper == null) {
+
+            sweeper = Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = Executors.defaultThreadFactory().newThread(r);
+                t.setDaemon(true);
+                return t;
+            }).scheduleAtFixedRate(() -> {
+                try {
+
+                    if (txListeners != null) {
+
+                        synchronized (txListeners) {
+
+                            for (Iterator<Map.Entry<String, LinkedList<TL>>> it = txListeners.entrySet().iterator(); it.hasNext();
+                                    ) {
+
+                                Map.Entry<String, LinkedList<TL>> es = it.next();
+
+                                LinkedList<TL> tlLinkedList = es.getValue();
+                                tlLinkedList.removeIf(TL::sweepMe);
+                                if (tlLinkedList.isEmpty()) {
+                                    it.remove();
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn("Sweeper got error:" + e.getMessage(), e);
+                }
+
+            }, 0, DELTA_SWEEP, TimeUnit.MILLISECONDS);
         }
 
     }
@@ -3132,15 +3387,22 @@ public class Channel implements Serializable {
 
         }
         eventHubs.clear();
-        for (Peer peer : getPeers()) {
+        for (Peer peer : new ArrayList<>(getPeers())) {
 
             try {
+                removePeer(peer);
                 peer.shutdown(force);
             } catch (Exception e) {
                 // Best effort.
             }
         }
-        peers.clear();
+
+        peers.clear(); // make sure.
+
+        //Make sure
+        for (Set<Peer> peerRoleSet : peerRoleSetMap.values()) {
+            peerRoleSet.clear();
+        }
 
         for (Orderer orderer : getOrderers()) {
             orderer.shutdown(force);
@@ -3155,6 +3417,14 @@ public class Channel implements Serializable {
             }
             eventQueueThread = null;
         }
+
+        ScheduledFuture<?> lsweeper = sweeper;
+        sweeper = null;
+
+        if (null != lsweeper) {
+            lsweeper.cancel(true);
+        }
+
     }
 
     /**
