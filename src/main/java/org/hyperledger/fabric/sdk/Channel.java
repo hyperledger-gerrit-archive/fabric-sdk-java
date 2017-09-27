@@ -36,6 +36,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -514,19 +515,23 @@ public class Channel implements Serializable {
      */
     public Channel addPeer(Peer peer) throws InvalidArgumentException {
 
-        return addPeer(peer, PeerOptions.create());
+        return addPeer(peer, PeerChannelOptions.create());
 
     }
 
     /**
      * Options for the peer.
      */
-    public static class PeerOptions { // allows for future options with less likelihood of breaking api.
+    public static class PeerChannelOptions { // allows for future options with less likelihood of breaking api.
 
         private EnumSet<PeerRole> peerRoles;
-        private String blockType = "Filter"; // not yet used.
+        private String eventType = "BLOCKORFILTEREDBLOCK";
 
-        private PeerOptions() {
+        public String getEventType() {
+            return eventType;
+        }
+
+        private PeerChannelOptions() {
 
         }
 
@@ -537,16 +542,22 @@ public class Channel implements Serializable {
             return peerRoles;
         }
 
-        String getBlockType() {
-            return blockType;
+        public PeerChannelOptions setEventTypeFilterdBlock() {
+            eventType = "FILTEREDBLOCK";
+            return this;
         }
 
-        public PeerOptions setPeerRoles(EnumSet<PeerRole> peerRoles) {
+        public PeerChannelOptions setEventTypeBlock() {
+            eventType = "BLOCK";
+            return this;
+        }
+
+        public PeerChannelOptions setPeerRoles(EnumSet<PeerRole> peerRoles) {
             this.peerRoles = peerRoles;
             return this;
         }
 
-        public PeerOptions addPeerRole(PeerRole peerRole) {
+        public PeerChannelOptions addPeerRole(PeerRole peerRole) {
 
             if (peerRoles == null) {
                 peerRoles = EnumSet.noneOf(PeerRole.class);
@@ -556,21 +567,23 @@ public class Channel implements Serializable {
             return this;
         }
 
-        public static PeerOptions create() {
-            return new PeerOptions();
+        public static PeerChannelOptions create() {
+            return new PeerChannelOptions();
         }
 
     }
 
+    private Map<Peer, Properties> peerOptionsMap = Collections.synchronizedMap(new HashMap<>());
+
     /**
      * Add a peer to the channel
      *
-     * @param peer        The Peer to add.
-     * @param peerOptions see {@link PeerRole}
+     * @param peer               The Peer to add.
+     * @param peerChannelOptions see {@link PeerRole}
      * @return Channel The current channel added.
      * @throws InvalidArgumentException
      */
-    public Channel addPeer(Peer peer, PeerOptions peerOptions) throws InvalidArgumentException {
+    public Channel addPeer(Peer peer, PeerChannelOptions peerChannelOptions) throws InvalidArgumentException {
 
         if (shutdown) {
             throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
@@ -584,16 +597,23 @@ public class Channel implements Serializable {
             throw new InvalidArgumentException(format("Peer already connected to channel %s", peer.getChannel().getName()));
         }
 
-        if (null == peerOptions) {
-            throw new InvalidArgumentException("Peer is invalid can not be null.");
+        if (null == peerChannelOptions) {
+            throw new InvalidArgumentException("Parameter peerChannelOptions is invalid can not be null.");
         }
 
         peer.setChannel(this);
 
-        peers.add(peer);
+        if (!peers.contains(peer)) {
+            peers.add(peer);
+        }
+
+        Properties properties = new Properties(); // a copy and make sure it serializable
+        properties.put("eventType", peerChannelOptions.getEventType());
+
+        peerOptionsMap.put(peer, properties);
 
         for (Map.Entry<PeerRole, Set<Peer>> peerRole : peerRoleSetMap.entrySet()) {
-            if (peerOptions.getPeerRoles().contains(peerRole.getKey())) {
+            if (peerChannelOptions.getPeerRoles().contains(peerRole.getKey())) {
                 peerRole.getValue().add(peer);
             }
         }
@@ -601,7 +621,7 @@ public class Channel implements Serializable {
     }
 
     public Channel joinPeer(Peer peer) throws ProposalException {
-        return joinPeer(peer, PeerOptions.create());
+        return joinPeer(peer, PeerChannelOptions.create());
     }
 
     private Collection<Peer> getEventingPeers() {
@@ -629,7 +649,7 @@ public class Channel implements Serializable {
         return Collections.unmodifiableCollection(peerRoleSetMap.get(PeerRole.LEDGER_QUERY));
     }
 
-    public Channel joinPeer(Peer peer, PeerOptions peerOptions) throws ProposalException {
+    public Channel joinPeer(Peer peer, PeerChannelOptions peerChannelOptions) throws ProposalException {
 
         logger.debug(format("Channel %s joining peer %s, url: %s", name, peer.getName(), peer.getUrl()));
 
@@ -665,7 +685,7 @@ public class Channel implements Serializable {
             SignedProposal signedProposal = getSignedProposal(transactionContext, joinProposal);
             logger.debug("Got signed proposal.");
 
-            addPeer(peer, peerOptions); //need to add peer.
+            addPeer(peer, peerChannelOptions); //need to add peer.
 
             Collection<ProposalResponse> resp = sendProposalToPeers(new ArrayList<>(Collections.singletonList(peer)),
                     signedProposal, transactionContext);
@@ -699,6 +719,8 @@ public class Channel implements Serializable {
         for (Set<Peer> peerRoleSet : peerRoleSetMap.values()) {
             peerRoleSet.remove(peer);
         }
+
+        peerOptionsMap.remove(peer);
         peer.unsetChannel();
     }
 
@@ -762,6 +784,7 @@ public class Channel implements Serializable {
     }
 
     /**
+     * /**
      * Get the peers for this channel.
      *
      * @return the peers.
@@ -818,7 +841,7 @@ public class Channel implements Serializable {
             }
 
             for (Peer peer : getEventingPeers()) {
-                peer.initiateEventing(transactionContext);
+                peer.initiateEventing(transactionContext, peerOptionsMap.get(peer));
             }
 
             logger.debug(format("%d eventhubs initialized", getEventHubs().size()));
@@ -2734,7 +2757,8 @@ public class Channel implements Serializable {
 
             //For now just support blocks --- other types are also reported as blocks.
 
-            if (event.getEvent().getEventCase() != EventCase.BLOCK) {
+            final EventCase eventCase = event.getEvent().getEventCase();
+            if (eventCase != EventCase.BLOCK && eventCase != EventCase.FILTERED_BLOCK) {
                 return false;
             }
 
@@ -2898,7 +2922,18 @@ public class Channel implements Serializable {
 
             for (TransactionEvent transactionEvent : blockEvent.getTransactionEvents()) {
 
-                logger.debug(format("Channel %s got event for transaction %s ", name, transactionEvent.getTransactionID()));
+                if (IS_DEBUG_LEVEL) {
+                    String source;
+                    final EventHub eventHub = transactionEvent.getEventHub();
+                    if (eventHub != null) {
+                        source = "Eventhub:" + eventHub.getName();
+                    } else {
+                        source = "Peer eventing source:" + transactionEvent.getPeer().getName();
+                    }
+
+                    logger.debug(format("Channel %s got %sblock event for transaction %s from %s", name,
+                            transactionEvent.isFiltered() ? "filtered " : "", transactionEvent.getTransactionID(), source));
+                }
 
                 List<TL> txL = new ArrayList<>(txListeners.size() + 2);
                 synchronized (txListeners) {
@@ -3290,7 +3325,8 @@ public class Channel implements Serializable {
 
             for (TransactionEvent transactionEvent : blockEvent.getTransactionEvents()) {
 
-                logger.debug(format("Channel %s got event for transaction %s ", name, transactionEvent.getTransactionID()));
+                logger.debug(format("ChaincodeListenerProcessor: Channel %s got event for transaction %s from a %sblock",
+                        name, transactionEvent.getTransactionID(), blockEvent.isFiltered() ? "filtered " : ""));
 
                 for (BlockInfo.TransactionEnvelopeInfo.TransactionActionInfo info : transactionEvent.getTransactionActionInfos()) {
 
@@ -3397,6 +3433,7 @@ public class Channel implements Serializable {
         }
 
         peers.clear(); // make sure.
+        peerOptionsMap.clear();
 
         //Make sure
         for (Set<Peer> peerRoleSet : peerRoleSetMap.values()) {
