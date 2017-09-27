@@ -20,6 +20,7 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Properties;
 import java.util.Set;
 
 import org.apache.http.HttpEntity;
@@ -239,7 +240,9 @@ public class UpdateChannelIT {
 
         for (String peerName : sampleOrg.getPeerNames()) {
             String peerLocation = sampleOrg.getPeerLocation(peerName);
-            Peer peer = client.newPeer(peerName, peerLocation, testConfig.getPeerProperties(peerName));
+            Properties peerProperties = testConfig.getPeerProperties(peerName);
+            peerProperties.put("org.hyperledger.fabric.sdk.peer.remove_roles", "EVENT_SOURCE");
+            Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
 
             //Query the actual peer for which channels it belongs to and check it belongs to this channel
             Set<String> channels = client.queryChannels(peer);
@@ -248,7 +251,7 @@ public class UpdateChannelIT {
             }
 
             newChannel.addPeer(peer);
-            sampleOrg.addPeer(peer);
+
         }
 
         for (String eventHubName : sampleOrg.getEventHubNames()) {
