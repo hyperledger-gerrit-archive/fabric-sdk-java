@@ -39,7 +39,7 @@ import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
 import org.hyperledger.fabric.sdk.ChaincodeEvent;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.Channel;
-import org.hyperledger.fabric.sdk.Channel.PeerOptions;
+import org.hyperledger.fabric.sdk.Channel.PeerChannelOptions;
 import org.hyperledger.fabric.sdk.ChannelConfiguration;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
@@ -616,7 +616,14 @@ public class End2endIT {
                     assertEquals(chaincodeEventListenerHandle, chaincodeEventCapture.handle);
                     assertEquals(testTxID, chaincodeEventCapture.chaincodeEvent.getTxId());
                     assertEquals(EXPECTED_EVENT_NAME, chaincodeEventCapture.chaincodeEvent.getEventName());
-                    assertTrue(Arrays.equals(EXPECTED_EVENT_DATA, chaincodeEventCapture.chaincodeEvent.getPayload()));
+
+                    if (!chaincodeEventCapture.blockEvent.isFiltered()) {
+                        assertTrue(Arrays.equals(EXPECTED_EVENT_DATA, chaincodeEventCapture.chaincodeEvent.getPayload()));
+                    } else {
+                        //Filtered blocks won't have the payload. NOT null but zero bytes !!
+                        assertEquals(0, chaincodeEventCapture.chaincodeEvent.getPayload().length);
+                    }
+
                     assertEquals(CHAIN_CODE_NAME, chaincodeEventCapture.chaincodeEvent.getChaincodeId());
 
                     BlockEvent blockEvent = chaincodeEventCapture.blockEvent;
@@ -692,9 +699,9 @@ public class End2endIT {
 
             Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
             if (doPeerEventing && everyother) {
-                newChannel.joinPeer(peer); //Default is all roles.
+                newChannel.joinPeer(peer, PeerChannelOptions.create().setEventTypeFilterdBlock()); //Default is all roles.
             } else {
-                newChannel.joinPeer(peer, PeerOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
+                newChannel.joinPeer(peer, PeerChannelOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
             }
 
             out("Peer %s joined channel %s", peerName, name);

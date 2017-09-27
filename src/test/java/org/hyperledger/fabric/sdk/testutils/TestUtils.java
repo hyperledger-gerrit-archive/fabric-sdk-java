@@ -25,7 +25,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.codec.binary.Hex;
+import org.hyperledger.fabric.protos.ledger.rwset.kvrwset.KvRwset;
+import org.hyperledger.fabric.sdk.BlockEvent;
+import org.hyperledger.fabric.sdk.BlockInfo;
+import org.hyperledger.fabric.sdk.ChaincodeEvent;
+import org.hyperledger.fabric.sdk.TxReadWriteSetInfo;
 import org.hyperledger.fabric.sdk.helper.Config;
+
+import static org.hyperledger.fabric.sdk.BlockInfo.EnvelopeType.TRANSACTION_ENVELOPE;
 
 public class TestUtils {
 
@@ -165,6 +173,169 @@ public class TestUtils {
         }
 
         return oldVal;
+    }
+
+    public static void blockWalker(BlockEvent blockEvent) {
+        try {
+
+            BlockInfo returnedBlock = blockEvent;
+            final long blockNumber = returnedBlock.getBlockNumber();
+            final boolean isFilterBlock = returnedBlock.isFiltered();
+
+            if (!returnedBlock.isFiltered()) {
+                out("current block number %d has data hash: %s", blockNumber, Hex.encodeHexString(returnedBlock.getDataHash()));
+                out("current block number %d has previous hash id: %s", blockNumber, Hex.encodeHexString(returnedBlock.getPreviousHash()));
+//            out("current block number %d has calculated block hash is %s", blockNumber, Hex.encodeHexString(SDKUtils.calculateBlockHash(client,
+//                    blockNumber, returnedBlock.getPreviousHash(), returnedBlock.getDataHash())));
+            }
+
+            final int envelopeCount = returnedBlock.getEnvelopeCount();
+            //     assertEquals(1, envelopeCount);
+            out("current block number %d has %d envelope count:", blockNumber, returnedBlock.getEnvelopeCount());
+            int i = 0;
+            for (BlockInfo.EnvelopeInfo envelopeInfo : returnedBlock.getEnvelopeInfos()) {
+                ++i;
+
+                out("  Transaction number %d has transaction id: %s", i, envelopeInfo.getTransactionID());
+                final String channelId = envelopeInfo.getChannelId();
+                //           assertTrue("foo".equals(channelId) || "bar".equals(channelId));
+
+                out("  Transaction number %d has channel id: %s", i, channelId);
+                out("  Transaction number %d has type id: %s", i, "" + envelopeInfo.getType());
+                if (!isFilterBlock) {
+                    out("  Transaction number %d has epoch: %d", i, envelopeInfo.getEpoch());
+                    out("  Transaction number %d has transaction timestamp: %tB %<te,  %<tY  %<tT %<Tp", i, envelopeInfo.getTimestamp());
+                }
+
+                if (envelopeInfo.getType() == TRANSACTION_ENVELOPE) {
+                    BlockInfo.TransactionEnvelopeInfo transactionEnvelopeInfo = (BlockInfo.TransactionEnvelopeInfo) envelopeInfo;
+
+                    out("  Transaction number %d has %d actions", i, transactionEnvelopeInfo.getTransactionActionInfoCount());
+                    //              assertEquals(1, transactionEnvelopeInfo.getTransactionActionInfoCount()); // for now there is only 1 action per transaction.
+                    out("  Transaction number %d isValid %b", i, transactionEnvelopeInfo.isValid());
+                    //             assertEquals(transactionEnvelopeInfo.isValid(), true);
+                    out("  Transaction number %d validation code %d", i, transactionEnvelopeInfo.getValidationCode());
+                    //              assertEquals(0, transactionEnvelopeInfo.getValidationCode());
+
+                    int j = 0;
+                    for (BlockInfo.TransactionEnvelopeInfo.TransactionActionInfo transactionActionInfo : transactionEnvelopeInfo.getTransactionActionInfos()) {
+                        ++j;
+                        if (!isFilterBlock) {
+                            out("   Transaction action %d has response status %d", j, transactionActionInfo.getResponseStatus());
+                            //                 assertEquals(200, transactionActionInfo.getResponseStatus());
+                            out("   Transaction action %d has response message bytes as string: %s", j,
+                                    new String(transactionActionInfo.getResponseMessageBytes(), "UTF-8"));
+                            out("   Transaction action %d has %d endorsements", j, transactionActionInfo.getEndorsementsCount());
+                            //                 assertEquals(2, transactionActionInfo.getEndorsementsCount());
+
+                            for (int n = 0; n < transactionActionInfo.getEndorsementsCount(); ++n) {
+                                BlockInfo.EndorserInfo endorserInfo = transactionActionInfo.getEndorsementInfo(n);
+                                out("Endorser %d signature: %s", n, Hex.encodeHexString(endorserInfo.getSignature()));
+                                out("Endorser %d endorser: %s", n, new String(endorserInfo.getEndorser(), "UTF-8"));
+                            }
+                            out("   Transaction action %d has %d chaincode input arguments", j, transactionActionInfo.getChaincodeInputArgsCount());
+                            for (int z = 0; z < transactionActionInfo.getChaincodeInputArgsCount(); ++z) {
+                                out("     Transaction action %d has chaincode input argument %d is: %s", j, z,
+                                        new String(transactionActionInfo.getChaincodeInputArgs(z), "UTF-8"));
+                            }
+
+                            out("   Transaction action %d proposal response status: %d", j,
+                                    transactionActionInfo.getProposalResponseStatus());
+                            out("   Transaction action %d proposal response payload: %s", j,
+                                    new String(transactionActionInfo.getProposalResponsePayload()));
+                        }
+
+                        // Check to see if we have our expected event.
+
+                        ChaincodeEvent chaincodeEvent = transactionActionInfo.getEvent();
+                        if (null != chaincodeEvent) {
+                            out("Chaincode event txid:%s, getChaincodeId:%s", chaincodeEvent.getTxId(), chaincodeEvent.getChaincodeId());
+                        }
+
+                        //                               assertNotNull(chaincodeEvent);
+
+//                                assertTrue(Arrays.equals(EXPECTED_EVENT_DATA, chaincodeEvent.getPayload()));
+//                                assertEquals(testTxID, chaincodeEvent.getTxId());
+//                                assertEquals(CHAIN_CODE_NAME, chaincodeEvent.getChaincodeId());
+//                                assertEquals(EXPECTED_EVENT_NAME, chaincodeEvent.getEventName());
+
+                        TxReadWriteSetInfo rwsetInfo = transactionActionInfo.getTxReadWriteSet();
+                        if (null != rwsetInfo) {
+                            out("   Transaction action %d has %d name space read write sets", j, rwsetInfo.getNsRwsetCount());
+
+                            for (TxReadWriteSetInfo.NsRwsetInfo nsRwsetInfo : rwsetInfo.getNsRwsetInfos()) {
+                                final String namespace = nsRwsetInfo.getNamespace();
+                                KvRwset.KVRWSet rws = nsRwsetInfo.getRwset();
+
+                                int rs = -1;
+//                                    for (KvRwset.KVRead readList : rws.getReadsList()) {
+//                                        rs++;
+//
+//                                        out("     Namespace %s read set %d key %s  version [%d:%d]", namespace, rs, readList.getKey(),
+//                                                readList.getVersion().getBlockNum(), readList.getVersion().getTxNum());
+//
+//                                        if ("bar".equals(channelId) && blockNumber == 2) {
+//                                            if ("example_cc_go".equals(namespace)) {
+//                                                if (rs == 0) {
+////                                                    assertEquals("a", readList.getKey());
+////                                                    assertEquals(1, readList.getVersion().getBlockNum());
+////                                                    assertEquals(0, readList.getVersion().getTxNum());
+//                                                } else if (rs == 1) {
+////                                                    assertEquals("b", readList.getKey());
+////                                                    assertEquals(1, readList.getVersion().getBlockNum());
+////                                                    assertEquals(0, readList.getVersion().getTxNum());
+//                                                } else {
+//                                                    //  fail(format("unexpected readset %d", rs));
+//                                                }
+//
+//                                                //                                               TX_EXPECTED.remove("readset1");
+//                                            }
+//                                        }
+//                                    }
+
+                                rs = -1;
+                                for (KvRwset.KVWrite writeList : rws.getWritesList()) {
+                                    rs++;
+                                    String valAsString = new String(writeList.getValue().toByteArray(), "UTF-8");
+
+                                    out("     Namespace %s write set %d key %s has value '%s' ", namespace, rs,
+                                            writeList.getKey(),
+                                            valAsString);
+
+//                                        if ("bar".equals(channelId) && blockNumber == 2) {
+//                                            if (rs == 0) {
+//                                                assertEquals("a", writeList.getKey());
+//                                                assertEquals("400", valAsString);
+//                                            } else if (rs == 1) {
+//                                                assertEquals("b", writeList.getKey());
+//                                                assertEquals("400", valAsString);
+//                                            } else {
+//                                             //   fail(format("unexpected writeset %d", rs));
+//                                            }
+//
+//                                      //      TX_EXPECTED.remove("writeset1");
+//                                        }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    static void out(String format, Object... args) {
+
+        System.err.flush();
+        System.out.flush();
+
+        System.out.println(String.format(format, args));
+        System.err.flush();
+        System.out.flush();
+
     }
 
 }
