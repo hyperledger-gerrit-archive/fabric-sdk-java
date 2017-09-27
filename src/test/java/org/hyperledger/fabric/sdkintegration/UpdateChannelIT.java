@@ -248,7 +248,7 @@ public class UpdateChannelIT {
             }
 
             newChannel.addPeer(peer);
-            sampleOrg.addPeer(peer);
+
         }
 
         for (String eventHubName : sampleOrg.getEventHubNames()) {
