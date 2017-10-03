@@ -20,8 +20,11 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
@@ -44,6 +47,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class HFCAClientIT {
@@ -101,6 +107,49 @@ public class HFCAClientIT {
         admin = sampleStore.getMember(TEST_ADMIN_NAME, TEST_ADMIN_ORG);
         if (!admin.isEnrolled()) { // Preregistered admin only needs to be enrolled with Fabric CA.
             admin.setEnrollment(client.enroll(admin.getName(), TEST_ADMIN_PW));
+        }
+
+    }
+
+    // Tests re-enrolling a user that has had an enrollment revoked
+    @Test
+    public void testRegisterAttributes() throws Exception {
+
+        SampleUser user = new SampleUser("mrAttributes20", TEST_ADMIN_ORG, sampleStore);
+
+        RegistrationRequest rr = new RegistrationRequest(user.getName(), TEST_USER1_AFFILIATION);
+        String password = "mrAttributespassword";
+        rr.setSecret(password);
+
+        rr.addAttribute(new Attribute("testattr1", "mrAttributesValue1"));
+        rr.addAttribute(new Attribute("testattr2", "mrAttributesValue2"));
+        rr.addAttribute(new Attribute("testattrMUSTHAVE", "mrAttributesValueMUSTHAVE", true));
+        user.setEnrollmentSecret(client.register(rr, admin));
+        if (!user.getEnrollmentSecret().equals(password)) {
+            fail("Secret returned from RegistrationRequest not match : " + user.getEnrollmentSecret());
+        }
+        EnrollmentRequest req = new EnrollmentRequest();
+        req.addAttrReq("testattr2").setRequire(true);
+        //   req.addAttrReq("testattrMUSTHAVE").setRequire(true);
+
+        user.setEnrollment(client.enroll(user.getName(), user.getEnrollmentSecret(), req));
+
+        Enrollment enrollment = user.getEnrollment();
+        String cert = enrollment.getCert();
+
+        final Pattern compile = Pattern.compile("^-----BEGIN CERTIFICATE-----$" + "(.*?)" + "\n-----END CERTIFICATE-----\n", Pattern.DOTALL | Pattern.MULTILINE);
+        final Matcher matcher = compile.matcher(cert);
+        if (matcher.matches()) {
+            final String base64part = matcher.group(1).replaceAll("\n", "");
+            Base64.Decoder b64dec = Base64.getDecoder();
+            String certdec = new String(b64dec.decode(base64part.getBytes(UTF_8)));
+
+            assertTrue(format("Missing testattr2 in certficate decoded: %s", certdec), certdec.contains("\"testattr2\":\"mrAttributesValue2\""));
+            assertTrue(format("Missing testattrMUSTHAVE in certficate decoded: %s", certdec), certdec.contains("\"testattrMUSTHAVE\":\"mrAttributesValueMUSTHAVE\""));
+            assertFalse(format("Contains testattr1 in certficate decoded: %s", certdec), certdec.contains("\"testattr1\"") || certdec.contains("\"mrAttributesValue1\""));
+
+        } else {
+            fail("Certificate failed to match expected pattern. Certificate:\n" + cert);
         }
 
     }
