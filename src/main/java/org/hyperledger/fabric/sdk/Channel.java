@@ -2435,25 +2435,9 @@ public class Channel implements Serializable {
                     String emsg = format("Channel %s unsuccessful sendTransaction to orderer", name);
                     if (resp != null) {
 
-                        StringBuilder respdata = new StringBuilder(400);
+                        String respdata = getRespData(resp);
 
-                        Status status = resp.getStatus();
-                        if (null != status) {
-                            respdata.append(status.name());
-                            respdata.append("-");
-                            respdata.append(status.getNumber());
-                        }
-
-                        String info = resp.getInfo();
-                        if (null != info && !info.isEmpty()) {
-                            if (respdata.length() > 0) {
-                                respdata.append(", ");
-                            }
-
-                            respdata.append("Additional information: ").append(info);
-
-                        }
-                        emsg = format("Channel %s unsuccessful sendTransaction to orderer.  %s", name, respdata.toString());
+                        emsg = format("Channel %s unsuccessful sendTransaction to orderer.  %s", name, respdata);
                     }
 
                     logger.error(emsg, e);
@@ -2466,28 +2450,12 @@ public class Channel implements Serializable {
                 logger.debug(format("Channel %s successful sent to Orderer transaction id: %s", name, proposalTransactionID));
                 return sret;
             } else {
-                StringBuilder respdata = new StringBuilder(400);
-                if (resp != null) {
-                    Status status = resp.getStatus();
-                    if (null != status) {
-                        respdata.append(status.name());
-                        respdata.append("-");
-                        respdata.append(status.getNumber());
-                    }
-
-                    String info = resp.getInfo();
-                    if (null != info && !info.isEmpty()) {
-                        if (respdata.length() > 0) {
-                            respdata.append(", ");
-                        }
-
-                        respdata.append("Additional information: ").append(info);
-
-                    }
-
-                }
+                String respdata = getRespData(resp);
                 String emsg = format("Channel %s failed to place transaction %s on Orderer. Cause: UNSUCCESSFUL. %s",
-                        name, proposalTransactionID, respdata.toString());
+                        name, proposalTransactionID, respdata);
+
+                unregisterTxListener(proposalTransactionID);
+
                 CompletableFuture<TransactionEvent> ret = new CompletableFuture<>();
                 ret.completeExceptionally(new Exception(emsg));
                 return ret;
@@ -2499,6 +2467,38 @@ public class Channel implements Serializable {
             return future;
 
         }
+
+    }
+
+    /**
+     * Build response details
+     * @param resp
+     * @return
+     */
+    private String getRespData(BroadcastResponse resp) {
+
+        StringBuilder respdata = new StringBuilder(400);
+        if (resp != null) {
+            Status status = resp.getStatus();
+            if (null != status) {
+                respdata.append(status.name());
+                respdata.append("-");
+                respdata.append(status.getNumber());
+            }
+
+            String info = resp.getInfo();
+            if (null != info && !info.isEmpty()) {
+                if (respdata.length() > 0) {
+                    respdata.append(", ");
+                }
+
+                respdata.append("Additional information: ").append(info);
+
+            }
+
+        }
+
+        return respdata.toString();
 
     }
 
@@ -2841,6 +2841,22 @@ public class Channel implements Serializable {
             }
         }
 
+        void removeListener() {
+
+            synchronized (txListeners) {
+                LinkedList<TL> l = txListeners.get(txID);
+
+                if (null != l) {
+                    l.removeFirstOccurrence(this);
+                    if (l.size() == 0) {
+                        txListeners.remove(txID);
+                    }
+                }
+            }
+
+
+        }
+
         void fire(BlockEvent.TransactionEvent transactionEvent) {
 
             if (fired.getAndSet(true)) {
@@ -2889,6 +2905,22 @@ public class Channel implements Serializable {
         new TL(txid, future);
 
         return future;
+
+    }
+
+    /**
+     * Unregister a transactionId
+     *
+     * @param txid
+     */
+    private void unregisterTxListener(String txid) {
+
+        LinkedList<TL> l = txListeners.get(txid);
+
+        for (TL tl: l) {
+            tl.removeListener();
+        }
+
 
     }
 
