@@ -2435,25 +2435,7 @@ public class Channel implements Serializable {
                     String emsg = format("Channel %s unsuccessful sendTransaction to orderer", name);
                     if (resp != null) {
 
-                        StringBuilder respdata = new StringBuilder(400);
-
-                        Status status = resp.getStatus();
-                        if (null != status) {
-                            respdata.append(status.name());
-                            respdata.append("-");
-                            respdata.append(status.getNumber());
-                        }
-
-                        String info = resp.getInfo();
-                        if (null != info && !info.isEmpty()) {
-                            if (respdata.length() > 0) {
-                                respdata.append(", ");
-                            }
-
-                            respdata.append("Additional information: ").append(info);
-
-                        }
-                        emsg = format("Channel %s unsuccessful sendTransaction to orderer.  %s", name, respdata.toString());
+                        emsg = format("Channel %s unsuccessful sendTransaction to orderer.  %s", name, getRespData(resp));
                     }
 
                     logger.error(emsg, e);
@@ -2466,28 +2448,12 @@ public class Channel implements Serializable {
                 logger.debug(format("Channel %s successful sent to Orderer transaction id: %s", name, proposalTransactionID));
                 return sret;
             } else {
-                StringBuilder respdata = new StringBuilder(400);
-                if (resp != null) {
-                    Status status = resp.getStatus();
-                    if (null != status) {
-                        respdata.append(status.name());
-                        respdata.append("-");
-                        respdata.append(status.getNumber());
-                    }
 
-                    String info = resp.getInfo();
-                    if (null != info && !info.isEmpty()) {
-                        if (respdata.length() > 0) {
-                            respdata.append(", ");
-                        }
-
-                        respdata.append("Additional information: ").append(info);
-
-                    }
-
-                }
                 String emsg = format("Channel %s failed to place transaction %s on Orderer. Cause: UNSUCCESSFUL. %s",
-                        name, proposalTransactionID, respdata.toString());
+                        name, proposalTransactionID, getRespData(resp));
+
+                unregisterTxListener(proposalTransactionID);
+
                 CompletableFuture<TransactionEvent> ret = new CompletableFuture<>();
                 ret.completeExceptionally(new Exception(emsg));
                 return ret;
@@ -2499,6 +2465,38 @@ public class Channel implements Serializable {
             return future;
 
         }
+
+    }
+
+    /**
+     * Build response details
+     * @param resp
+     * @return
+     */
+    private String getRespData(BroadcastResponse resp) {
+
+        StringBuilder respdata = new StringBuilder(400);
+        if (resp != null) {
+            Status status = resp.getStatus();
+            if (null != status) {
+                respdata.append(status.name());
+                respdata.append("-");
+                respdata.append(status.getNumber());
+            }
+
+            String info = resp.getInfo();
+            if (null != info && !info.isEmpty()) {
+                if (respdata.length() > 0) {
+                    respdata.append(", ");
+                }
+
+                respdata.append("Additional information: ").append(info);
+
+            }
+
+        }
+
+        return respdata.toString();
 
     }
 
@@ -2588,7 +2586,7 @@ public class Channel implements Serializable {
      * @return false if not found.
      * @throws InvalidArgumentException if the channel is shutdown or invalid arguments.
      */
-    public boolean unRegisterBlockListener(String handle) throws InvalidArgumentException {
+    public boolean unregisterBlockListener(String handle) throws InvalidArgumentException {
 
         if (shutdown) {
             throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
@@ -2892,6 +2890,20 @@ public class Channel implements Serializable {
 
     }
 
+    /**
+     * Unregister a transactionId
+     *
+     * @param txid
+     */
+    private void unregisterTxListener(String txid) {
+
+        synchronized (txListeners) {
+
+            txListeners.remove(txid);
+        }
+
+    }
+
     ////////////////////////////////////////////////////////////////////////
     ////////////////  Chaincode Events..  //////////////////////////////////
 
@@ -2939,7 +2951,7 @@ public class Channel implements Serializable {
      * @param chaincodeId            Java pattern for chaincode identifier also know as chaincode name. If ma
      * @param eventName              Java pattern to match the event name.
      * @param chaincodeEventListener The listener to be invoked if both chaincodeId and eventName pattern matches.
-     * @return Handle to be used to unregister the event listener {@link #unRegisterChaincodeEventListener(String)}
+     * @return Handle to be used to unregister the event listener {@link #unregisterChaincodeEventListener(String)}
      * @throws InvalidArgumentException
      */
 
@@ -2981,7 +2993,7 @@ public class Channel implements Serializable {
      * @throws InvalidArgumentException
      */
 
-    public boolean unRegisterChaincodeEventListener(String handle) throws InvalidArgumentException {
+    public boolean unregisterChaincodeEventListener(String handle) throws InvalidArgumentException {
         boolean ret;
 
         if (shutdown) {
@@ -2998,7 +3010,7 @@ public class Channel implements Serializable {
         synchronized (this) {
             if (null != blh && chainCodeListeners.isEmpty()) {
 
-                unRegisterBlockListener(blh);
+                unregisterBlockListener(blh);
                 blh = null;
             }
         }
