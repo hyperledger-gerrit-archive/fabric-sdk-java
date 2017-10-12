@@ -2435,9 +2435,7 @@ public class Channel implements Serializable {
                     String emsg = format("Channel %s unsuccessful sendTransaction to orderer", name);
                     if (resp != null) {
 
-                        String respdata = getRespData(resp);
-
-                        emsg = format("Channel %s unsuccessful sendTransaction to orderer.  %s", name, respdata);
+                        emsg = format("Channel %s unsuccessful sendTransaction to orderer.  %s", name, getRespData(resp));
                     }
 
                     logger.error(emsg, e);
@@ -2450,9 +2448,9 @@ public class Channel implements Serializable {
                 logger.debug(format("Channel %s successful sent to Orderer transaction id: %s", name, proposalTransactionID));
                 return sret;
             } else {
-                String respdata = getRespData(resp);
+
                 String emsg = format("Channel %s failed to place transaction %s on Orderer. Cause: UNSUCCESSFUL. %s",
-                        name, proposalTransactionID, respdata);
+                        name, proposalTransactionID, getRespData(resp));
 
                 unregisterTxListener(proposalTransactionID);
 
@@ -2841,22 +2839,6 @@ public class Channel implements Serializable {
             }
         }
 
-        void removeListener() {
-
-            synchronized (txListeners) {
-                LinkedList<TL> l = txListeners.get(txID);
-
-                if (null != l) {
-                    l.removeFirstOccurrence(this);
-                    if (l.size() == 0) {
-                        txListeners.remove(txID);
-                    }
-                }
-            }
-
-
-        }
-
         void fire(BlockEvent.TransactionEvent transactionEvent) {
 
             if (fired.getAndSet(true)) {
@@ -2915,12 +2897,11 @@ public class Channel implements Serializable {
      */
     private void unregisterTxListener(String txid) {
 
-        LinkedList<TL> l = txListeners.get(txid);
+        synchronized (txListeners) {
 
-        for (TL tl: l) {
-            tl.removeListener();
+            LinkedList<TL> l = txListeners.get(txid);
+            txListeners.remove(txid);
         }
-
 
     }
 
