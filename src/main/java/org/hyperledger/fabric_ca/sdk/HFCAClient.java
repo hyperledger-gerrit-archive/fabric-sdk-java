@@ -76,6 +76,7 @@ import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
 import org.bouncycastle.asn1.x509.Extension;
 import org.hyperledger.fabric.sdk.Enrollment;
+import org.hyperledger.fabric.sdk.NetworkConfig;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
@@ -199,6 +200,45 @@ public class HFCAClient {
 
     public CryptoSuite getCryptoSuite() {
         return cryptoSuite;
+    }
+
+
+
+    static final String NETWORK_CONFIG_PEERORG = "Org1";
+    static final String PEER_ADMIN_NAME = "admin";
+    static final String PEER_ADMIN_SECRET = "adminpw";
+
+    // TODO: How to get a User - since it's an interface???
+    public NetworkConfig.UserInfo loadFromConfigPeerAdmin(NetworkConfig config) {
+/*
+        NetworkConfig.OrganizationConfig peerOrg1 = config.getOrganization(NETWORK_CONFIG_PEERORG);
+        NetworkConfig.OrganizationConfig.CertificateAuthorityConfig certificateAuthority = peerOrg1.getCertificateAuthority(NETWORK_CONFIG_PEERORG_CA);
+
+        NetworkConfig.NetworkConfigUser networkConfigRegistrar = certificateAuthority.getRegistrar(PEER_ADMIN_NAME);
+
+        User admin = SAMPLE_STORE.getMember(PEER_ADMIN_NAME, NETWORK_CONFIG_PEERORG);
+        admin.setEnrollmentSecret(networkConfigRegistrar.getEnrollSecret());
+        admin.setEnrollmentSecret(PEER_ADMIN_SECRET);
+        admin.setAffiliation(networkConfigRegistrar.getAffiliation());
+        admin.setMspId(networkConfigRegistrar.getMspId());
+*/
+        NetworkConfig.UserInfo admin = null;
+        return admin;
+    }
+
+    // TODO: How to construct this request - what do we use for the affilliation?
+    public RegistrationRequest loadFromConfigRegistrarRegistrationRequest(NetworkConfig config) {
+/*
+        RegistrationRequest testRegisterReq = new RegistrationRequest(regID, regAffiliation);
+        testRegisterReq.setEnrollmentID(regID + "update");
+        testRegisterReq.setSecret(regSecret);
+        testRegisterReq.setMaxEnrollments(regMaxEnrollments);
+        testRegisterReq.setType(regType);
+        testRegisterReq.setAffiliation(regAffiliation + "update");
+        testRegisterReq.setCAName(regCAName);
+        testRegisterReq.addAttribute(new Attribute(attrName, attrValue));
+*/
+        return null;
     }
 
     /**

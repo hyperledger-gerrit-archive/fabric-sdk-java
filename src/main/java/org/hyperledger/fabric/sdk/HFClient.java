@@ -119,6 +119,36 @@ public class HFClient {
     }
 
     /**
+     * Configured a channel based on information loaded from a Network Config file.
+     *
+     * @param channelName The name of the channel to be configured
+     * @param networkConfig The network configuration to use to configure the channel
+     * @return The configured channel, or null if the channel is not defined in the configuration
+     * @throws InvalidArgumentException
+     * @throws TransactionException
+     */
+    public Channel loadChannelFromConfig(String channelName, NetworkConfig networkConfig) throws InvalidArgumentException, TransactionException {
+        clientCheck();
+
+        // Sanity checks
+        if (channelName == null || channelName.isEmpty()) {
+            throw new InvalidArgumentException("channelName must be specified");
+        }
+
+        if (networkConfig == null) {
+            throw new InvalidArgumentException("networkConfig must be specified");
+        }
+
+        Channel newChannel = networkConfig.loadChannel(this, channelName);
+        if (newChannel != null) {
+            newChannel.initialize();
+        }
+
+        return newChannel;
+    }
+
+
+    /**
      * newChannel - already configured channel.
      *
      * @param name
@@ -135,7 +165,7 @@ public class HFClient {
         synchronized (channels) {
 
             if (channels.containsKey(name)) {
-                throw new InvalidArgumentException(format("Channel by the name %s already exits", name));
+                throw new InvalidArgumentException(format("Channel by the name %s already exists", name));
             }
             logger.trace("Creating channel :" + name);
             Channel newChannel = Channel.createNewInstance(name, this);
@@ -298,9 +328,12 @@ public class HFClient {
 
     /**
      * getChannel by name
+     * <p>
+     * If the channel does not exist and the client was created using a Network Configuration file,
+     * the channel will be created if possible using the details from the configuration file.
      *
-     * @param name
-     * @return a channel
+     * @param name The channel name
+     * @return a channel (or null if the channel does not exist)
      */
 
     public Channel getChannel(String name) {
@@ -597,6 +630,7 @@ public class HFClient {
         return systemChannel.sendInstallProposal(installProposalRequest, peers);
 
     }
+
 
     private void clientCheck() throws InvalidArgumentException {
 
