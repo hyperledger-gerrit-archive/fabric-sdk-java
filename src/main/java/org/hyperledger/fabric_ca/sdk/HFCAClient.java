@@ -209,6 +209,13 @@ public class HFCAClient {
         return cryptoSuite;
     }
 
+
+
+    static final String NETWORK_CONFIG_PEERORG = "Org1";
+    static final String PEER_ADMIN_NAME = "admin";
+    static final String PEER_ADMIN_SECRET = "adminpw";
+
+
     /**
      * Register a user.
      *
