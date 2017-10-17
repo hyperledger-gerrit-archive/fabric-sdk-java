@@ -14,12 +14,12 @@
 
 package org.hyperledger.fabric.sdk;
 
-import java.security.PrivateKey;
-import java.util.Set;
 
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric.sdk.testutils.TestUtils;
+import org.hyperledger.fabric.sdk.testutils.TestUtils.MockUser;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -107,7 +107,7 @@ public class ClientTest {
     public void testGoodMockUser() throws Exception {
         HFClient client = HFClient.createNewInstance();
         client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
-        client.setUserContext(new MockUser());
+        client.setUserContext(TestUtils.getMockUser());
         Orderer orderer = hfclient.newOrderer("justMockme", "grpc://localhost:99"); // test mock should work.
         Assert.assertNotNull(orderer);
 
@@ -127,7 +127,7 @@ public class ClientTest {
         HFClient client = HFClient.createNewInstance();
         client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
 
-        MockUser mockUser = new MockUser();
+        MockUser mockUser = TestUtils.getMockUser();
         mockUser.name = null;
 
         client.setUserContext(mockUser);
@@ -139,7 +139,7 @@ public class ClientTest {
         HFClient client = HFClient.createNewInstance();
         client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
 
-        MockUser mockUser = new MockUser();
+        MockUser mockUser = TestUtils.getMockUser();
         mockUser.name = "";
 
         client.setUserContext(mockUser);
@@ -151,7 +151,7 @@ public class ClientTest {
         HFClient client = HFClient.createNewInstance();
         client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
 
-        MockUser mockUser = new MockUser();
+        MockUser mockUser = TestUtils.getMockUser();
         mockUser.mspId = null;
 
         client.setUserContext(mockUser);
@@ -163,7 +163,7 @@ public class ClientTest {
         HFClient client = HFClient.createNewInstance();
         client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
 
-        MockUser mockUser = new MockUser();
+        MockUser mockUser = TestUtils.getMockUser();
         mockUser.mspId = "";
 
         client.setUserContext(mockUser);
@@ -175,7 +175,7 @@ public class ClientTest {
         HFClient client = HFClient.createNewInstance();
         client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
 
-        MockUser mockUser = new MockUser();
+        MockUser mockUser = TestUtils.getMockUser();
         mockUser.enrollment = null;
 
         client.setUserContext(mockUser);
@@ -187,7 +187,7 @@ public class ClientTest {
         HFClient client = HFClient.createNewInstance();
         client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
 
-        MockUser mockUser = new MockUser();
+        MockUser mockUser = TestUtils.getMockUser();
         mockUser.enrollment.cert = null;
 
         client.setUserContext(mockUser);
@@ -199,7 +199,7 @@ public class ClientTest {
         HFClient client = HFClient.createNewInstance();
         client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
 
-        MockUser mockUser = new MockUser();
+        MockUser mockUser = TestUtils.getMockUser();
         mockUser.enrollment.privateKey = null;
 
         client.setUserContext(mockUser);
@@ -217,7 +217,7 @@ public class ClientTest {
 
             client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
 
-            MockUser mockUser = new MockUser();
+            MockUser mockUser = TestUtils.getMockUser();
             mockUser.enrollment.privateKey = null;
 
             client.setUserContext(mockUser);
@@ -226,72 +226,6 @@ public class ClientTest {
 
         }
 
-    }
-
-    static class MockEnrollment implements Enrollment {
-        public String cert = "mockCert";
-        public PrivateKey privateKey = new PrivateKey() {
-            @Override
-            public String getAlgorithm() {
-                return null;
-            }
-
-            @Override
-            public String getFormat() {
-                return null;
-            }
-
-            @Override
-            public byte[] getEncoded() {
-                return new byte[0];
-            }
-        };
-
-        @Override
-        public PrivateKey getKey() {
-            return privateKey;
-        }
-
-        @Override
-        public String getCert() {
-            return cert;
-        }
-    }
-
-    static class MockUser implements User {
-        public String name = "MockMe";
-        public String mspId = "MockMSPID";
-        public MockEnrollment enrollment = new MockEnrollment();
-
-        @Override
-        public String getName() {
-            return name;
-        }
-
-        @Override
-        public Set<String> getRoles() {
-            return null;
-        }
-
-        @Override
-        public String getAccount() {
-            return null;
-        }
-
-        @Override
-        public String getAffiliation() {
-            return null;
-        }
-
-        @Override
-        public Enrollment getEnrollment() {
-            return enrollment;
-        }
-
-        @Override
-        public String getMspId() {
-            return mspId;
-        }
     }
 
 }

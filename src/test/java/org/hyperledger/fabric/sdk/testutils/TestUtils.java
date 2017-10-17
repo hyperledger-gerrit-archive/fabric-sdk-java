@@ -19,12 +19,18 @@ package org.hyperledger.fabric.sdk.testutils;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
+import org.hyperledger.fabric.sdk.Enrollment;
+//import org.hyperledger.fabric.sdk.MockUser;
+import org.hyperledger.fabric.sdk.User;
+//import org.hyperledger.fabric.sdk.ClientTest.MockEnrollment;
 import org.hyperledger.fabric.sdk.helper.Config;
 
 public class TestUtils {
@@ -63,7 +69,6 @@ public class TestUtils {
      * @return Result of method.
      */
     public static Object invokeMethod(Object o, String methodName, Object... args) throws Throwable {
-        Object oldVal = null;
 
         Method[] methods = o.getClass().getDeclaredMethods();
         List<Method> reduce = new ArrayList<>(Arrays.asList(methods));
@@ -166,5 +171,85 @@ public class TestUtils {
 
         return oldVal;
     }
+
+    public static MockUser getMockUser() {
+        return new MockUser();
+    }
+
+    public static class MockEnrollment implements Enrollment {
+        public String cert = "mockCert";
+
+        private MockEnrollment() {
+        }
+
+        public PrivateKey privateKey = new PrivateKey() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public String getAlgorithm() {
+                return null;
+            }
+
+            @Override
+            public String getFormat() {
+                return null;
+            }
+
+            @Override
+            public byte[] getEncoded() {
+                return new byte[0];
+            }
+        };
+
+        @Override
+        public PrivateKey getKey() {
+            return privateKey;
+        }
+
+        @Override
+        public String getCert() {
+            return cert;
+        }
+    }
+
+    public static class MockUser implements User {
+        public String name = "MockMe";
+        public String mspId = "MockMSPID";
+        public MockEnrollment enrollment = new MockEnrollment();
+
+        private MockUser() {
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public Set<String> getRoles() {
+            return null;
+        }
+
+        @Override
+        public String getAccount() {
+            return null;
+        }
+
+        @Override
+        public String getAffiliation() {
+            return null;
+        }
+
+        @Override
+        public Enrollment getEnrollment() {
+            return enrollment;
+        }
+
+        @Override
+        public String getMspId() {
+            return mspId;
+        }
+    }
+
 
 }
