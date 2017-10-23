@@ -12,7 +12,7 @@
  *  limitations under the License.
  */
 
- package org.hyperledger.fabric_ca.sdk;
+package org.hyperledger.fabric_ca.sdk;
 
 import java.io.StringReader;
 import java.net.MalformedURLException;
@@ -23,6 +23,7 @@ import javax.json.JsonObject;
 import javax.json.JsonReader;
 
 import org.apache.http.auth.UsernamePasswordCredentials;
+import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
 
@@ -30,7 +31,6 @@ import static java.lang.String.format;
 
 /**
  * A Mock class for testing HFCAClient.java
- *
  */
 
 public class MockHFCAClient extends HFCAClient {
@@ -47,12 +47,12 @@ public class MockHFCAClient extends HFCAClient {
     }
 
     @Override
-    JsonObject httpPost(String url, String body, String authHTTPCert) throws Exception {
+    JsonObject httpPost(String url, String body, String authHTTPCert, User user) throws Exception {
 
         JsonObject response;
 
         if (httpPostResponse == null) {
-            response = super.httpPost(url, body, authHTTPCert);
+            response = super.httpPost(url, body, authHTTPCert, user);
         } else {
             JsonReader reader = Json.createReader(new StringReader(httpPostResponse));
             response = (JsonObject) reader.read();

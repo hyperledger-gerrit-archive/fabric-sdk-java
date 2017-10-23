@@ -436,4 +436,94 @@ public class HFCAClientTest {
         client.revoke(admin, (String) null, "keyCompromise");
     }
 
+    @Test
+    public void testConfigureRequestJSON() throws Exception {
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+        configureRequest.setCAName("blahCANAME");
+        configureRequest.addCommand("commandONE").addArg("commandONE_Arg1").addArg("commandONE_Arg2");
+        configureRequest.addCommand("commandTWO").addArg("commandTWO_Arg1").addArg("commandTWO_Arg2");
+        final String toJson = configureRequest.toJson();
+
+        Assert.assertEquals(
+                "{\"caname\":\"blahCANAME\",\"commands\":[{\"args\":[\"commandONE\",\"commandONE_Arg1\",\"commandONE_Arg2\"]},{\"args\":[\"commandTWO\",\"commandTWO_Arg1\",\"commandTWO_Arg2\"]}]}",
+                toJson);
+
+    }
+
+    @Test
+    public void testConfigureRequestOneCommandJSON() throws Exception {
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+        configureRequest.addCommand("commandONE").addArg("commandONE_Arg1").addArg("commandONE_Arg2");
+
+        final String toJson = configureRequest.toJson();
+
+        Assert.assertEquals(
+                "{\"commands\":[{\"args\":[\"commandONE\",\"commandONE_Arg1\",\"commandONE_Arg2\"]}]}",
+                toJson);
+
+    }
+
+    @Test
+    public void testConfigureRequestOneNoArgsCommandJSON() throws Exception {
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+        configureRequest.setCAName("CANAMEistoBlame");
+        configureRequest.addCommand("commandONLY");
+
+        final String toJson = configureRequest.toJson();
+
+        Assert.assertEquals(
+                "{\"caname\":\"CANAMEistoBlame\",\"commands\":[{\"args\":[\"commandONLY\"]}]}",
+                toJson);
+
+    }
+
+    @Test
+    public void testConfigureRequestNullCommandJSON() throws Exception {
+
+        thrown.expect(InvalidArgumentException.class);
+        thrown.expectMessage("Parameter commandName may not be null.");
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+
+        configureRequest.addCommand(null);
+    }
+
+    @Test
+    public void testConfigureRequestNullArgJSON() throws Exception {
+
+        thrown.expect(InvalidArgumentException.class);
+        thrown.expectMessage("Parameter arg may not be null.");
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+
+        configureRequest.addCommand("rickDIDthis").addArg(null);
+    }
+
+    @Test
+    public void testConfigureNULLUser() throws Exception {
+
+        thrown.expect(InvalidArgumentException.class);
+        thrown.expectMessage("adminUser parameter can not be null");
+
+        HFCAClient client = HFCAClient.createNewInstance("client", "http://localhost:99", null);
+        client.setCryptoSuite(crypto);
+
+        client.configure(null, new ConfigureRequest());
+    }
+
+    @Test
+    public void testConfigureNULLCommand() throws Exception {
+
+        thrown.expect(InvalidArgumentException.class);
+        thrown.expectMessage("configureRequest parameter can not be null.");
+
+        HFCAClient client = HFCAClient.createNewInstance("client", "http://localhost:99", null);
+        client.setCryptoSuite(crypto);
+
+        client.configure(admin, null);
+    }
+
 }

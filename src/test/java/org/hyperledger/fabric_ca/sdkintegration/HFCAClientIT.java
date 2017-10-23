@@ -37,6 +37,8 @@ import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric.sdkintegration.SampleStore;
 import org.hyperledger.fabric.sdkintegration.SampleUser;
 import org.hyperledger.fabric_ca.sdk.Attribute;
+import org.hyperledger.fabric_ca.sdk.ConfigureRequest;
+import org.hyperledger.fabric_ca.sdk.ConfigureResponse;
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.MockHFCAClient;
@@ -55,6 +57,7 @@ import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -546,6 +549,47 @@ public class HFCAClientIT {
 
         mockClient.setHttpPostResponse("{\"success\":true}");
         mockClient.reenroll(user);
+    }
+
+    @Test
+    public void testConfigAddAffiliation() throws Exception {
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+        configureRequest.addCommand("add").addArg("affiliations.org2.dept1.team");
+        ConfigureResponse configure = client.configure(admin, configureRequest);
+
+        assertNotNull(configure);
+        List<ConfigureResponse.CommandResponse> responses = configure.getCommandResponses();
+        assertNotNull(responses);
+        assertEquals(1, responses.size());
+        final ConfigureResponse.CommandResponse commandResponse = responses.get(0);
+        assertEquals("add affiliations.org2.dept1.team", commandResponse.getRequest());
+        assertEquals("Affiliation 'org2.dept1.team' successfully added", commandResponse.getResult());
+
+    }
+
+    @Test
+    public void testConfigAddAffiliation2() throws Exception {
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+        configureRequest.addCommand("add").addArg("affiliations.org2.dept2.team");
+        final ConfigureRequest.Command command = configureRequest.addCommand("add");
+        command.addArgs(new String[] {"registry.identities={\"id\": \"testuser\", \"secret\": \"testpass\", \"type\": \"user\"}"});
+
+        ConfigureResponse configure = client.configure(admin, configureRequest);
+
+        assertNotNull(configure);
+        List<ConfigureResponse.CommandResponse> responses = configure.getCommandResponses();
+        assertNotNull(responses);
+        assertEquals(2, responses.size());
+        ConfigureResponse.CommandResponse commandResponse = responses.get(0);
+        assertEquals("add affiliations.org2.dept2.team", commandResponse.getRequest());
+        assertEquals("Affiliation 'org2.dept2.team' successfully added", commandResponse.getResult());
+
+        commandResponse = responses.get(1);
+        assertEquals("add registry.identities={\"id\": \"testuser\", \"secret\": ****, \"type\": \"user\"}", commandResponse.getRequest());
+        assertEquals("ID: testuser, Password: testpass", commandResponse.getResult());
+
     }
 
     @Ignore
