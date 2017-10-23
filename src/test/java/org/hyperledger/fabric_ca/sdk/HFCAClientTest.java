@@ -436,4 +436,48 @@ public class HFCAClientTest {
         client.revoke(admin, (String) null, "keyCompromise");
     }
 
+    @Test
+    public void testConfigureRequestJSON() throws Exception {
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+        configureRequest.setCAName("blahCANAME");
+        configureRequest.addCommand("commandONE").addArg("commandONE_Arg1").addArg("commandONE_Arg2");
+        configureRequest.addCommand("commandTWO").addArg("commandTWO_Arg1").addArg("commandTWO_Arg2");
+        final String toJson = configureRequest.toJson();
+
+        Assert.assertEquals(
+                "{\"caname\":\"blahCANAME\",\"commands\":[{\"args\":[\"commandONE\",\"commandONE_Arg1\",\"commandONE_Arg2\"]},{\"args\":[\"commandTWO\",\"commandTWO_Arg1\",\"commandTWO_Arg2\"]}]}",
+                toJson);
+
+    }
+
+    @Test
+    public void testConfigureRequestOneCommandJSON() throws Exception {
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+        configureRequest.addCommand("commandONE").addArg("commandONE_Arg1").addArg("commandONE_Arg2");
+
+        final String toJson = configureRequest.toJson();
+
+        Assert.assertEquals(
+                "{\"commands\":[{\"args\":[\"commandONE\",\"commandONE_Arg1\",\"commandONE_Arg2\"]}]}",
+                toJson);
+
+    }
+
+    @Test
+    public void testConfigureRequestOneNoArgsCommandJSON() throws Exception {
+
+        final ConfigureRequest configureRequest = new ConfigureRequest();
+        configureRequest.setCAName("CANAMEistoBlame");
+        configureRequest.addCommand("commandONLY");
+
+        final String toJson = configureRequest.toJson();
+
+        Assert.assertEquals(
+                "{\"caname\":\"CANAMEistoBlame\",\"commands\":[{\"args\":[\"commandONLY\"]}]}",
+                toJson);
+
+    }
+
 }
