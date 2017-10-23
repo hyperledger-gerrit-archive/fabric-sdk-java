@@ -86,6 +86,7 @@ import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.exception.ConfigureException;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.GenerateCRLException;
 import org.hyperledger.fabric_ca.sdk.exception.InfoException;
@@ -110,6 +111,7 @@ public class HFCAClient {
     private static final String HFCA_REVOKE = HFCA_CONTEXT_ROOT + "revoke";
     private static final String HFCA_INFO = HFCA_CONTEXT_ROOT + "cainfo";
     private static final String HFCA_GENCRL = HFCA_CONTEXT_ROOT + "gencrl";
+    private static final String HFCA_CONFIG = HFCA_CONTEXT_ROOT + "config";
 
     static final String FABRIC_CA_REQPROP = "caname";
 
@@ -675,6 +677,55 @@ public class HFCAClient {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             throw new GenerateCRLException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Execute configure request.
+     *
+     * @param adminUser        admin user configured in CA-server
+     * @param configureRequest The configuration request.
+     * @throws InvalidArgumentException
+     */
+
+    public String configure(User adminUser, ConfigureRequest configureRequest)
+            throws InvalidArgumentException, ConfigureException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (adminUser == null) {
+            throw new InvalidArgumentException("adminUser parameter can not be null.");
+        }
+
+        if (null == configureRequest) {
+            throw new InvalidArgumentException("configureRequest parameter can not be null.");
+        }
+
+        try {
+            setUpSSL();
+
+            //---------------------------------------
+            if (caName != null) {
+                configureRequest.setCAName(caName);
+            }
+
+            String body = configureRequest.toJson();
+
+            //---------------------------------------
+
+            // build auth header
+            String authHdr = getHTTPAuthCertificate(adminUser.getEnrollment(), body);
+
+            // send revoke request
+            JsonObject ret = httpPost(url + HFCA_CONFIG, body, authHdr);
+
+            return ret.getString("CRL");
+
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new ConfigureException(e.getMessage(), e);
         }
     }
 
