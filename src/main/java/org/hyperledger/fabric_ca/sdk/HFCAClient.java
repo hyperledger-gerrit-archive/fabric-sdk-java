@@ -86,6 +86,7 @@ import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.exception.ConfigureException;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.GenerateCRLException;
 import org.hyperledger.fabric_ca.sdk.exception.InfoException;
@@ -110,6 +111,7 @@ public class HFCAClient {
     private static final String HFCA_REVOKE = HFCA_CONTEXT_ROOT + "revoke";
     private static final String HFCA_INFO = HFCA_CONTEXT_ROOT + "cainfo";
     private static final String HFCA_GENCRL = HFCA_CONTEXT_ROOT + "gencrl";
+    private static final String HFCA_CONFIG = HFCA_CONTEXT_ROOT + "config";
 
     static final String FABRIC_CA_REQPROP = "caname";
 
@@ -239,7 +241,7 @@ public class HFCAClient {
         try {
             String body = request.toJson();
             String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), body);
-            JsonObject resp = httpPost(url + HFCA_REGISTER, body, authHdr);
+            JsonObject resp = httpPost(url + HFCA_REGISTER, body, authHdr, registrar);
             String secret = resp.getString("secret");
             if (secret == null) {
                 throw new Exception("secret was not found in response");
@@ -486,7 +488,7 @@ public class HFCAClient {
 
             // build authentication header
             String authHdr = getHTTPAuthCertificate(user.getEnrollment(), body);
-            JsonObject result = httpPost(url + HFCA_REENROLL, body, authHdr);
+            JsonObject result = httpPost(url + HFCA_REENROLL, body, authHdr, user);
 
             // get new cert from response
             Base64.Decoder b64dec = Base64.getDecoder();
@@ -555,7 +557,7 @@ public class HFCAClient {
             String authHdr = getHTTPAuthCertificate(revoker.getEnrollment(), body);
 
             // send revoke request
-            httpPost(url + HFCA_REVOKE, body, authHdr);
+            httpPost(url + HFCA_REVOKE, body, authHdr, revoker);
             logger.debug("revoke done");
         } catch (CertificateException e) {
             logger.error("Cannot validate certificate. Error is: " + e.getMessage());
@@ -603,7 +605,7 @@ public class HFCAClient {
             String authHdr = getHTTPAuthCertificate(revoker.getEnrollment(), body);
 
             // send revoke request
-            httpPost(url + HFCA_REVOKE, body, authHdr);
+            httpPost(url + HFCA_REVOKE, body, authHdr, revoker);
             logger.debug(format("revoke revokee: %s done.", revokee));
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
@@ -668,13 +670,62 @@ public class HFCAClient {
             String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), body);
 
             // send revoke request
-            JsonObject ret = httpPost(url + HFCA_GENCRL, body, authHdr);
+            JsonObject ret = httpPost(url + HFCA_GENCRL, body, authHdr, registrar);
 
             return ret.getString("CRL");
 
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             throw new GenerateCRLException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Execute configure request.
+     *
+     * @param adminUser        admin user configured in CA-server
+     * @param configureRequest The configuration request.
+     * @throws InvalidArgumentException
+     */
+
+    public ConfigureResponse configure(User adminUser, ConfigureRequest configureRequest)
+            throws InvalidArgumentException, ConfigureException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (adminUser == null) {
+            throw new InvalidArgumentException("adminUser parameter can not be null.");
+        }
+
+        if (null == configureRequest) {
+            throw new InvalidArgumentException("configureRequest parameter can not be null.");
+        }
+
+        try {
+            setUpSSL();
+
+            //---------------------------------------
+            if (caName != null) {
+                configureRequest.setCAName(caName);
+            }
+
+            String body = configureRequest.toJson();
+
+            //---------------------------------------
+
+            // build auth header
+            String authHdr = getHTTPAuthCertificate(adminUser.getEnrollment(), body);
+
+            // send revoke request
+            JsonObject ret = httpPost(url + HFCA_CONFIG, body, authHdr, adminUser);
+
+            return new ConfigureResponse(ret);
+
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new ConfigureException(e.getMessage(), e);
         }
     }
 
@@ -767,7 +818,7 @@ public class HFCAClient {
         return responseBody;
     }
 
-    JsonObject httpPost(String url, String body, String authHTTPCert) throws Exception {
+    JsonObject httpPost(String url, String body, String authHTTPCert, User user) throws Exception {
 
         HttpPost httpPost = new HttpPost(url);
         logger.debug(format("httpPost %s, body:%s, authHTTPCert: %s", url, body, authHTTPCert));
@@ -791,14 +842,15 @@ public class HFCAClient {
         logger.trace(format("responseBody: %s ", responseBody));
 
         if (status >= 400) {
-            Exception e = new Exception(format("POST request to %s failed request body %s with status code: %d. Response: %s",
-                    url, body, status, responseBody));
+            Exception e = new Exception(format("POST with on behave of user %s request to %s failed request body %s with status code: %d. Response: %s",
+                    user.getName(), url, body, status, responseBody));
             logger.error(e.getMessage());
             throw e;
         }
         if (responseBody == null) {
 
-            Exception e = new Exception(format("POST request to %s failed request body %s with null response body returned.", url, body));
+            Exception e = new Exception(format("POST request on behave of user to %s failed request body %s with null response body returned.",
+                    user.getName(), url, body));
             logger.error(e.getMessage());
             throw e;
 
@@ -810,27 +862,28 @@ public class HFCAClient {
         boolean success = jobj.getBoolean("success");
         if (!success) {
             EnrollmentException e = new EnrollmentException(
-                    format("POST request to %s failed request body %s Body of response did not contain success", url, body),
+                    format("POST request on behave of user %s to %s failed request body %s Body of response did not contain success",
+                            user.getName(), url, body),
                     new Exception());
             logger.error(e.getMessage());
             throw e;
         }
         JsonObject result = jobj.getJsonObject("result");
         if (result == null) {
-            EnrollmentException e = new EnrollmentException(format("POST request to %s failed request body %s " +
-                    "Body of response did not contain result", url, body), new Exception());
+            EnrollmentException e = new EnrollmentException(format("POST request on behave of user %s to %s failed request body %s " +
+                    "Body of response did not contain result", user.getName(), url, body), new Exception());
             logger.error(e.getMessage());
             throw e;
         }
         JsonArray messages = jobj.getJsonArray("messages");
         if (messages != null && !messages.isEmpty()) {
             JsonObject jo = messages.getJsonObject(0);
-            String message = format("POST request to %s failed request body %s response message [code %d]: %s",
-                    url, body, jo.getInt("code"), jo.getString("message"));
+            String message = format("POST request on behave of user %s to %s failed request body %s response message [code %d]: %s",
+                    user.getName(), url, body, jo.getInt("code"), jo.getString("message"));
             logger.info(message);
         }
 
-        logger.debug(format("httpPost %s, body:%s result: %s", url, body, "" + result));
+        logger.debug(format("httpPost by user %s %s, body:%s result: %s", user.getName(), url, body, "" + result));
         return result;
     }
 
