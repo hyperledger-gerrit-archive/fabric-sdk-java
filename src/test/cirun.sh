@@ -45,6 +45,6 @@ sleep 15 # some more time just for the other services .. this should be overkill
 docker images
 docker ps -a
 export ORG_HYPERLEDGER_FABRIC_SDK_DIAGNOSTICFILEDIR=target/diagDump
-mvn clean install -DskipITs=false -Dmaven.test.failure.ignore=false javadoc:javadoc ${ORG_HYPERLEDGER_FABRIC_SDKTEST_ITSUITE}
+mvn clean install -DskipITs=false -Dmaven.test.failure.ignore=false -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn javadoc:javadoc ${ORG_HYPERLEDGER_FABRIC_SDKTEST_ITSUITE}
 docker images
 docker ps -a
