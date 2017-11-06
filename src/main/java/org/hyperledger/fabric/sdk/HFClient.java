@@ -260,6 +260,8 @@ public class HFClient {
      *                   useful in development to get past default server hostname verification during
      *                   TLS handshake, when the server host name does not match the certificate.
      *                   </li>
+     *                   <li>clientKeyFile - File location for PKCS8-encoded private key pem for mutual TLS</li>
+     *                   <li>clientCertFile - File location for x509 pem certificate for mutual TLS</li>
      *                   <li>hostnameOverride - Specify the certificates CN -- for development only.
      *                   <li>sslProvider - Specify the SSL provider, openSSL or JDK.</li>
      *                   <li>negotiationType - Specify the type of negotiation, TLS or plainText.</li>
@@ -384,6 +386,8 @@ public class HFClient {
      *                   useful in development to get past default server hostname verification during
      *                   TLS handshake, when the server host name does not match the certificate.
      *                   </li>
+     *                   <li>clientKeyFile - File location for PKCS8-encoded private key pem for mutual TLS</li>
+     *                   <li>clientCertFile - File location for x509 pem certificate for mutual TLS</li>
      *                   <li>hostnameOverride - Specify the certificates CN -- for development only.
      *                   <li>sslProvider - Specify the SSL provider, openSSL or JDK.</li>
      *                   <li>negotiationType - Specify the type of negotiation, TLS or plainText.</li>
@@ -449,6 +453,8 @@ public class HFClient {
      *                   useful in development to get past default server hostname verification during
      *                   TLS handshake, when the server host name does not match the certificate.
      *                   </li>
+     *                   <li>clientKeyFile - File location for PKCS8-encoded private key pem for mutual TLS</li>
+     *                   <li>clientCertFile - File location for x509 pem certificate for mutual TLS</li>
      *                   <li>sslProvider - Specify the SSL provider, openSSL or JDK.</li>
      *                   <li>negotiationType - Specify the type of negotiation, TLS or plainText.</li>
      *                   <li>hostnameOverride - Specify the certificates CN -- for development only.
