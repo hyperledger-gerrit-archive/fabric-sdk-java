@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,8 +48,11 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
-import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
+import org.bouncycastle.openssl.PEMKeyPair;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
+import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import static org.hyperledger.fabric.sdk.helper.Utils.parseGrpcUrl;
 
 class Endpoint {
@@ -70,6 +74,10 @@ class Endpoint {
         String sslp = null;
         String nt = null;
         byte[] pemBytes = null;
+        String ckf = null;
+        String ccf = null;
+        X509Certificate[] clientCert = new X509Certificate[] {};
+        PrivateKey clientKey = null;
 
         Properties purl = parseGrpcUrl(url);
         String protocol = purl.getProperty("protocol");
@@ -78,6 +86,12 @@ class Endpoint {
 
         if (properties != null) {
             if ("grpcs".equals(protocol)) {
+                CryptoPrimitives cp;
+                try {
+                    cp = new CryptoPrimitives();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
                 if (properties.containsKey("pemFile") && properties.containsKey("pemBytes")) {
                     throw new RuntimeException("Properties \"pemBytes\" and \"pemFile\" can not be both set.");
                 }
@@ -100,9 +114,8 @@ class Endpoint {
 
                             cn = CN_CACHE.get(cnKey);
                             if (cn == null) {
-                                CryptoPrimitives cp = new CryptoPrimitives();
-
-                                X500Name x500name = new JcaX509CertificateHolder((X509Certificate) cp.bytesToCertificate(pemBytes)).getSubject();
+                                X500Name x500name = new JcaX509CertificateHolder(
+                                        (X509Certificate) cp.bytesToCertificate(pemBytes)).getSubject();
                                 RDN rdn = x500name.getRDNs(BCStyle.CN)[0];
                                 cn = IETFUtils.valueToString(rdn.getFirst().getValue());
                                 CN_CACHE.put(cnKey, cn);
@@ -111,11 +124,38 @@ class Endpoint {
                         }
                     } catch (Exception e) {
                         /// Mostly a development env. just log it.
-                        logger.error("Error getting Subject CN from certificate. Try setting it specifically with hostnameOverride property. " + e.getMessage());
+                        logger.error(
+                                "Error getting Subject CN from certificate. Try setting it specifically with hostnameOverride property. "
+                                        + e.getMessage());
 
                     }
                 }
 
+                // check for mutual TLS - both clientKeyFile and clientCertFile must be present
+                if (properties.containsKey("clientKeyFile") || properties.containsKey("clientCertFile")) {
+                    ckf = properties.getProperty("clientKeyFile");
+                    ccf = properties.getProperty("clientCertFile");
+                    if ((ckf != null) && (ccf != null)) {
+                        try {
+                            byte[] certBytes = Files.readAllBytes(Paths.get(properties.getProperty("clientCertFile")));
+                            clientCert = new X509Certificate[] {(X509Certificate) cp.bytesToCertificate(certBytes)};
+                        } catch (Exception e) {
+                            throw new RuntimeException("Failed to parse TLS client certificate", e);
+                        }
+                        try {
+                            PEMParser pem = new PEMParser(
+                                    Files.newBufferedReader(Paths.get(properties.getProperty("clientKeyFile"))));
+                            PEMKeyPair kp = (PEMKeyPair) pem.readObject();
+                            clientKey = new JcaPEMKeyConverter().getPrivateKey(kp.getPrivateKeyInfo());
+                        } catch (Exception e) {
+                            throw new RuntimeException("Failed to parse TLS client key", e);
+                        }
+                    } else {
+                        throw new RuntimeException(
+                                "Properties \"clientKeyFile\" and \"clientCertFile\" must both be set or both be null");
+                    }
+
+                }
                 sslp = properties.getProperty("sslProvider");
                 if (sslp == null) {
                     throw new RuntimeException("Property of sslProvider expected");
@@ -137,8 +177,7 @@ class Endpoint {
 
         try {
             if (protocol.equalsIgnoreCase("grpc")) {
-                this.channelBuilder = NettyChannelBuilder.forAddress(addr, port)
-                        .usePlaintext(true);
+                this.channelBuilder = NettyChannelBuilder.forAddress(addr, port).usePlaintext(true);
                 addNettyBuilderProps(channelBuilder, properties);
             } else if (protocol.equalsIgnoreCase("grpcs")) {
                 if (pemBytes == null) {
@@ -152,12 +191,9 @@ class Endpoint {
                         NegotiationType ntype = nt.equals("TLS") ? NegotiationType.TLS : NegotiationType.PLAINTEXT;
 
                         InputStream myInputStream = new ByteArrayInputStream(pemBytes);
-                        SslContext sslContext = GrpcSslContexts.forClient()
-                                .trustManager(myInputStream)
-                                .sslProvider(sslprovider)
-                                .build();
-                        this.channelBuilder = NettyChannelBuilder.forAddress(addr, port)
-                                .sslContext(sslContext)
+                        SslContext sslContext = GrpcSslContexts.forClient().trustManager(myInputStream)
+                                .sslProvider(sslprovider).keyManager(clientKey, clientCert).build();
+                        this.channelBuilder = NettyChannelBuilder.forAddress(addr, port).sslContext(sslContext)
                                 .negotiationType(ntype);
                         if (cn != null) {
                             channelBuilder.overrideAuthority(cn);
@@ -181,20 +217,13 @@ class Endpoint {
     }
 
     private static final Pattern METHOD_PATTERN = Pattern.compile("grpc\\.NettyChannelBuilderOption\\.([^.]*)$");
-    private static final Map<Class<?>, Class<?>> WRAPPERS_TO_PRIM
-            = new ImmutableMap.Builder<Class<?>, Class<?>>()
-            .put(Boolean.class, boolean.class)
-            .put(Byte.class, byte.class)
-            .put(Character.class, char.class)
-            .put(Double.class, double.class)
-            .put(Float.class, float.class)
-            .put(Integer.class, int.class)
-            .put(Long.class, long.class)
-            .put(Short.class, short.class)
-            .put(Void.class, void.class)
-            .build();
+    private static final Map<Class<?>, Class<?>> WRAPPERS_TO_PRIM = new ImmutableMap.Builder<Class<?>, Class<?>>()
+            .put(Boolean.class, boolean.class).put(Byte.class, byte.class).put(Character.class, char.class)
+            .put(Double.class, double.class).put(Float.class, float.class).put(Integer.class, int.class)
+            .put(Long.class, long.class).put(Short.class, short.class).put(Void.class, void.class).build();
 
-    private void addNettyBuilderProps(NettyChannelBuilder channelBuilder, Properties props) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    private void addNettyBuilderProps(NettyChannelBuilder channelBuilder, Properties props)
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
         if (props == null) {
             return;
@@ -267,7 +296,8 @@ class Endpoint {
                     sep = ", ";
 
                 }
-                logger.trace(String.format("Endpoint with url: %s set managed channel builder method %s (%s) ", url, method, sb.toString()));
+                logger.trace(String.format("Endpoint with url: %s set managed channel builder method %s (%s) ", url,
+                        method, sb.toString()));
 
             }
 
