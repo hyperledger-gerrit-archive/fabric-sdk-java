@@ -193,7 +193,7 @@
         </dependency>
 
         <dependency>
-            <groupId>com.ibm.zurich</groupId>
+            <groupId>org.apache.milagro</groupId>
             <artifactId>amcl</artifactId>
             <version>3.1</version>
             <scope>system</scope>
