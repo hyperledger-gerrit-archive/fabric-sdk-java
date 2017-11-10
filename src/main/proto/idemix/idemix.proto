@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 syntax = "proto3";
 
 option go_package = "github.com/hyperledger/fabric/idemix";
+option java_package = "org.hyperledger.fabric.protos.idemix";
 
 // The Identity Mixer protocols make use of pairings (bilinear maps) -
 // functions that can be described as e: G1 x G2 -> GT  that
@@ -16,17 +17,17 @@ option go_package = "github.com/hyperledger/fabric/idemix";
 // ECP is an elliptic curve point specified by its coordinates
 // ECP corresponds to an element of the first group (G1)
 message ECP {
-    bytes x = 1;
-    bytes y = 2;
+	bytes x = 1;
+	bytes y = 2;
 }
 
 // ECP2 is an elliptic curve point specified by its coordinates
 // ECP2 corresponds to an element of the second group (G2)
 message ECP2 {
-    bytes xa = 1;
-    bytes xb = 2;
-    bytes ya = 3;
-    bytes yb = 4;
+	bytes xa = 1;
+	bytes xb = 2;
+	bytes ya = 3;
+	bytes yb = 4;
 }
 
 // IssuerPublicKey specifies an issuer public key that consists of
@@ -51,19 +52,19 @@ message IssuerPublicKey {
 // ISk - the issuer secret key and
 // IssuerPublicKey - the issuer public key
 message IssuerKey {
-    bytes isk = 1;
-    IssuerPublicKey ipk = 2;
+	bytes isk = 1;
+	IssuerPublicKey ipk = 2;
 }
 
 // Credential specifies a credential object that consists of
 // a, b, e, s - signature value
 // attrs - attribute values
 message Credential {
-    ECP a = 1;
-    ECP b = 2;
-    bytes e = 3;
-    bytes s = 4;
-    repeated bytes attrs = 5;
+	ECP a = 1;
+	ECP b = 2;
+	bytes e = 3;
+	bytes s = 4;
+	repeated bytes attrs = 5;
 }
 
 // CredRequest specifies a credential request object that consists of
@@ -72,10 +73,10 @@ message Credential {
 // proof_c, proof_s - a zero-knowledge proof of knowledge of the
 // user secret inside Nym
 message CredRequest {
-    ECP nym = 1;
-    bytes issuer_nonce = 2;
-    bytes proof_c = 3;
-    bytes proof_s = 4;
+	ECP nym = 1;
+	bytes issuer_nonce = 2;
+	bytes proof_c = 3;
+	bytes proof_s = 4;
 }
 
 // Signature specifies a signature object that consists of
@@ -101,7 +102,7 @@ message Signature {
     ECP2 revocation_epoch_pk = 14;
     bytes revocation_pk_sig = 15;
     int64 epoch = 16;
-    NonRevocationProof non_revocation_proof = 17;
+	NonRevocationProof non_revocation_proof = 17;
 }
 
 // NonRevocationProof contains proof that the credential is not revoked
@@ -127,18 +128,18 @@ message NymSignature {
 }
 
 message CredentialRevocationInformation {
-    // epoch contains the epoch (time window) in which this CRI is valid
-    int64 epoch = 1;
+	// epoch contains the epoch (time window) in which this CRI is valid
+	int64 epoch = 1;
 
-    // epoch_pk is the public key that is used by the revocation authority in this epoch
-    ECP2 epoch_pk = 2;
+	// epoch_pk is the public key that is used by the revocation authority in this epoch
+	ECP2 epoch_pk = 2;
 
-    // epoch_pk_sig is a signature on the EpochPK valid under the revocation authority's long term key
-    bytes epoch_pk_sig = 3;
+	// epoch_pk_sig is a signature on the EpochPK valid under the revocation authority's long term key
+	bytes epoch_pk_sig = 3;
 
-    // revocation_alg denotes which revocation algorithm is used
-    int32 revocation_alg = 4;
+	// revocation_alg denotes which revocation algorithm is used
+	int32 revocation_alg = 4;
 
-    // revocation_data contains data specific to the revocation algorithm used
-    bytes revocation_data = 5;
+	// revocation_data contains data specific to the revocation algorithm used
+	bytes revocation_data = 5;
 }
