@@ -63,6 +63,7 @@ import org.hyperledger.fabric.protos.common.Common.Metadata;
 import org.hyperledger.fabric.protos.common.Common.Payload;
 import org.hyperledger.fabric.protos.common.Common.SignatureHeader;
 import org.hyperledger.fabric.protos.common.Common.Status;
+import org.hyperledger.fabric.protos.common.Configtx;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigEnvelope;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigGroup;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigSignature;
@@ -97,6 +98,7 @@ import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.DiagnosticFileDumper;
 import org.hyperledger.fabric.sdk.helper.Utils;
+import org.hyperledger.fabric.sdk.transaction.GetConfigTreeBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
@@ -110,6 +112,7 @@ import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 import org.hyperledger.fabric.sdk.transaction.UpgradeProposalBuilder;
 
 import static java.lang.String.format;
+import static org.hyperledger.fabric.protos.peer.Resources.ConfigTree;
 import static org.hyperledger.fabric.sdk.User.userContextCheck;
 import static org.hyperledger.fabric.sdk.helper.Utils.isNullOrEmpty;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
@@ -216,7 +219,7 @@ public class Channel implements Serializable {
             final ConfigUpdateEnvelope configUpdateEnv = ConfigUpdateEnvelope.parseFrom(ccPayload.getData());
             ByteString configUpdate = configUpdateEnv.getConfigUpdate();
 
-            sendUpdateChannel(configUpdate.toByteArray(), signers, orderer);
+            sendUpdateChannel(configUpdate.toByteArray(), signers, orderer, HeaderType.CONFIG_UPDATE);
             //         final ConfigUpdateEnvelope.Builder configUpdateEnvBuilder = configUpdateEnv.toBuilder();`
 
             //---------------------------------------
@@ -287,7 +290,7 @@ public class Channel implements Serializable {
             logger.trace(format("startLastConfigIndex: %d. Channel config wait time is: %d",
                     startLastConfigIndex, CHANNEL_CONFIG_WAIT_TIME));
 
-            sendUpdateChannel(updateChannelConfiguration.getUpdateChannelConfigurationAsBytes(), signers, orderer);
+            sendUpdateChannel(updateChannelConfiguration.getUpdateChannelConfigurationAsBytes(), signers, orderer, HeaderType.CONFIG_UPDATE);
 
             long currentLastConfigIndex = -1;
             final long nanoTimeStart = System.nanoTime();
@@ -333,7 +336,34 @@ public class Channel implements Serializable {
 
     }
 
-    private void sendUpdateChannel(byte[] configupdate, byte[][] signers, Orderer orderer) throws TransactionException, InvalidArgumentException {
+    public void updateResources(Configtx.ConfigUpdate updateChannelConfiguration, byte[]... signers) throws TransactionException, InvalidArgumentException {
+        updateResources(updateChannelConfiguration, getRandomOrderer(), signers);
+    }
+
+    public void updateResources(Configtx.ConfigUpdate updateChannelConfiguration, Orderer orderer, byte[]... signers) throws TransactionException, InvalidArgumentException {
+
+        checkChannelState();
+
+        checkOrderer(orderer);
+
+        try {
+
+            sendUpdateChannel(updateChannelConfiguration.toByteArray(), signers, orderer, HeaderType.PEER_RESOURCE_UPDATE);
+
+        } catch (TransactionException e) {
+
+            logger.error(format("Channel %s error: %s", name, e.getMessage()), e);
+            throw e;
+        } catch (Exception e) {
+            String msg = format("Channel %s error: %s", name, e.getMessage());
+
+            logger.error(msg, e);
+            throw new TransactionException(msg, e);
+        }
+
+    }
+
+    private void sendUpdateChannel(byte[] configupdate, byte[][] signers, Orderer orderer, HeaderType headerType) throws TransactionException, InvalidArgumentException {
 
         logger.debug(format("Channel %s sendUpdateChannel", name));
         checkOrderer(orderer);
@@ -364,7 +394,7 @@ public class Channel implements Serializable {
 
                 final ByteString sigHeaderByteString = getSignatureHeaderAsByteString(transactionContext);
 
-                final ChannelHeader payloadChannelHeader = ProtoUtils.createChannelHeader(HeaderType.CONFIG_UPDATE,
+                final ChannelHeader payloadChannelHeader = ProtoUtils.createChannelHeader(headerType,
                         transactionContext.getTxID(), name, transactionContext.getEpoch(), transactionContext.getFabricTimestamp(), null);
 
                 final Header payloadHeader = Header.newBuilder().setChannelHeader(payloadChannelHeader.toByteString())
@@ -587,6 +617,85 @@ public class Channel implements Serializable {
         }
 
         return this;
+    }
+
+    public ConfigTree geConfigTree() throws ProposalException, InvalidArgumentException {
+        return geConfigTree(getRandomPeer());
+    }
+
+    public ConfigTree geConfigTree(Peer peer) throws InvalidArgumentException, ProposalException {
+
+        logger.debug(format("geConfigTree for channel %s", name));
+
+        if (shutdown) {
+            throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
+        }
+        checkPeer(peer);
+
+        try {
+
+            //    genesisBlock = getGenesisBlock(getRandomOrderer());
+            //    logger.debug(format("Channel %s got genesis block", name));
+
+            final Channel systemChannel = newSystemChannel(client); //channel is not really created and this is targeted to system channel
+
+            TransactionContext transactionContext = systemChannel.getTransactionContext();
+
+            FabricProposal.Proposal joinProposal = GetConfigTreeBuilder.newBuilder()
+                    .context(transactionContext)
+                    .channelID(name)
+                    .build();
+
+            logger.debug("geConfigTree getting signed proposal.");
+            SignedProposal signedProposal = getSignedProposal(transactionContext, joinProposal);
+            logger.debug("geConfigTree got signed proposal.");
+
+            logger.trace("geConfigTree sending proposal.");
+            Collection<ProposalResponse> resp = sendProposalToPeers(new ArrayList<>(Collections.singletonList(peer)),
+                    signedProposal, transactionContext);
+
+            if (resp == null) {
+                throw new ProposalException(format("GetConfigTree failed to generate a response for channel %s on peer %s", name, peer.getName()));
+            }
+            if (resp.size() != 1) {
+                throw new ProposalException(format("GetConfigTree failed to generate a single response for channel %s on peer %s. responses:%d",
+                        name, peer.getName(), resp.size()));
+            }
+
+            ProposalResponse pro = resp.iterator().next();
+
+            if (pro.getStatus() == ProposalResponse.Status.SUCCESS) {
+
+                FabricProposalResponse.ProposalResponse proposalResponse = pro.getProposalResponse();
+                if (proposalResponse == null) {
+                    throw new ProposalException(format("GetConfigTree failed to generate a ProposalResponse for channel %s on peer", name, peer.getName()));
+                }
+                Response response = proposalResponse.getResponse();
+                if (null == response) {
+                    throw new ProposalException(format("GetConfigTree failed to generate a ProposalResponse.response for channel %s on peer %s", name, peer.getName()));
+                }
+
+                final ByteString payload = pro.getProposalResponse().getResponse().getPayload();
+                if (null == payload) {
+                    throw new ProposalException(format("GetConfigTree failed to generate a ProposalResponse.response's payload for channel %s on peer %s",
+                            name, peer.getName()));
+                }
+
+                logger.trace(format("GetConfigTree successful for channel %s on peer %s", name, peer.getName()));
+                return ConfigTree.parseFrom(payload);
+
+            } else {
+                throw new ProposalException(format("GetConfigTree for channel %s to peer %s failed.  Status %s, details: %s",
+                        name, peer.getName(), pro.getStatus().toString(), pro.getMessage()));
+
+            }
+        } catch (ProposalException e) {
+            logger.error(e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e);
+            throw new ProposalException(e.getMessage(), e);
+        }
     }
 
     /**
@@ -856,6 +965,16 @@ public class Channel implements Serializable {
 
     public byte[] getUpdateChannelConfigurationSignature(UpdateChannelConfiguration updateChannelConfiguration, User signer) throws InvalidArgumentException {
 
+        return getUpdateChannelConfigurationSignature(updateChannelConfiguration.getUpdateChannelConfigurationAsBytes(), signer);
+    }
+
+    public byte[] getConfigUpdateConfigurationSignature(Configtx.ConfigUpdate configUpdate, User signer) throws InvalidArgumentException {
+
+        return getUpdateChannelConfigurationSignature(configUpdate.toByteArray(), signer);
+    }
+
+    private byte[] getUpdateChannelConfigurationSignature(byte[] updateChannelConfiguration, User signer) throws InvalidArgumentException {
+
         userContextCheck(signer);
 
         if (null == updateChannelConfiguration) {
@@ -868,7 +987,7 @@ public class Channel implements Serializable {
 
             TransactionContext transactionContext = getTransactionContext(signer);
 
-            final ByteString configUpdate = ByteString.copyFrom(updateChannelConfiguration.getUpdateChannelConfigurationAsBytes());
+            final ByteString configUpdate = ByteString.copyFrom(updateChannelConfiguration);
 
             ByteString sigHeaderByteString = getSignatureHeaderAsByteString(signer, transactionContext);
 

@@ -22,17 +22,14 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Set;
 
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.hyperledger.fabric.protos.common.Configtx;
 import org.hyperledger.fabric.sdk.Channel;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
@@ -46,6 +43,7 @@ import org.junit.Test;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.testutils.TestUtils.resetConfig;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.computeUpdate;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -77,7 +75,6 @@ public class UpdateChannelIT {
 
         testSampleOrgs = testConfig.getIntegrationTestsSampleOrgs();
     }
-
 
     @Test
     public void setup() {
@@ -131,6 +128,7 @@ public class UpdateChannelIT {
             assertEquals(200, statuscode);
 
             String responseAsString = EntityUtils.toString(response.getEntity());
+//TODO rick            System.out.println(responseAsString);
 
             //responseAsString is JSON but use just string operations for this test.
 
@@ -151,25 +149,31 @@ public class UpdateChannelIT {
             assertEquals(200, statuscode);
             byte[] newConfigBytes = EntityUtils.toByteArray(response.getEntity());
 
-            // Now send to configtxlator multipart form post with original config bytes, updated config bytes and channel name.
-            httppost = new HttpPost("http://localhost:7059/configtxlator/compute/update-from-configs");
+//            // Now send to configtxlator multipart form post with original config bytes, updated config bytes and channel name.
+//            httppost = new HttpPost("http://localhost:7059/configtxlator/compute/update-from-configs");
+//
+//            HttpEntity multipartEntity = MultipartEntityBuilder.create()
+//                    .setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
+//                    .addBinaryBody("original", channelConfigurationBytes, ContentType.APPLICATION_OCTET_STREAM, "originalFakeFilename")
+//                    .addBinaryBody("updated", newConfigBytes, ContentType.APPLICATION_OCTET_STREAM, "updatedFakeFilename")
+//                    .addBinaryBody("channel", fooChannel.getName().getBytes())
+//                    .build();
+//
+//            httppost.setEntity(multipartEntity);
+//
+//            response = httpclient.execute(httppost);
+//            statuscode = response.getStatusLine().getStatusCode();
+//            out("Got %s status for updated config bytes needed for updateChannelConfiguration ", statuscode);
+//            assertEquals(200, statuscode);
 
-            HttpEntity multipartEntity = MultipartEntityBuilder.create()
-                    .setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
-                    .addBinaryBody("original", channelConfigurationBytes, ContentType.APPLICATION_OCTET_STREAM, "originalFakeFilename")
-                    .addBinaryBody("updated", newConfigBytes, ContentType.APPLICATION_OCTET_STREAM, "updatedFakeFilename")
-                    .addBinaryBody("channel", fooChannel.getName().getBytes()).build();
+//            byte[] updateBytes = EntityUtils.toByteArray(response.getEntity());
 
-            httppost.setEntity(multipartEntity);
+            Configtx.ConfigUpdate.Builder confg = Configtx.ConfigUpdate.newBuilder();
 
-            response = httpclient.execute(httppost);
-            statuscode = response.getStatusLine().getStatusCode();
-            out("Got %s status for updated config bytes needed for updateChannelConfiguration ", statuscode);
-            assertEquals(200, statuscode);
+            computeUpdate(fooChannel.getName(), Configtx.Config.parseFrom(channelConfigurationBytes), Configtx.Config.parseFrom(newConfigBytes), confg);
 
-            byte[] updateBytes = EntityUtils.toByteArray(response.getEntity());
-
-            UpdateChannelConfiguration updateChannelConfiguration = new UpdateChannelConfiguration(updateBytes);
+            //UpdateChannelConfiguration updateChannelConfiguration = new UpdateChannelConfiguration(updateBytes);
+            UpdateChannelConfiguration updateChannelConfiguration = new UpdateChannelConfiguration(confg.build().toByteArray());
 
             //To change the channel we need to sign with orderer admin certs which crypto gen stores:
 
@@ -265,5 +269,4 @@ public class UpdateChannelIT {
         System.out.flush();
 
     }
-
 }

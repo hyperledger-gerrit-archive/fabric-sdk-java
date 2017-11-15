@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -29,8 +30,14 @@ import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import com.google.protobuf.ByteString;
 import org.apache.commons.codec.binary.Hex;
+import org.hyperledger.fabric.protos.common.Configtx;
+import org.hyperledger.fabric.protos.common.Configtx.Config;
 import org.hyperledger.fabric.protos.ledger.rwset.kvrwset.KvRwset;
+import org.hyperledger.fabric.protos.peer.Query;
+import org.hyperledger.fabric.protos.peer.Resources;
+import org.hyperledger.fabric.protos.peer.Resources.ConfigTree;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
@@ -68,6 +75,7 @@ import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hyperledger.fabric.sdk.BlockInfo.EnvelopeType.TRANSACTION_ENVELOPE;
 import static org.hyperledger.fabric.sdk.testutils.TestUtils.resetConfig;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.computeUpdate;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -84,7 +92,7 @@ public class End2endIT {
     private static final String TESTUSER_1_NAME = "user1";
     private static final String TEST_FIXTURES_PATH = "src/test/fixture";
 
-    private static final String CHAIN_CODE_NAME = "example_cc_go";
+    private static final String CHAIN_CODE_NAME = "exampleccgo";
     private static final String CHAIN_CODE_PATH = "github.com/example_cc";
     private static final String CHAIN_CODE_VERSION = "1";
 
@@ -329,9 +337,9 @@ public class End2endIT {
                 //    Set<String> orgs = orgPeers.keySet();
                 //   for (SampleOrg org : testSampleOrgs) {
 
-                Set<Peer> peersFromOrg = sampleOrg.getPeers();
-                numInstallProposal = numInstallProposal + peersFromOrg.size();
-                responses = client.sendInstallProposal(installProposalRequest, peersFromOrg);
+                Collection<Peer> peersFromChannel = channel.getPeers(); //call method with specific peers all:)
+                numInstallProposal = numInstallProposal + peersFromChannel.size();
+                responses = client.sendInstallProposal(installProposalRequest, peersFromChannel);
 
                 for (ProposalResponse response : responses) {
                     if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
@@ -350,6 +358,35 @@ public class End2endIT {
                     fail("Not enough endorsers for install :" + successful.size() + ".  " + first.getMessage());
                 }
             }
+
+            byte[] hash = getChaincodeHash(client, channel.getPeers().iterator().next(), chaincodeID);
+            assertNotNull(hash);
+            assertTrue(hash.length == 32);
+
+            ConfigTree configTree = channel.geConfigTree();
+
+            Config resourcesConfig = configTree.getResourcesConfig();
+
+            ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy();
+            chaincodeEndorsementPolicy.fromYamlFile(new File(TEST_FIXTURES_PATH + "/sdkintegration/chaincodeendorsementpolicy.yaml"));
+
+            Configtx.ConfigUpdate configUpdate = createChaincodeUpdate(channel.getName(), resourcesConfig, chaincodeID, hash, chaincodeEndorsementPolicy);
+
+            out("\n......\n\nconfigUpdate:\n %s\n......\n", configUpdate);
+            byte[][] foo = new byte[testSampleOrgs.size()][];
+
+            int ii = 0;
+
+            for (SampleOrg org : testSampleOrgs) {
+
+                foo[ii++] = channel.getConfigUpdateConfigurationSignature(configUpdate, org.getPeerAdmin());
+
+            }
+
+            //   channel.updateResources(configUpdate, channel.getConfigUpdateConfigurationSignature(configUpdate, client.getUserContext()));
+            channel.updateResources(configUpdate, foo);
+
+            //   out("......\n\nresourcesConfigUpdate:\n %s", builder.build());
 
             //   client.setUserContext(sampleOrg.getUser(TEST_ADMIN_NAME));
             //  final ChaincodeID chaincodeID = firstInstallProposalResponse.getChaincodeID();
@@ -372,8 +409,7 @@ public class End2endIT {
               policy OR(Org1MSP.member, Org2MSP.member) meaning 1 signature from someone in either Org1 or Org2
               See README.md Chaincode endorsement policies section for more details.
             */
-            ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = new ChaincodeEndorsementPolicy();
-            chaincodeEndorsementPolicy.fromYamlFile(new File(TEST_FIXTURES_PATH + "/sdkintegration/chaincodeendorsementpolicy.yaml"));
+
             instantiateProposalRequest.setChaincodeEndorsementPolicy(chaincodeEndorsementPolicy);
 
             out("Sending instantiateProposalRequest to all peers with arguments: a and b set to 100 and %s respectively", "" + (200 + delta));
@@ -558,7 +594,6 @@ public class End2endIT {
 
             // We can only send channel queries to peers that are in the same org as the SDK user context
             // Get the peers from the current org being used and pick one randomly to send the queries to.
-            Set<Peer> peerSet = sampleOrg.getPeers();
             //  Peer queryPeer = peerSet.iterator().next();
             //   out("Using peer %s for channel queries", queryPeer.getName());
 
@@ -636,6 +671,21 @@ public class End2endIT {
             fail("Test failed with error : " + e.getMessage());
         }
     }
+
+    private static byte[] getChaincodeHash(HFClient client, Peer peer, ChaincodeID chaincodeID) throws ProposalException, InvalidArgumentException {
+
+        final List<Query.ChaincodeInfo> chaincodeInfos = client.queryInstalledChaincodes(peer);
+        for (Query.ChaincodeInfo chaincodeInfo : chaincodeInfos) {
+
+            if (chaincodeID.getName().equals(chaincodeInfo.getName()) &&
+                    chaincodeID.getVersion().equals(chaincodeInfo.getVersion()) &&
+                    chaincodeID.getPath().equals(chaincodeInfo.getPath())) {
+                return chaincodeInfo.getId().toByteArray();
+            }
+
+        }
+        return null;
+    }
     //CHECKSTYLE.ON: Method length is 320 lines (max allowed is 150).
 
     private Channel constructChannel(String name, HFClient client, SampleOrg sampleOrg) throws Exception {
@@ -669,7 +719,13 @@ public class End2endIT {
         Orderer anOrderer = orderers.iterator().next();
         orderers.remove(anOrderer);
 
-        ChannelConfiguration channelConfiguration = new ChannelConfiguration(new File(TEST_FIXTURES_PATH + "/sdkintegration/e2e-2Orgs/channel/" + name + ".tx"));
+        //If running v1.1 use the channel configurations that were generated with configtxgen tool to use v1.1 capabilities.
+        // src/test/fixture/sdkintegration/e2e-2Orgs/channel: v1.0 foo.tx bar.tx  v1.1 foo_v11.tx bar_v11.tx
+
+        final String channelCapablities = testConfig.isRunningAgainstFabric10() ? "" : "_v11";
+
+        ChannelConfiguration channelConfiguration = new ChannelConfiguration(new File(TEST_FIXTURES_PATH +
+                "/sdkintegration/e2e-2Orgs/channel/" + name + channelCapablities + ".tx"));
 
         //Create channel that has only one signer that is this orgs peer admin. If channel creation policy needed more signature they would need to be added too.
         Channel newChannel = client.newChannel(name, anOrderer, channelConfiguration, client.getChannelConfigurationSignature(channelConfiguration, sampleOrg.getPeerAdmin()));
@@ -899,6 +955,51 @@ public class End2endIT {
         ret = ret.substring(0, Math.min(ret.length(), maxLogStringLength)) + (ret.length() > maxLogStringLength ? "..." : "");
 
         return ret;
+
+    }
+
+    Configtx.ConfigUpdate createChaincodeUpdate(String channelName, Config resourcesConfig, ChaincodeID chaincodeID, byte[] hash, ChaincodeEndorsementPolicy chaincodeEndorsementPolicy) {
+
+        Config.Builder builder = resourcesConfig.toBuilder();
+        final Configtx.ConfigGroup.Builder channelGroupBuilder = builder.getChannelGroupBuilder();
+
+        Configtx.ConfigGroup.Builder chaincodesBuilder = channelGroupBuilder.getGroupsMap().get("Chaincodes").toBuilder();
+
+        Map<String, Configtx.ConfigValue> configGroupMap = new HashMap<>();
+        configGroupMap.put("ChaincodeEndorsement", Configtx.ConfigValue.newBuilder().setValue(Resources.ChaincodeEndorsement.newBuilder()
+                .setName("escc")
+                .build().toByteString()).setModPolicy("/Channel/Application/Writers").build());
+        configGroupMap.put("ChaincodeIdentifier", Configtx.ConfigValue.newBuilder().setValue(Resources.ChaincodeIdentifier.newBuilder()
+                .setVersion(chaincodeID.getVersion())
+                .setHash(ByteString.copyFrom(hash))
+                .build().toByteString()).setModPolicy("/Channel/Application/Writers").build());
+
+        configGroupMap.put("ChaincodeValidation", Configtx.ConfigValue.newBuilder().setValue(Resources.ChaincodeValidation.newBuilder()
+                .setArgument(ByteString.copyFrom(chaincodeEndorsementPolicy.getChaincodeEndorsementPolicyAsBytes()))
+                .setName("vscc")
+                .build().toByteString()).setModPolicy("/Channel/Application/Writers").build());
+
+        chaincodesBuilder.setModPolicy("/Channel/Application/Writers");
+
+        chaincodesBuilder.putGroups(chaincodeID.getName(), Configtx.ConfigGroup.newBuilder().putAllValues(configGroupMap).setModPolicy("/Channel/Application/Writers").build());
+
+        channelGroupBuilder.putGroups("Chaincodes", chaincodesBuilder.build());
+        //  channelGroupBuilder.setModPolicy("/Channel/Application/Writers");
+        final Config updatedated = builder.setChannelGroup(channelGroupBuilder.build()).build();
+
+        out("\n........\nresourcesConfig:\n%s\n....\n", resourcesConfig);
+
+        out("\n............updatedated:\n%s\n........\n", updatedated);
+
+        builder.build();
+
+        out("\n............builder:\n%s\n........\n", builder);
+
+        Configtx.ConfigUpdate.Builder configUpdateBuilder = Configtx.ConfigUpdate.newBuilder();
+
+        computeUpdate(channelName, resourcesConfig, updatedated, configUpdateBuilder);
+
+        return configUpdateBuilder.build();
 
     }
 
