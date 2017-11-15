@@ -15,6 +15,7 @@
 package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
+import java.io.StringReader;
 import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,6 +27,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
+
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import com.jayway.jsonpath.JsonPath;
 import org.hyperledger.fabric.protos.common.Configtx;
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
 import org.hyperledger.fabric.sdk.BlockEvent;
@@ -168,6 +176,9 @@ public class End2endAndBackAgainIT {
             //Reconstruct and run the channels
             SampleOrg sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg1");
             Channel fooChannel = reconstructChannel(FOO_CHANNEL_NAME, client, sampleOrg);
+            printConfigGroup(Configtx.Config.parseFrom(fooChannel.getChannelConfigurationBytes()));
+            System.exit(9);
+
             runChannel(client, fooChannel, sampleOrg, 0);
             fooChannel.shutdown(true); //clean up resources no longer needed.
             out("\n");
@@ -644,6 +655,28 @@ public class End2endAndBackAgainIT {
         System.out.println(format(format, args));
         System.err.flush();
         System.out.flush();
+
+    }
+
+    static void printConfigGroup(Configtx.Config configGroup) throws InvalidProtocolBufferException {
+        //     final JsonFormat.Parser parser = JsonFormat.parser();
+        final JsonFormat.Printer printer = JsonFormat.printer();
+        // Read the input stream and convert to JSON
+
+        JsonReader reader = Json.createReader(new StringReader(printer.print(configGroup)));
+        JsonObject jsonConfig = (JsonObject) reader.read();
+
+        //channelGroup
+        //   final Object read = JsonPath.parse(jsonConfig).read("$", Criteria.where("value").exists(true));
+        // final Object read = JsonPath.parse(jsonConfig).read("$.channelGroup[?(@.value)]");
+        //  final Object read = JsonPath.parse(jsonConfig).read("$.channelGroup..value");
+        // worked got strings  final Object read = JsonPath.parse(jsonConfig).read("$.channelGroup..value");
+        // final Object read = JsonPath.parse(jsonConfig).read("$.channelGroup..[?(@[?(@.value)])]");
+        final net.minidev.json.JSONArray read = JsonPath.parse(jsonConfig).read("$.channelGroup..[?(@.value)]");
+        final Object next = read.iterator().next();
+        out(read + "");
+
+        // out(printer.print(json));
 
     }
 
