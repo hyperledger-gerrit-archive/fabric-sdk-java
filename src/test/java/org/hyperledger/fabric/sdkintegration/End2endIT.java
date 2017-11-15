@@ -669,7 +669,13 @@ public class End2endIT {
         Orderer anOrderer = orderers.iterator().next();
         orderers.remove(anOrderer);
 
-        ChannelConfiguration channelConfiguration = new ChannelConfiguration(new File(TEST_FIXTURES_PATH + "/sdkintegration/e2e-2Orgs/channel/" + name + ".tx"));
+        //If running v1.1 use the channel configurations that were generated with configtxgen tool to use v1.1 capabilities.
+        // src/test/fixture/sdkintegration/e2e-2Orgs/channel: v1.0 foo.tx bar.tx  v1.1 foo_v11.tx bar_v11.tx
+
+        final String channelCapablities = testConfig.isRunningAgainstFabric10() ? "" : "_v11";
+
+        ChannelConfiguration channelConfiguration = new ChannelConfiguration(new File(TEST_FIXTURES_PATH +
+                "/sdkintegration/e2e-2Orgs/channel/" + name + channelCapablities + ".tx"));
 
         //Create channel that has only one signer that is this orgs peer admin. If channel creation policy needed more signature they would need to be added too.
         Channel newChannel = client.newChannel(name, anOrderer, channelConfiguration, client.getChannelConfigurationSignature(channelConfiguration, sampleOrg.getPeerAdmin()));

@@ -300,7 +300,7 @@ public class HFCAClientIT {
         thrown.expectMessage("Failed to re-enroll user");
 
         Calendar calendar = Calendar.getInstance(); // gets a calendar using the default time zone and locale.
-        calendar.add(Calendar.SECOND, -1);
+        calendar.add(Calendar.SECOND, -2);
         Date revokedTinyBitAgoTime = calendar.getTime(); //avoid any clock skewing.
 
         SampleUser user = getTestUser(TEST_USER1_ORG);
@@ -336,6 +336,7 @@ public class HFCAClientIT {
         if (!testConfig.isRunningAgainstFabric10()) {
 
             startedWithRevokes = getRevokes(null).length; //one more after we do this revoke.
+            out(format("crls count  before revoke startedWithRevokes:%d", startedWithRevokes));
         }
 
         // revoke all enrollment of this user
@@ -343,11 +344,14 @@ public class HFCAClientIT {
         if (!testConfig.isRunningAgainstFabric10()) {
 
             final int newRevokes = getRevokes(null).length;
+            out(format("crls count  after revoke newRevokes %d", newRevokes));
 
             assertEquals(format("Expected one more revocation %d, but got %d", startedWithRevokes + 1, newRevokes), startedWithRevokes + 1, newRevokes);
 
             final int revokestinybitago = getRevokes(revokedTinyBitAgoTime).length; //Should be same number when test case was started.
-            assertEquals(format("Expected same revocations %d, but got %d", startedWithRevokes, revokestinybitago), startedWithRevokes, revokestinybitago);
+
+            out(format("crls count  for time %s revoke newRevokes %d", revokedTinyBitAgoTime.toString(), revokestinybitago));
+            assertEquals(format("Expected at specific time %s, same revocations %d, but got %d", revokedTinyBitAgoTime, startedWithRevokes, revokestinybitago), startedWithRevokes, revokestinybitago);
         }
 
         // trying to reenroll the revoked user should fail with an EnrollmentException

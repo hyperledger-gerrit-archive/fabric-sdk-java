@@ -97,6 +97,7 @@ import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.DiagnosticFileDumper;
 import org.hyperledger.fabric.sdk.helper.Utils;
+import org.hyperledger.fabric.sdk.transaction.GetConfigTreeBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
@@ -110,6 +111,7 @@ import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 import org.hyperledger.fabric.sdk.transaction.UpgradeProposalBuilder;
 
 import static java.lang.String.format;
+import static org.hyperledger.fabric.protos.peer.Resources.ConfigTree;
 import static org.hyperledger.fabric.sdk.User.userContextCheck;
 import static org.hyperledger.fabric.sdk.helper.Utils.isNullOrEmpty;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
@@ -587,6 +589,85 @@ public class Channel implements Serializable {
         }
 
         return this;
+    }
+
+    public ConfigTree geConfigTree() throws ProposalException, InvalidArgumentException {
+        return geConfigTree(getRandomPeer());
+    }
+
+    public ConfigTree geConfigTree(Peer peer) throws InvalidArgumentException, ProposalException {
+
+        logger.debug(format("geConfigTree for channel %s", name));
+
+        if (shutdown) {
+            throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
+        }
+        checkPeer(peer);
+
+        try {
+
+            //    genesisBlock = getGenesisBlock(getRandomOrderer());
+            //    logger.debug(format("Channel %s got genesis block", name));
+
+            final Channel systemChannel = newSystemChannel(client); //channel is not really created and this is targeted to system channel
+
+            TransactionContext transactionContext = systemChannel.getTransactionContext();
+
+            FabricProposal.Proposal joinProposal = GetConfigTreeBuilder.newBuilder()
+                    .context(transactionContext)
+                    .channelID(name)
+                    .build();
+
+            logger.debug("geConfigTree getting signed proposal.");
+            SignedProposal signedProposal = getSignedProposal(transactionContext, joinProposal);
+            logger.debug("geConfigTree got signed proposal.");
+
+            logger.trace("geConfigTree sending proposal.");
+            Collection<ProposalResponse> resp = sendProposalToPeers(new ArrayList<>(Collections.singletonList(peer)),
+                    signedProposal, transactionContext);
+
+            if (resp == null) {
+                throw new ProposalException(format("GetConfigTree failed to generate a response for channel %s on peer %s", name, peer.getName()));
+            }
+            if (resp.size() != 1) {
+                throw new ProposalException(format("GetConfigTree failed to generate a single response for channel %s on peer %s. responses:%d",
+                        name, peer.getName(), resp.size()));
+            }
+
+            ProposalResponse pro = resp.iterator().next();
+
+            if (pro.getStatus() == ProposalResponse.Status.SUCCESS) {
+
+                FabricProposalResponse.ProposalResponse proposalResponse = pro.getProposalResponse();
+                if (proposalResponse == null) {
+                    throw new ProposalException(format("GetConfigTree failed to generate a ProposalResponse for channel %s on peer", name, peer.getName()));
+                }
+                Response response = proposalResponse.getResponse();
+                if (null == response) {
+                    throw new ProposalException(format("GetConfigTree failed to generate a ProposalResponse.response for channel %s on peer %s", name, peer.getName()));
+                }
+
+                final ByteString payload = pro.getProposalResponse().getResponse().getPayload();
+                if (null == payload) {
+                    throw new ProposalException(format("GetConfigTree failed to generate a ProposalResponse.response's payload for channel %s on peer %s",
+                            name, peer.getName()));
+                }
+
+                logger.trace(format("GetConfigTree successful for channel %s on peer %s", name, peer.getName()));
+                return ConfigTree.parseFrom(payload);
+
+            } else {
+                throw new ProposalException(format("GetConfigTree for channel %s to peer %s failed.  Status %s, details: %s",
+                        name, peer.getName(), pro.getStatus().toString(), pro.getMessage()));
+
+            }
+        } catch (ProposalException e) {
+            logger.error(e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e);
+            throw new ProposalException(e.getMessage(), e);
+        }
     }
 
     /**
