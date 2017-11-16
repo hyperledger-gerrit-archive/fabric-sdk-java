@@ -2362,7 +2362,12 @@ public class Channel implements Serializable {
             if (null == orderers) {
                 throw new InvalidArgumentException("sendTransaction Orderers is null");
             }
-            if (orderers.isEmpty()) {
+
+            final LinkedList<Orderer> listOrderer = new LinkedList<>(orderers);
+            Collections.shuffle(listOrderer);
+            final Collection<Orderer> shuffeldOrderers = listOrderer;
+
+            if (shuffeldOrderers.isEmpty()) {
                 throw new InvalidArgumentException("sendTransaction Orderers to send to is empty.");
             }
 
@@ -2415,9 +2420,10 @@ public class Channel implements Serializable {
 
             logger.debug(format("Channel %s sending transaction to orderer(s) with TxID %s ", name, proposalTransactionID));
             boolean success = false;
+            Exception lException = null; // Save last exception to report to user .. others are just logged.
 
             BroadcastResponse resp = null;
-            for (Orderer orderer : orderers) {
+            for (Orderer orderer : shuffeldOrderers) {
                 try {
 
                     if (null != diagnosticFileDumper) {
@@ -2426,25 +2432,30 @@ public class Channel implements Serializable {
                     }
 
                     resp = orderer.sendTransaction(transactionEnvelope);
+                    lException = null; // no longer last exception .. maybe just failed.
                     if (resp.getStatus() == Status.SUCCESS) {
                         success = true;
                         break;
                     }
                 } catch (Exception e) {
-                    String emsg = format("Channel %s unsuccessful sendTransaction to orderer", name);
+                    String emsg = format("Channel %s unsuccessful sendTransaction to orderer %s (%s)",
+                            name, orderer.getName(), orderer.getUrl());
                     if (resp != null) {
 
-                        emsg = format("Channel %s unsuccessful sendTransaction to orderer.  %s", name, getRespData(resp));
+                        emsg = format("Channel %s unsuccessful sendTransaction to orderer %s (%s).  %s",
+                                name, orderer.getName(), orderer.getUrl(), getRespData(resp));
                     }
 
                     logger.error(emsg, e);
+                    lException = new Exception(emsg, e);
 
                 }
 
             }
 
             if (success) {
-                logger.debug(format("Channel %s successful sent to Orderer transaction id: %s", name, proposalTransactionID));
+                logger.debug(format("Channel %s successful sent to Orderer transaction id: %s",
+                        name, proposalTransactionID));
                 return sret;
             } else {
 
@@ -2454,7 +2465,7 @@ public class Channel implements Serializable {
                 unregisterTxListener(proposalTransactionID);
 
                 CompletableFuture<TransactionEvent> ret = new CompletableFuture<>();
-                ret.completeExceptionally(new Exception(emsg));
+                ret.completeExceptionally(lException != null ? new Exception(emsg, lException) : new Exception(emsg));
                 return ret;
             }
         } catch (Exception e) {
@@ -2469,6 +2480,7 @@ public class Channel implements Serializable {
 
     /**
      * Build response details
+     *
      * @param resp
      * @return
      */
