@@ -146,7 +146,6 @@ public final class ProtoUtils {
 
     }
 
-
     // static CryptoSuite suite = null;
 
     public static ByteString getSignatureHeaderAsByteString(TransactionContext transactionContext) {
@@ -220,6 +219,13 @@ public final class ProtoUtils {
 
         return new Date(Timestamps.toMillis(timestamp));
 
+    }
+
+    static Timestamp getTimestampFromDate(Date date) {
+
+        long millis = date.getTime();
+        return Timestamp.newBuilder().setSeconds(millis / 1000)
+                .setNanos((int) ((millis % 1000) * 1000000)).build();
     }
 
     /**
