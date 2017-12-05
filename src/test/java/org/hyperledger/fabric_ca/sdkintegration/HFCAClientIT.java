@@ -55,6 +55,7 @@ import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -67,6 +68,7 @@ public class HFCAClientIT {
     private static final String TEST_ADMIN_PW = "adminpw";
     private static final String TEST_ADMIN_ORG = "org1";
     private static final String TEST_USER1_ORG = "Org2";
+    private static final String TEST_USER2_ORG = "Org2";
     private static final String TEST_USER1_AFFILIATION = "org1.department1";
     private static final String TEST_WITH_INTEGRATION_ORG = "peerOrg1";
 
@@ -285,7 +287,7 @@ public class HFCAClientIT {
         sleepALittle();
 
         // revoke one enrollment of this user
-        client.revoke(admin, tmpEnroll, "remove user 2");
+        client.revoke(admin, tmpEnroll, "remove user 2", false);
 
         // trying to reenroll should be ok (revocation above is only for a particular enrollment of this user)
         client.reenroll(user);
@@ -339,8 +341,71 @@ public class HFCAClientIT {
         }
 
         // revoke all enrollment of this user
-        client.revoke(admin, user.getName(), "revoke user 3");
+        client.revoke(admin, user.getName(), "revoke user 3", false);
         if (!testConfig.isRunningAgainstFabric10()) {
+
+            final int newRevokes = getRevokes(null).length;
+
+            assertEquals(format("Expected one more revocation %d, but got %d", startedWithRevokes + 1, newRevokes), startedWithRevokes + 1, newRevokes);
+
+            final int revokestinybitago = getRevokes(revokedTinyBitAgoTime).length; //Should be same number when test case was started.
+            assertEquals(format("Expected same revocations %d, but got %d", startedWithRevokes, revokestinybitago), startedWithRevokes, revokestinybitago);
+        }
+
+        // trying to reenroll the revoked user should fail with an EnrollmentException
+        client.reenroll(user);
+    }
+
+    // Tests revoking a user with no reason specified and getting back a CRL using the revoke API
+    @Test
+    public void testUserRevokeNoReasonWithCRL() throws Exception {
+
+        thrown.expect(EnrollmentException.class);
+        thrown.expectMessage("Failed to re-enroll user");
+
+        Calendar calendar = Calendar.getInstance(); // gets a calendar using the default time zone and locale.
+        calendar.add(Calendar.SECOND, -1);
+        Date revokedTinyBitAgoTime = calendar.getTime(); //avoid any clock skewing.
+
+        SampleUser user = getTestUser(TEST_USER2_ORG);
+
+        if (!user.isRegistered()) {
+            RegistrationRequest rr = new RegistrationRequest(user.getName(), TEST_USER1_AFFILIATION);
+            String password = "testUserRevoke";
+            rr.setSecret(password);
+            rr.addAttribute(new Attribute("user.role", "department lead"));
+            rr.addAttribute(new Attribute("hf.revoker", "true"));
+            user.setEnrollmentSecret(client.register(rr, admin)); // Admin can register other users.
+            if (!user.getEnrollmentSecret().equals(password)) {
+                fail("Secret returned from RegistrationRequest not match : " + user.getEnrollmentSecret());
+            }
+        }
+
+        sleepALittle();
+
+        if (!user.isEnrolled()) {
+            EnrollmentRequest req = new EnrollmentRequest("profile 2", "label 2", null);
+            req.addHost("example3.ibm.com");
+            user.setEnrollment(client.enroll(user.getName(), user.getEnrollmentSecret(), req));
+
+            // verify
+            String cert = user.getEnrollment().getCert();
+            verifyOptions(cert, req);
+        }
+
+        sleepALittle();
+
+        int startedWithRevokes = -1;
+
+        if (!testConfig.isRunningAgainstFabric10()) {
+
+            startedWithRevokes = getRevokes(null).length; //one more after we do this revoke.
+        }
+
+        // revoke all enrollment of this user and request back a CRL
+        String crl = client.revoke(admin, user.getName(), null, true);
+        if (!testConfig.isRunningAgainstFabric10()) {
+            assertNotEquals("Failed to get CRL using the Revoke API", "", crl);
 
             final int newRevokes = getRevokes(null).length;
 
@@ -388,7 +453,7 @@ public class HFCAClientIT {
 
         // See if a normal user can revoke the admin...
         SampleUser user = getEnrolledUser(TEST_ADMIN_ORG);
-        client.revoke(user, admin.getName(), "revoke admin");
+        client.revoke(user, admin.getName(), "revoke admin", false);
     }
 
     @Test
@@ -433,17 +498,6 @@ public class HFCAClientIT {
         clientWithName.enroll(admin.getName(), TEST_ADMIN_PW);
     }
 
-    // revoke1: revoke(User revoker, Enrollment enrollment, String reason)
-    @Test
-    public void testRevoke1NullReason() throws Exception {
-
-        thrown.expect(RevocationException.class);
-        thrown.expectMessage("cannot be null");
-
-        SampleUser user = getEnrolledUser(TEST_ADMIN_ORG);
-        client.revoke(admin, user.getEnrollment(), null);
-    }
-
     // revoke2: revoke(User revoker, String revokee, String reason)
     @Test
     public void testRevoke2UnknownUser() throws Exception {
@@ -451,17 +505,7 @@ public class HFCAClientIT {
         thrown.expect(RevocationException.class);
         thrown.expectMessage("Error while revoking");
 
-        client.revoke(admin, "unknownUser", "remove user2");
-    }
-
-    @Test
-    public void testRevoke2NullReason() throws Exception {
-
-        thrown.expect(RevocationException.class);
-        thrown.expectMessage("cannot be null");
-
-        SampleUser user = getEnrolledUser(TEST_ADMIN_ORG);
-        client.revoke(admin, user.getName(), null);
+        client.revoke(admin, "unknownUser", "remove user2", false);
     }
 
     @Test
