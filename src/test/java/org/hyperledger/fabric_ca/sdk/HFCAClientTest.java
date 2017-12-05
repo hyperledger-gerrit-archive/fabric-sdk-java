@@ -384,7 +384,7 @@ public class HFCAClientTest {
         KeyPair keypair = crypto.keyGen();
         Enrollment enrollment = new HFCAEnrollment(keypair, "abc");
 
-        client.revoke(admin, enrollment, "keyCompromise");
+        client.revoke(admin, enrollment, "keyCompromise", false);
     }
 
     // revoke1: revoke(User revoker, Enrollment enrollment, String reason)
@@ -399,7 +399,7 @@ public class HFCAClientTest {
         KeyPair keypair = crypto.keyGen();
         Enrollment enrollment = new HFCAEnrollment(keypair, "abc");
 
-        client.revoke(null, enrollment, "keyCompromise");
+        client.revoke(null, enrollment, "keyCompromise", false);
     }
 
     @Test
@@ -410,7 +410,7 @@ public class HFCAClientTest {
 
         HFCAClient client = HFCAClient.createNewInstance("client", "http://localhost:99", null);
         client.setCryptoSuite(crypto);
-        client.revoke(admin, (Enrollment) null, "keyCompromise");
+        client.revoke(admin, (Enrollment) null, "keyCompromise", false);
     }
 
     // revoke2: revoke(User revoker, String revokee, String reason)
@@ -422,7 +422,7 @@ public class HFCAClientTest {
 
         HFCAClient client = HFCAClient.createNewInstance("client", "http://localhost:99", null);
         client.setCryptoSuite(crypto);
-        client.revoke(null, admin.getName(), "keyCompromise");
+        client.revoke(null, admin.getName(), "keyCompromise", false);
     }
 
     @Test
@@ -433,7 +433,7 @@ public class HFCAClientTest {
 
         HFCAClient client = HFCAClient.createNewInstance("client", "http://localhost:99", null);
         client.setCryptoSuite(crypto);
-        client.revoke(admin, (String) null, "keyCompromise");
+        client.revoke(admin, (String) null, "keyCompromise", false);
     }
 
 }

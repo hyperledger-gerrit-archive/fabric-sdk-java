@@ -29,7 +29,7 @@ public class RevocationRequestTest {
 
         try {
             RevocationRequest testRevocationReq = new RevocationRequest(revCAName, revEnrollmentID, revSerialNmbr,
-                    revAKI, revReason);
+                    revAKI, revReason, false);
             Assert.assertEquals(testRevocationReq.getUser(), revEnrollmentID);
             Assert.assertEquals(testRevocationReq.getSerial(), revSerialNmbr);
             Assert.assertEquals(testRevocationReq.getAki(), revAKI);
@@ -44,7 +44,7 @@ public class RevocationRequestTest {
     public void testNewInstanceSetNullIDSerialNmbr() {
 
         try {
-            new RevocationRequest(revCAName, null, null, revAKI, revReason);
+            new RevocationRequest(revCAName, null, null, revAKI, revReason, false);
             Assert.fail("Expected exception when null is specified for serial number");
 
         } catch (Exception e) {
@@ -57,7 +57,7 @@ public class RevocationRequestTest {
     public void testNewInstanceSetNullIDAKI() {
 
         try {
-            new RevocationRequest(revCAName, null, revSerialNmbr, null, revReason);
+            new RevocationRequest(revCAName, null, revSerialNmbr, null, revReason, false);
             Assert.fail("Expected exception when null is specified for AKI");
 
         } catch (Exception e) {
@@ -71,7 +71,7 @@ public class RevocationRequestTest {
 
         try {
             RevocationRequest testRevocationReq = new RevocationRequest(revCAName, revEnrollmentID, revSerialNmbr,
-                    revAKI, revReason);
+                    revAKI, revReason, false);
             testRevocationReq.setUser(revEnrollmentID + "update");
             testRevocationReq.setSerial(revSerialNmbr + "000");
             testRevocationReq.setAki(revAKI + "000");
@@ -91,7 +91,7 @@ public class RevocationRequestTest {
 
         try {
             RevocationRequest testRevocationReq = new RevocationRequest(revCAName, null, revSerialNmbr, revAKI,
-                    revReason);
+                    revReason, false);
             testRevocationReq.setSerial(revSerialNmbr);
             testRevocationReq.setAki(revAKI + "000");
             testRevocationReq.setReason(revReason + "update");
@@ -108,7 +108,7 @@ public class RevocationRequestTest {
 
         try {
             RevocationRequest testRevocationReq = new RevocationRequest(revCAName, revEnrollmentID, revSerialNmbr,
-                    revAKI, revReason);
+                    revAKI, revReason, false);
             testRevocationReq.setUser(revEnrollmentID + "update");
             testRevocationReq.setSerial(revSerialNmbr + "000");
             testRevocationReq.setAki(revAKI + "000");
