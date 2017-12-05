@@ -516,7 +516,7 @@ public class HFCAClient {
      * @throws InvalidArgumentException
      */
 
-    public void revoke(User revoker, Enrollment enrollment, String reason) throws RevocationException, InvalidArgumentException {
+    public String revoke(User revoker, Enrollment enrollment, String reason, Boolean genCRL) throws RevocationException, InvalidArgumentException {
 
         if (cryptoSuite == null) {
             throw new InvalidArgumentException("Crypto primitives not set.");
@@ -549,14 +549,20 @@ public class HFCAClient {
             String aki = DatatypeConverter.printHexBinary(AuthorityKeyIdentifier.getInstance(akiOc.getOctets()).getKeyIdentifier());
 
             // build request body
-            RevocationRequest req = new RevocationRequest(caName, null, serial, aki, reason);
+            RevocationRequest req = new RevocationRequest(caName, null, serial, aki, reason, genCRL);
             String body = req.toJson();
 
             String authHdr = getHTTPAuthCertificate(revoker.getEnrollment(), body);
 
             // send revoke request
-            httpPost(url + HFCA_REVOKE, body, authHdr);
+            JsonObject resp = httpPost(url + HFCA_REVOKE, body, authHdr);
             logger.debug("revoke done");
+
+            if (resp.isNull("CRL")) {
+                return "";
+            }
+
+            return resp.getString("CRL");
         } catch (CertificateException e) {
             logger.error("Cannot validate certificate. Error is: " + e.getMessage());
             throw new RevocationException("Error while revoking cert. " + e.getMessage(), e);
@@ -577,7 +583,7 @@ public class HFCAClient {
      * @throws InvalidArgumentException
      */
 
-    public void revoke(User revoker, String revokee, String reason) throws RevocationException, InvalidArgumentException {
+    public String revoke(User revoker, String revokee, String reason, Boolean genCRL) throws RevocationException, InvalidArgumentException {
 
         if (cryptoSuite == null) {
             throw new InvalidArgumentException("Crypto primitives not set.");
@@ -596,19 +602,27 @@ public class HFCAClient {
             setUpSSL();
 
             // build request body
-            RevocationRequest req = new RevocationRequest(caName, revokee, null, null, reason);
+            RevocationRequest req = new RevocationRequest(caName, revokee, null, null, reason, genCRL);
             String body = req.toJson();
 
             // build auth header
             String authHdr = getHTTPAuthCertificate(revoker.getEnrollment(), body);
 
             // send revoke request
-            httpPost(url + HFCA_REVOKE, body, authHdr);
+            JsonObject resp = httpPost(url + HFCA_REVOKE, body, authHdr);
+
             logger.debug(format("revoke revokee: %s done.", revokee));
+
+            if (resp.isNull("CRL")) {
+                return "";
+            }
+
+            return resp.getString("CRL");
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             throw new RevocationException("Error while revoking the user. " + e.getMessage(), e);
         }
+
     }
 
     /**
