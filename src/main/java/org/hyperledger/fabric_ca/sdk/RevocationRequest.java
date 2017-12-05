@@ -38,9 +38,11 @@ class RevocationRequest {
     private String aki;
     // Reason for revocation
     private String reason;
+    // Get CRL list back as part of revoke request
+    private Boolean genCRL;
 
     // Constructor
-    RevocationRequest(String caNmae, String id, String serial, String aki, String reason) throws Exception {
+    RevocationRequest(String caNmae, String id, String serial, String aki, String reason, Boolean genCRL) throws Exception {
         if (isNullOrEmpty(id)) {
             if (isNullOrEmpty(serial) || isNullOrEmpty(aki)) {
                 throw new Exception("Enrollment ID is empty, thus both aki and serial must have non-empty values");
@@ -51,6 +53,7 @@ class RevocationRequest {
         this.aki = aki;
         this.reason = reason;
         this.caName = caNmae;
+        this.genCRL = genCRL;
     }
 
     String getUser() {
@@ -113,7 +116,10 @@ class RevocationRequest {
         if (caName != null) {
             factory.add(HFCAClient.FABRIC_CA_REQPROP, caName);
         }
-        factory.add("reason", reason);
+        if (reason != null) {
+            factory.add("reason", reason);
+        }
+        factory.add("gencrl", genCRL);
         return factory.build();
     }
 }
