@@ -568,6 +568,79 @@ public class HFCAClient {
     }
 
     /**
+     * revoke one enrollment of user
+     *
+     * @param revoker    admin user who has revoker attribute configured in CA-server
+     * @param enrollment the user enrollment to be revoked
+     * @param reason     revoke reason, see RFC 5280
+     * @param genCRL     generate CRL list
+     * @throws RevocationException
+     * @throws InvalidArgumentException
+     */
+
+    public String revoke(User revoker, Enrollment enrollment, String reason, Boolean genCRL) throws RevocationException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (enrollment == null) {
+            throw new InvalidArgumentException("revokee enrollment is not set");
+        }
+        if (revoker == null) {
+            throw new InvalidArgumentException("revoker is not set");
+        }
+
+        logger.debug(format("revoke revoker: %s, reason: %s, url: %s", revoker.getName(), reason, url));
+
+        try {
+            setUpSSL();
+
+            // get cert from to-be-revoked enrollment
+            BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(enrollment.getCert().getBytes()));
+            CertificateFactory certFactory = CertificateFactory.getInstance(Config.getConfig().getCertificateFormat());
+            X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(pem);
+
+            // get its serial number
+            String serial = DatatypeConverter.printHexBinary(certificate.getSerialNumber().toByteArray());
+
+            // get its aki
+            // 2.5.29.35 : AuthorityKeyIdentifier
+            byte[] extensionValue = certificate.getExtensionValue(Extension.authorityKeyIdentifier.getId());
+            ASN1OctetString akiOc = ASN1OctetString.getInstance(extensionValue);
+            String aki = DatatypeConverter.printHexBinary(AuthorityKeyIdentifier.getInstance(akiOc.getOctets()).getKeyIdentifier());
+
+            // build request body
+            RevocationRequest req = new RevocationRequest(caName, null, serial, aki, reason, genCRL);
+            String body = req.toJson();
+
+            String authHdr = getHTTPAuthCertificate(revoker.getEnrollment(), body);
+
+            // send revoke request
+            JsonObject resp = httpPost(url + HFCA_REVOKE, body, authHdr);
+            logger.debug("revoke done");
+
+            if (genCRL) {
+                if (resp.isEmpty()) {
+                    throw new RevocationException("Failed to return CRL, revoke response is empty");
+                }
+                if (resp.isNull("CRL")) {
+                    throw new RevocationException("Failed to return CRL");
+                }
+                return resp.getString("CRL");
+            }
+            return "";
+        } catch (CertificateException e) {
+            logger.error("Cannot validate certificate. Error is: " + e.getMessage());
+            throw new RevocationException("Error while revoking cert. " + e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new RevocationException("Error while revoking the user. " + e.getMessage(), e);
+
+        }
+    }
+
+    /**
      * revoke one user (including his all enrollments)
      *
      * @param revoker admin user who has revoker attribute configured in CA-server
@@ -609,6 +682,65 @@ public class HFCAClient {
             logger.error(e.getMessage(), e);
             throw new RevocationException("Error while revoking the user. " + e.getMessage(), e);
         }
+
+    }
+
+    /**
+     * revoke one user (including his all enrollments)
+     *
+     * @param revoker admin user who has revoker attribute configured in CA-server
+     * @param revokee user who is to be revoked
+     * @param reason  revoke reason, see RFC 5280
+     * @param genCRL  generate CRL
+     * @throws RevocationException
+     * @throws InvalidArgumentException
+     */
+
+    public String revoke(User revoker, String revokee, String reason, Boolean genCRL) throws RevocationException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        logger.debug(format("revoke revoker: %s, revokee: %s, reason: %s", revoker, revokee, reason));
+
+        if (Utils.isNullOrEmpty(revokee)) {
+            throw new InvalidArgumentException("revokee user is not set");
+        }
+        if (revoker == null) {
+            throw new InvalidArgumentException("revoker is not set");
+        }
+
+        try {
+            setUpSSL();
+
+            // build request body
+            RevocationRequest req = new RevocationRequest(caName, revokee, null, null, reason, genCRL);
+            String body = req.toJson();
+
+            // build auth header
+            String authHdr = getHTTPAuthCertificate(revoker.getEnrollment(), body);
+
+            // send revoke request
+            JsonObject resp = httpPost(url + HFCA_REVOKE, body, authHdr);
+
+            logger.debug(format("revoke revokee: %s done.", revokee));
+
+            if (genCRL) {
+                if (resp.isEmpty()) {
+                    throw new RevocationException("Failed to return CRL, revoke response is empty");
+                }
+                if (resp.isNull("CRL")) {
+                    throw new RevocationException("Failed to return CRL");
+                }
+                return resp.getString("CRL");
+            }
+            return "";
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new RevocationException("Error while revoking the user. " + e.getMessage(), e);
+        }
+
     }
 
     /**
