@@ -36,7 +36,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Properties;
 import java.util.TimeZone;
@@ -62,6 +64,7 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.AuthCache;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.config.Registry;
@@ -88,6 +91,7 @@ import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.GenerateCRLException;
+import org.hyperledger.fabric_ca.sdk.exception.IdentityException;
 import org.hyperledger.fabric_ca.sdk.exception.InfoException;
 import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric_ca.sdk.exception.RegistrationException;
@@ -110,6 +114,7 @@ public class HFCAClient {
     private static final String HFCA_REVOKE = HFCA_CONTEXT_ROOT + "revoke";
     private static final String HFCA_INFO = HFCA_CONTEXT_ROOT + "cainfo";
     private static final String HFCA_GENCRL = HFCA_CONTEXT_ROOT + "gencrl";
+    private static final String HFCA_IDENTITY = HFCA_CONTEXT_ROOT + "identities";
 
     static final String FABRIC_CA_REQPROP = "caname";
 
@@ -810,6 +815,194 @@ public class HFCAClient {
         }
     }
 
+    /**
+     * gets all identities that the registrar is allowed to see
+     *
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return the identity that was requested
+     * @throws IdentityException    if adding an identity fails.
+     * @throws InvalidArgumentException
+     */
+
+    public Collection<HFCAIdentity> getAllIdentities(User registrar) throws IdentityException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        logger.debug(format("identity  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            setUpSSL();
+
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
+            JsonObject result = httpGet(url + HFCA_IDENTITY, authHdr);
+            String caName = result.getString("caname");
+            Collection<HFCAIdentity> allIdentities = new ArrayList<HFCAIdentity>();
+
+            JsonArray identities = result.getJsonArray("identities");
+            if (!identities.isEmpty()) {
+                for (int i = 0; i < identities.size(); i++) {
+                    JsonObject identity = identities.getJsonObject(i);
+
+                    String id = identity.getString("id");
+                    String type = identity.getString("type");
+                    Integer maxenrollments = identity.getInt("max_enrollments");
+                    String affiliation = identity.getString("affiliation");
+
+                    JsonArray attributes = identity.getJsonArray("attrs");
+
+                    Collection<Attribute> attrs = new ArrayList<Attribute>();
+                    if (!attributes.isEmpty()) {
+                        for (int j = 0; j < attributes.size(); j++) {
+                            JsonObject attribute = attributes.getJsonObject(j);
+                            System.out.println("attribute >>>> " + attribute);
+
+                            Attribute attr = new Attribute(attribute.getString("name"), attribute.getString("value"), attribute.getBoolean("ecert", false));
+                            attrs.add(attr);
+                        }
+                     }
+
+                    HFCAIdentity idObj = new HFCAIdentity(id, type, maxenrollments, affiliation, attrs, caName);
+                    allIdentities.add(idObj);
+                }
+            }
+
+            logger.debug(format("identity  url: %s, registrar: %s done.", url, registrar));
+            return allIdentities;
+        } catch (Exception e) {
+            String msg = format("Error while getting all users url:%s %s ", url, e.getMessage());
+            IdentityException identityException = new IdentityException(msg, e);
+            logger.error(msg);
+            throw identityException;
+        }
+
+    }
+
+    /**
+     * gets a specific identity
+     *
+     * @param getId   Name if the id being requested
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return the identity that was requested
+     * @throws IdentityException    if adding an identity fails.
+     * @throws InvalidArgumentException
+     */
+
+    public HFCAIdentity getIdentity(String getId, User registrar) throws IdentityException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        logger.debug(format("identity  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            setUpSSL();
+
+            String getURL = url + HFCA_IDENTITY + "/" + getId;
+
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
+            JsonObject result = httpGet(getURL, authHdr);
+
+            String id = result.getString("id");
+            String type = result.getString("type");
+            Integer maxenrollments = result.getInt("max_enrollments");
+            String affiliation = result.getString("affiliation");
+            String caName = result.getString("caname");
+            JsonArray attributes = result.getJsonArray("attrs");
+
+            Collection<Attribute> attrs = new ArrayList<Attribute>();
+            if (!attributes.isEmpty()) {
+                for (int i = 0; i < attributes.size(); i++) {
+                    JsonObject attribute = attributes.getJsonObject(i);
+                    Attribute attr = new Attribute(attribute.getString("name"), attribute.getString("value"), attribute.getBoolean("ecert", false));
+                    attrs.add(attr);
+                }
+            }
+
+            HFCAIdentity resp = new HFCAIdentity(id, type, maxenrollments, affiliation, attrs, caName);
+            logger.debug(format("identity  url: %s, registrar: %s done.", url, registrar));
+            return resp;
+        } catch (Exception e) {
+            String msg = format("Error while getting the user %s url: %s  %s ", getId, url, e.getMessage());
+            IdentityException identityException = new IdentityException(msg, e);
+            logger.error(msg);
+            throw identityException;
+        }
+
+    }
+
+    /**
+     * add an identity
+     *
+     * @param request   Adding an identity request
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return the identity that was added along with secret
+     * @throws IdentityException    if adding an identity fails.
+     * @throws InvalidArgumentException
+     */
+
+    public HFCAIdentity addIdentity(IdentityRequest request, User registrar) throws IdentityException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (Utils.isNullOrEmpty(request.getEnrollmentID())) {
+            throw new InvalidArgumentException("EntrollmentID cannot be null or empty");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        logger.debug(format("identity  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            setUpSSL();
+
+            String body = request.toJson();
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), body);
+            JsonObject result = httpPost(url + HFCA_IDENTITY, body, authHdr);
+
+            String id = result.getString("id");
+            String type = result.getString("type");
+            String secret = result.getString("secret");
+            Integer maxenrollments = result.getInt("max_enrollments");
+            String affiliation = result.getString("affiliation");
+            String caName = result.getString("caname");
+            JsonArray attributes = result.getJsonArray("attrs");
+
+            Collection<Attribute> attrs = new ArrayList<Attribute>();
+            if (!attributes.isEmpty()) {
+                for (int i = 0; i < attributes.size(); i++) {
+                    JsonObject attribute = attributes.getJsonObject(i);
+                    Attribute attr = new Attribute(attribute.getString("name"), attribute.getString("value"), attribute.getBoolean("ecert", false));
+                    attrs.add(attr);
+                }
+            }
+
+            HFCAIdentity resp = new HFCAIdentity(id, type, secret, maxenrollments, affiliation, attrs, caName);
+            logger.debug(format("identity  url: %s, registrar: %s done.", url, registrar));
+            return resp;
+        } catch (Exception e) {
+            String msg = format("Error while adding the user %s url: %s  %s ", request.getEnrollmentID(), url, e.getMessage());
+            IdentityException identityException = new IdentityException(msg, e);
+            logger.error(msg);
+            throw identityException;
+        }
+
+    }
+
     private String toJson(Date date) {
         final TimeZone utc = TimeZone.getTimeZone("UTC");
 
@@ -915,8 +1108,32 @@ public class HFCAClient {
         httpPost.addHeader("Authorization", authHTTPCert);
 
         HttpResponse response = client.execute(httpPost, context);
-        int status = response.getStatusLine().getStatusCode();
 
+        return getResult(response, body);
+    }
+
+    JsonObject httpGet(String url, String authHTTPCert) throws Exception {
+
+        HttpGet httpGet = new HttpGet(url);
+        logger.debug(format("httpGet %s, authHTTPCert: %s", url, authHTTPCert));
+
+        final HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+        if (registry != null) {
+            httpClientBuilder.setConnectionManager(new PoolingHttpClientConnectionManager(registry));
+        }
+        HttpClient client = httpClientBuilder.build();
+
+        final HttpClientContext context = HttpClientContext.create();
+        httpGet.addHeader("Authorization", authHTTPCert);
+
+        HttpResponse response = client.execute(httpGet, context);
+
+        return getResult(response, "");
+    }
+
+    JsonObject getResult(HttpResponse response, String body) throws Exception {
+
+        int status = response.getStatusLine().getStatusCode();
         HttpEntity entity = response.getEntity();
         logger.trace(format("response status %d, HttpEntity %s ", status, "" + entity));
         String responseBody = entity != null ? EntityUtils.toString(entity) : null;
