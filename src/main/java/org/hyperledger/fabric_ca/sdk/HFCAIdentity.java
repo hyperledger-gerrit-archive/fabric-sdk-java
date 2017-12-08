@@ -19,10 +19,11 @@ package org.hyperledger.fabric_ca.sdk;
 import java.util.ArrayList;
 import java.util.Collection;
 
-/**
- * Fabric Certificate authority information
- * Contains information for the Fabric certificate authority
- */
+import javax.json.JsonArray;
+import javax.json.JsonObject;
+
+// Hyperledger Fabric CA Identity information
+
 public class HFCAIdentity {
 
     // The enrollment ID of the user
@@ -37,7 +38,7 @@ public class HFCAIdentity {
     private String affiliation;
     // Array of attribute names and values
     private Collection<Attribute> attrs = new ArrayList<Attribute>();
-
+    // Optional CA name
     private String caName;
 
 
@@ -53,6 +54,30 @@ public class HFCAIdentity {
     public HFCAIdentity(String id, String type, String secret, Integer maxEnrollments, String affiliation, Collection<Attribute> attrs, String caName) {
         this(id, type, maxEnrollments, affiliation, attrs, caName);
         this.secret = secret;
+    }
+
+    public HFCAIdentity(JsonObject result) {
+        this.enrollmentID = result.getString("id");
+        this.type = result.getString("type");
+        if (result.containsKey("secret")) {
+            this.secret = result.getString("secret");
+        }
+        this.maxEnrollments = result.getInt("max_enrollments");
+        this.affiliation = result.getString("affiliation");
+        if (result.containsKey("caname")) {
+            this.caName = result.getString("caname");
+        }
+        JsonArray attributes = result.getJsonArray("attrs");
+
+        Collection<Attribute> attrs = new ArrayList<Attribute>();
+        if (attributes != null && !attributes.isEmpty()) {
+            for (int i = 0; i < attributes.size(); i++) {
+                JsonObject attribute = attributes.getJsonObject(i);
+                Attribute attr = new Attribute(attribute.getString("name"), attribute.getString("value"), attribute.getBoolean("ecert", false));
+                attrs.add(attr);
+            }
+        }
+        this.attrs = attrs;
     }
 
     /**
