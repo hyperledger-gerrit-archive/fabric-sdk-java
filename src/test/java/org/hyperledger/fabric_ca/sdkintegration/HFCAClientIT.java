@@ -41,9 +41,12 @@ import org.hyperledger.fabric.sdkintegration.SampleUser;
 import org.hyperledger.fabric_ca.sdk.Attribute;
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
+import org.hyperledger.fabric_ca.sdk.HFCAIdentity;
+import org.hyperledger.fabric_ca.sdk.IdentityRequest;
 import org.hyperledger.fabric_ca.sdk.MockHFCAClient;
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
+import org.hyperledger.fabric_ca.sdk.exception.IdentityException;
 import org.hyperledger.fabric_ca.sdk.exception.RevocationException;
 import org.hyperledger.fabric_ca.sdk.helper.Config;
 import org.junit.Before;
@@ -72,6 +75,7 @@ public class HFCAClientIT {
     private static final String TEST_USER1_ORG = "Org2";
     private static final String TEST_USER1_AFFILIATION = "org1.department1";
     private static final String TEST_WITH_INTEGRATION_ORG = "peerOrg1";
+    private static final String TEST_WITH_INTEGRATION_ORG2 = "peerOrg2";
 
     private SampleStore sampleStore;
     private HFCAClient client;
@@ -504,6 +508,208 @@ public class HFCAClientIT {
         X509CRLHolder holder = (X509CRLHolder) pem.readObject();
 
         return holder.toASN1Structure().getRevokedCertificates();
+    }
+
+    // Tests getting an identity
+    @Test
+    public void testGetIdentity() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        SampleUser user = new SampleUser("testuser1", TEST_ADMIN_ORG, sampleStore);
+
+        IdentityRequest identityReq = new IdentityRequest(user.getName(), TEST_USER1_AFFILIATION);
+        identityReq.setMaxEnrollments(5);
+        identityReq.setType("peer");
+        identityReq.addAttribute(new Attribute("testattr1", "valueattr1"));
+
+        identityReq.setClient(client);
+        identityReq.addIdentity(admin);
+
+        HFCAIdentity resp = identityReq.getIdentity(admin);
+        assertNotNull("Response for adding identity should not be null", resp);
+        assertEquals("Incorrect response for id", "testuser1", resp.getId());
+        assertEquals("Incorrect response for type", "peer", resp.getType());
+        assertEquals("Incorrect response for affiliation", TEST_USER1_AFFILIATION, resp.getAffiliation());
+        assertEquals("Incorrect response for max enrollments", Integer.valueOf(5), resp.getMaxEnrollments());
+
+        Collection<Attribute> attrs = resp.getAttributes();
+        Boolean found = false;
+        for (Attribute attr : attrs) {
+            if (attr.getName().equals("testattr1")) {
+                 found = true;
+                 break;
+            }
+        }
+
+        if (!found) {
+            fail("Incorrect response for attribute");
+        }
+    }
+
+    // Tests getting all identities for a caller
+    @Test
+    public void testGetAllIdentity() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        SampleUser user = new SampleUser("testuser2", TEST_ADMIN_ORG, sampleStore);
+
+        IdentityRequest identityReq = new IdentityRequest(user.getName(), TEST_USER1_AFFILIATION);
+        identityReq.setMaxEnrollments(5);
+        identityReq.setType("peer");
+        identityReq.addAttribute(new Attribute("testattr1", "valueattr1"));
+
+        identityReq.setClient(client);
+        identityReq.addIdentity(admin);
+
+        IdentityRequest identityGetAll = new IdentityRequest();
+        identityGetAll.setClient(client);
+
+        Collection<HFCAIdentity> resp = identityGetAll.getAllIdentities(admin);
+        String[] expectedIdenities = new String[]{"testuser2", "admin"};
+        Integer found = 0;
+
+        for (HFCAIdentity id : resp) {
+            for (String name : expectedIdenities) {
+                if (id.getId().equals(name)) {
+                    found++;
+                }
+            }
+        }
+
+        if (found != 2) {
+            fail("Failed to get the correct number of identities");
+        }
+
+    }
+
+    // Tests adding an identity
+    @Test
+    public void testAddIdentity() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        SampleUser user = new SampleUser("testuser3", TEST_ADMIN_ORG, sampleStore);
+
+        IdentityRequest identityReq = new IdentityRequest(user.getName(), TEST_USER1_AFFILIATION);
+        String password = "password";
+
+        identityReq.setSecret(password);
+        identityReq.setMaxEnrollments(5);
+        identityReq.setType("peer");
+        identityReq.addAttribute(new Attribute("testattr1", "valueattr1"));
+        identityReq.setClient(client);
+
+        HFCAIdentity resp = identityReq.addIdentity(admin);
+        assertNotNull("Response for adding identity should not be null", resp);
+        assertEquals("Incorrect response for id", "testuser3", resp.getId());
+        assertEquals("Incorrect response for secret", "password", resp.getSecret());
+        assertEquals("Incorrect response for type", "peer", resp.getType());
+        assertEquals("Incorrect response for affiliation", TEST_USER1_AFFILIATION, resp.getAffiliation());
+        assertEquals("Incorrect response for max enrollments", Integer.valueOf(5), resp.getMaxEnrollments());
+
+        Collection<Attribute> attrs = resp.getAttributes();
+        Boolean found = false;
+        for (Attribute attr : attrs) {
+            if (attr.getName().equals("testattr1")) {
+                 found = true;
+                 break;
+            }
+        }
+
+        if (!found) {
+            fail("Incorrect response for attribute");
+        }
+
+        user.setEnrollmentSecret(password);
+        client.enroll(user.getName(), user.getEnrollmentSecret());
+    }
+
+    // Tests modifying an identity
+    @Test
+    public void testModifyIdentity() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        SampleUser user = new SampleUser("testuser4", TEST_ADMIN_ORG, sampleStore);
+
+        IdentityRequest identityAddReq = new IdentityRequest(user.getName(), TEST_USER1_AFFILIATION);
+        String password = "password";
+        identityAddReq.setSecret(password);
+        identityAddReq.setMaxEnrollments(5);
+        identityAddReq.setType("peer");
+        identityAddReq.addAttribute(new Attribute("testattr1", "valueattr1"));
+        identityAddReq.setClient(client);
+
+        HFCAIdentity resp = identityAddReq.addIdentity(admin);
+        assertEquals("Incorrect response for type", "peer", resp.getType());
+
+        IdentityRequest identityModReq = new IdentityRequest(user.getName());
+        identityModReq.setType("client");
+        identityModReq.setClient(client);
+        identityModReq.modifyIdentity(admin);
+
+        HFCAIdentity getResp = identityModReq.getIdentity(admin);
+        assertEquals("Incorrect response for type", "client", getResp.getType());
+    }
+
+    // Tests deleting an identity
+    @Test
+    public void testDeleteIdentity() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        thrown.expect(IdentityException.class);
+        thrown.expectMessage("Failed to get User");
+
+        SampleUser user = new SampleUser("testuser5", TEST_ADMIN_ORG, sampleStore);
+
+        IdentityRequest identityReq = new IdentityRequest(user.getName(), TEST_USER1_AFFILIATION);
+        identityReq.setClient(client);
+
+        identityReq.addIdentity(admin);
+        identityReq.deleteIdentity(admin);
+        identityReq.getIdentity(admin);
+    }
+
+    // Tests deleting an identity on CA that does not allow identity removal
+    @Test
+    public void testDeleteIdentityNotAllowed() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        thrown.expectMessage("Identity removal is disabled");
+        SampleUser user = new SampleUser("testuser5", "org2", sampleStore);
+        IdentityRequest identityReq = new IdentityRequest(user.getName(), TEST_USER1_AFFILIATION);
+
+        HFCAClient client2 = HFCAClient.createNewInstance(
+                testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG2).getCALocation(),
+                testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG2).getCAProperties());
+        client2.setCryptoSuite(crypto);
+
+        // SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
+        SampleUser admin2 = sampleStore.getMember(TEST_ADMIN_NAME, "org2");
+        if (!admin2.isEnrolled()) { // Preregistered admin only needs to be enrolled with Fabric CA.
+            admin2.setEnrollment(client2.enroll(admin.getName(), TEST_ADMIN_PW));
+        }
+
+        identityReq.setClient(client2);
+
+        identityReq.addIdentity(admin2);
+        identityReq.deleteIdentity(admin2);
     }
 
     @Test
