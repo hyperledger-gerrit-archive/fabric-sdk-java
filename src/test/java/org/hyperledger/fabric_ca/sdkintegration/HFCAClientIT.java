@@ -44,6 +44,7 @@ import org.hyperledger.fabric_ca.sdk.IdentityRequest;
 import org.hyperledger.fabric_ca.sdk.MockHFCAClient;
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
+import org.hyperledger.fabric_ca.sdk.exception.IdentityException;
 import org.hyperledger.fabric_ca.sdk.exception.RevocationException;
 import org.hyperledger.fabric_ca.sdk.helper.Config;
 import org.junit.Before;
@@ -73,6 +74,7 @@ public class HFCAClientIT {
     private static final String TEST_USER1_ORG = "Org2";
     private static final String TEST_USER1_AFFILIATION = "org1.department1";
     private static final String TEST_WITH_INTEGRATION_ORG = "peerOrg1";
+    private static final String TEST_WITH_INTEGRATION_ORG2 = "peerOrg2";
 
     private SampleStore sampleStore;
     private HFCAClient client;
@@ -621,6 +623,81 @@ public class HFCAClientIT {
 
         user.setEnrollmentSecret(password);
         client.enroll(user.getName(), user.getEnrollmentSecret());
+    }
+
+    // Tests modifying an identity
+    @Test
+    public void testModifyIdentity() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        SampleUser user = new SampleUser("testuser4", TEST_ADMIN_ORG, sampleStore);
+
+        IdentityRequest addIdentity = new IdentityRequest(user.getName(), TEST_USER1_AFFILIATION);
+        String password = "password";
+        addIdentity.setSecret(password);
+        addIdentity.setMaxEnrollments(5);
+        addIdentity.setType("peer");
+        addIdentity.addAttribute(new Attribute("testattr1", "valueattr1"));
+
+        HFCAIdentity resp = client.addIdentity(addIdentity, admin);
+        assertEquals("Incorrect response for type", "peer", resp.getType());
+
+        IdentityRequest modifyIdentity = new IdentityRequest(user.getName());
+        modifyIdentity.setType("client");
+        client.modifyIdentity(modifyIdentity, admin);
+
+        HFCAIdentity getResp = client.getIdentity("testuser4", admin);
+        assertEquals("Incorrect response for type", "client", getResp.getType());
+    }
+
+    // Tests deleting an identity
+    @Test
+    public void testDeleteIdentity() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        thrown.expect(IdentityException.class);
+        thrown.expectMessage("Failed to get User");
+
+        SampleUser user = new SampleUser("testuser5", TEST_ADMIN_ORG, sampleStore);
+
+        IdentityRequest addIdentity = new IdentityRequest(user.getName(), TEST_USER1_AFFILIATION);
+
+        client.addIdentity(addIdentity, admin);
+        client.deleteIdentity("testuser5", admin);
+        client.getIdentity("testuser5", admin);
+    }
+
+    // Tests deleting an identity on CA that does not allow identity removal
+    @Test
+    public void testDeleteIdentityNotAllowed() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        thrown.expectMessage("Identity removal is disabled");
+        SampleUser user = new SampleUser("testuser5", "org2", sampleStore);
+        IdentityRequest addIdentity = new IdentityRequest(user.getName(), TEST_USER1_AFFILIATION);
+
+        HFCAClient client2 = HFCAClient.createNewInstance(
+                testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG2).getCALocation(),
+                testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG2).getCAProperties());
+        client2.setCryptoSuite(crypto);
+
+        // SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
+        SampleUser admin2 = sampleStore.getMember(TEST_ADMIN_NAME, "org2");
+        if (!admin2.isEnrolled()) { // Preregistered admin only needs to be enrolled with Fabric CA.
+            admin2.setEnrollment(client2.enroll(admin.getName(), TEST_ADMIN_PW));
+        }
+
+        client2.addIdentity(addIdentity, admin2);
+        client2.deleteIdentity("testuser5", admin2);
     }
 
     @Test
