@@ -23,6 +23,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.Socket;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -36,7 +37,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Properties;
 import java.util.TimeZone;
@@ -62,8 +65,12 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.AuthCache;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpDelete;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
@@ -88,6 +95,7 @@ import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.GenerateCRLException;
+import org.hyperledger.fabric_ca.sdk.exception.IdentityException;
 import org.hyperledger.fabric_ca.sdk.exception.InfoException;
 import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric_ca.sdk.exception.RegistrationException;
@@ -96,14 +104,16 @@ import org.hyperledger.fabric_ca.sdk.helper.Config;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
  * HFCAClient Hyperledger Fabric Certificate Authority Client.
  */
 
 public class HFCAClient {
     private static final Log logger = LogFactory.getLog(HFCAClient.class);
-    private static final String HFCA_CONTEXT_ROOT = "/api/v1/";
+
+    static final String FABRIC_CA_REQPROP = "caname";
+    static final String HFCA_CONTEXT_ROOT = "/api/v1/";
+
     private static final String HFCA_ENROLL = HFCA_CONTEXT_ROOT + "enroll";
     private static final String HFCA_REGISTER = HFCA_CONTEXT_ROOT + "register";
     private static final String HFCA_REENROLL = HFCA_CONTEXT_ROOT + "reenroll";
@@ -111,9 +121,8 @@ public class HFCAClient {
     private static final String HFCA_INFO = HFCA_CONTEXT_ROOT + "cainfo";
     private static final String HFCA_GENCRL = HFCA_CONTEXT_ROOT + "gencrl";
 
-    static final String FABRIC_CA_REQPROP = "caname";
 
-    private final String url;
+    final String url;
     private final boolean isSSL;
     private final Properties properties;
 
@@ -128,7 +137,7 @@ public class HFCAClient {
 
     private final String caName;
 
-    private CryptoSuite cryptoSuite;
+    CryptoSuite cryptoSuite;
 
     /**
      * HFCAClient constructor
@@ -739,6 +748,10 @@ public class HFCAClient {
         }
     }
 
+    public HFCAIdentity newHFCAIdentity() {
+        return new HFCAIdentity(this);
+    }
+
     private String toJson(Date date) {
         final TimeZone utc = TimeZone.getTimeZone("UTC");
 
@@ -844,22 +857,85 @@ public class HFCAClient {
         httpPost.addHeader("Authorization", authHTTPCert);
 
         HttpResponse response = client.execute(httpPost, context);
-        int status = response.getStatusLine().getStatusCode();
 
+        return getResult(response, body, "POST");
+    }
+
+    JsonObject httpGet(String url, String authHTTPCert) throws Exception {
+
+        HttpGet httpGet = new HttpGet(url);
+        logger.debug(format("httpGet %s, authHTTPCert: %s", url, authHTTPCert));
+
+        final HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+        if (registry != null) {
+            httpClientBuilder.setConnectionManager(new PoolingHttpClientConnectionManager(registry));
+        }
+        HttpClient client = httpClientBuilder.build();
+
+        final HttpClientContext context = HttpClientContext.create();
+        httpGet.addHeader("Authorization", authHTTPCert);
+
+        HttpResponse response = client.execute(httpGet, context);
+
+        return getResult(response, "", "GET");
+    }
+
+    JsonObject httpPut(String url, String body, String authHTTPCert) throws Exception {
+
+        HttpPut httpPut = new HttpPut(url);
+        logger.debug(format("httpPutt %s, body:%s, authHTTPCert: %s", url, body, authHTTPCert));
+
+        final HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+        if (registry != null) {
+            httpClientBuilder.setConnectionManager(new PoolingHttpClientConnectionManager(registry));
+        }
+        HttpClient client = httpClientBuilder.build();
+
+        final HttpClientContext context = HttpClientContext.create();
+        httpPut.setEntity(new StringEntity(body));
+        httpPut.addHeader("Authorization", authHTTPCert);
+
+        HttpResponse response = client.execute(httpPut, context);
+
+        return getResult(response, body, "PUT");
+    }
+
+    JsonObject httpDelete(String url, String authHTTPCert) throws Exception {
+
+        HttpDelete httpDelete = new HttpDelete(url);
+        logger.debug(format("httpPut %s, authHTTPCert: %s", url, authHTTPCert));
+
+        final HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+        if (registry != null) {
+            httpClientBuilder.setConnectionManager(new PoolingHttpClientConnectionManager(registry));
+        }
+        HttpClient client = httpClientBuilder.build();
+
+        final HttpClientContext context = HttpClientContext.create();
+        httpDelete.addHeader("Authorization", authHTTPCert);
+
+        HttpResponse response = client.execute(httpDelete, context);
+
+        return getResult(response, "", "DELETE");
+    }
+
+    JsonObject getResult(HttpResponse response, String body, String type) throws Exception {
+
+        int status = response.getStatusLine().getStatusCode();
         HttpEntity entity = response.getEntity();
         logger.trace(format("response status %d, HttpEntity %s ", status, "" + entity));
         String responseBody = entity != null ? EntityUtils.toString(entity) : null;
         logger.trace(format("responseBody: %s ", responseBody));
 
         if (status >= 400) {
-            Exception e = new Exception(format("POST request to %s failed request body %s with status code: %d. Response: %s",
-                    url, body, status, responseBody));
+            Exception e = new Exception(format("%s request to %s failed request body %s with status code: %d. Response: %s",
+                    type, url, body, status, responseBody));
             logger.error(e.getMessage());
             throw e;
         }
         if (responseBody == null) {
 
-            Exception e = new Exception(format("POST request to %s failed request body %s with null response body returned.", url, body));
+            Exception e = new Exception(format("%s request to %s failed request body %s with null response body returned.", type, url, body));
             logger.error(e.getMessage());
             throw e;
 
@@ -871,31 +947,31 @@ public class HFCAClient {
         boolean success = jobj.getBoolean("success");
         if (!success) {
             EnrollmentException e = new EnrollmentException(
-                    format("POST request to %s failed request body %s Body of response did not contain success", url, body),
+                    format("%s request to %s failed request body %s Body of response did not contain success", type, url, body),
                     new Exception());
             logger.error(e.getMessage());
             throw e;
         }
         JsonObject result = jobj.getJsonObject("result");
         if (result == null) {
-            EnrollmentException e = new EnrollmentException(format("POST request to %s failed request body %s " +
-                    "Body of response did not contain result", url, body), new Exception());
+            EnrollmentException e = new EnrollmentException(format("%s request to %s failed request body %s " +
+                    "Body of response did not contain result", type, url, body), new Exception());
             logger.error(e.getMessage());
             throw e;
         }
         JsonArray messages = jobj.getJsonArray("messages");
         if (messages != null && !messages.isEmpty()) {
             JsonObject jo = messages.getJsonObject(0);
-            String message = format("POST request to %s failed request body %s response message [code %d]: %s",
-                    url, body, jo.getInt("code"), jo.getString("message"));
+            String message = format("%s request to %s failed request body %s response message [code %d]: %s",
+                    type, url, body, jo.getInt("code"), jo.getString("message"));
             logger.info(message);
         }
 
-        logger.debug(format("httpPost %s, body:%s result: %s", url, body, "" + result));
+        logger.debug(format("%s %s, body:%s result: %s", type, url, body, "" + result));
         return result;
     }
 
-    private String getHTTPAuthCertificate(Enrollment enrollment, String body) throws Exception {
+    String getHTTPAuthCertificate(Enrollment enrollment, String body) throws Exception {
         Base64.Encoder b64 = Base64.getEncoder();
         String cert = b64.encodeToString(enrollment.getCert().getBytes(UTF_8));
         body = b64.encodeToString(body.getBytes(UTF_8));
@@ -908,7 +984,7 @@ public class HFCAClient {
     //Only use crypto primitives for reuse of its truststore on TLS
     CryptoPrimitives cryptoPrimitives = null;
 
-    private void setUpSSL() throws InvalidArgumentException {
+    void setUpSSL() throws InvalidArgumentException {
 
         if (cryptoPrimitives == null) {
             try {
@@ -1002,6 +1078,14 @@ public class HFCAClient {
         public Socket createSocket() throws IOException {
             return sslContext.getSocketFactory().createSocket();
         }
+    }
+
+    String getURL(String url) throws URISyntaxException, MalformedURLException {
+        URIBuilder uri = new URIBuilder(url);
+        if (caName != null) {
+             uri.addParameter("ca", caName);
+        }
+        return uri.build().toURL().toString();
     }
 
 }
