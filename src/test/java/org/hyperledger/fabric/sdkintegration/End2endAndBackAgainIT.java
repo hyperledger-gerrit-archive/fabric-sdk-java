@@ -16,11 +16,14 @@ package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -33,10 +36,12 @@ import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.ChaincodeResponse.Status;
 import org.hyperledger.fabric.sdk.Channel;
+import org.hyperledger.fabric.sdk.Channel.PeerOptions;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.Peer;
+import org.hyperledger.fabric.sdk.Peer.PeerRole;
 import org.hyperledger.fabric.sdk.ProposalResponse;
 import org.hyperledger.fabric.sdk.QueryByChaincodeRequest;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
@@ -58,6 +63,7 @@ import static org.hyperledger.fabric.sdk.testutils.TestUtils.resetConfig;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -67,6 +73,7 @@ import static org.junit.Assert.fail;
 public class End2endAndBackAgainIT {
 
     private static final TestConfig testConfig = TestConfig.getConfig();
+    private static final boolean IS_FABRIC_V10 = testConfig.isRunningAgainstFabric10();
     private static final String TEST_ADMIN_NAME = "admin";
     private static final String TESTUSER_1_NAME = "user1";
     private static final String TEST_FIXTURES_PATH = "src/test/fixture";
@@ -75,22 +82,73 @@ public class End2endAndBackAgainIT {
     private static final String CHAIN_CODE_PATH = "github.com/example_cc";
     private static final String CHAIN_CODE_VERSION = "1";
     private static final String CHAIN_CODE_VERSION_11 = "11";
-
+    private static final String FOO_CHANNEL_NAME = "foo";
+    private static final String BAR_CHANNEL_NAME = "bar";
     final ChaincodeID chaincodeID = ChaincodeID.newBuilder().setName(CHAIN_CODE_NAME)
             .setVersion(CHAIN_CODE_VERSION)
             .setPath(CHAIN_CODE_PATH).build();
     final ChaincodeID chaincodeID_11 = ChaincodeID.newBuilder().setName(CHAIN_CODE_NAME)
             .setVersion(CHAIN_CODE_VERSION_11)
             .setPath(CHAIN_CODE_PATH).build();
-
-    private static final String FOO_CHANNEL_NAME = "foo";
-    private static final String BAR_CHANNEL_NAME = "bar";
-
-    String testTxID = null;  // save the CC invoke TxID and use in queries
-
     private final TestConfigHelper configHelper = new TestConfigHelper();
-
+    String testTxID = null;  // save the CC invoke TxID and use in queries
+    SampleStore sampleStore;
     private Collection<SampleOrg> testSampleOrgs;
+
+//    @After
+//    public void clearConfig() {
+//        try {
+// //           configHelper.clearConfig();
+//        } catch (Exception e) {
+//        }
+//    }
+
+    private static boolean checkInstalledChaincode(HFClient client, Peer peer, String ccName, String ccPath, String ccVersion) throws InvalidArgumentException, ProposalException {
+
+        out("Checking installed chaincode: %s, at version: %s, on peer: %s", ccName, ccVersion, peer.getName());
+        List<ChaincodeInfo> ccinfoList = client.queryInstalledChaincodes(peer);
+
+        boolean found = false;
+
+        for (ChaincodeInfo ccifo : ccinfoList) {
+
+            found = ccName.equals(ccifo.getName()) && ccPath.equals(ccifo.getPath()) && ccVersion.equals(ccifo.getVersion());
+            if (found) {
+                break;
+            }
+
+        }
+
+        return found;
+    }
+
+    private static boolean checkInstantiatedChaincode(Channel channel, Peer peer, String ccName, String ccPath, String ccVersion) throws InvalidArgumentException, ProposalException {
+        out("Checking instantiated chaincode: %s, at version: %s, on peer: %s", ccName, ccVersion, peer.getName());
+        List<ChaincodeInfo> ccinfoList = channel.queryInstantiatedChaincodes(peer);
+
+        boolean found = false;
+
+        for (ChaincodeInfo ccifo : ccinfoList) {
+            found = ccName.equals(ccifo.getName()) && ccPath.equals(ccifo.getPath()) && ccVersion.equals(ccifo.getVersion());
+            if (found) {
+                break;
+            }
+
+        }
+
+        return found;
+    }
+
+    static void out(String format, Object... args) {
+
+        System.err.flush();
+        System.out.flush();
+
+        System.out.println(format(format, args));
+        System.err.flush();
+        System.out.flush();
+
+    }
 
     @Before
     public void checkConfig() throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException, MalformedURLException {
@@ -110,16 +168,6 @@ public class End2endAndBackAgainIT {
             sampleOrg.setCAClient(HFCAClient.createNewInstance(caURL, null));
         }
     }
-
-//    @After
-//    public void clearConfig() {
-//        try {
-// //           configHelper.clearConfig();
-//        } catch (Exception e) {
-//        }
-//    }
-
-    SampleStore sampleStore;
 
     @Test
     public void setup() {
@@ -195,8 +243,6 @@ public class End2endAndBackAgainIT {
             final boolean changeContext = BAR_CHANNEL_NAME.equals(channel.getName());
 
             out("Running Channel %s with a delta %d", channelName, delta);
-            channel.setTransactionWaitTime(testConfig.getTransactionWaitTime());
-            channel.setDeployWaitTime(testConfig.getDeployWaitTime());
 
             ////////////////////////////
             // Send Query Proposal to all peers see if it's what we expect from end of End2endIT
@@ -483,6 +529,13 @@ public class End2endAndBackAgainIT {
              */
             newChannel = sampleStore.getChannel(client, name);
 
+            if (!IS_FABRIC_V10) {
+                // Make sure there is one of each type peer at the very least. see End2end for how peers were constructed.
+                assertFalse(newChannel.getPeers(EnumSet.of(PeerRole.EVENT_SOURCE)).isEmpty());
+                assertFalse(newChannel.getPeers(PeerRole.NO_EVENT_SOURCE).isEmpty());
+
+            }
+            assertEquals(2, newChannel.getEventHubs().size());
             out("Retrieved channel %s from sample store.", name);
 
         } else {
@@ -497,16 +550,34 @@ public class End2endAndBackAgainIT {
 
             for (String peerName : sampleOrg.getPeerNames()) {
                 String peerLocation = sampleOrg.getPeerLocation(peerName);
-                Peer peer = client.newPeer(peerName, peerLocation, testConfig.getPeerProperties(peerName));
-                newChannel.addPeer(peer);
-                sampleOrg.addPeer(peer);
+                Properties peerProperties = testConfig.getPeerProperties(peerName);
+                Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
+                newChannel.addPeer(peer, IS_FABRIC_V10 ?
+                        PeerOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE) : PeerOptions.create());
             }
 
-            for (String eventHubName : sampleOrg.getEventHubNames()) {
-                EventHub eventHub = client.newEventHub(eventHubName, sampleOrg.getEventHubLocation(eventHubName),
-                        testConfig.getEventHubProperties(eventHubName));
-                newChannel.addEventHub(eventHub);
+            //For testing mix it up. For v1.1 use just peer eventing service for foo channel.
+            if (IS_FABRIC_V10) {
+                //Should have no peers with event sources.
+                assertTrue(newChannel.getPeers(EnumSet.of(PeerRole.EVENT_SOURCE)).isEmpty());
+                //Should have two peers with all roles but event source.
+                assertEquals(2, newChannel.getPeers(PeerRole.NO_EVENT_SOURCE).size());
+                for (String eventHubName : sampleOrg.getEventHubNames()) {
+                    EventHub eventHub = client.newEventHub(eventHubName, sampleOrg.getEventHubLocation(eventHubName),
+                            testConfig.getEventHubProperties(eventHubName));
+                    newChannel.addEventHub(eventHub);
+                }
+            } else {
+                //Peers should have all roles. Do some sanity checks that they do.
+
+                //Should have two peers with event sources.
+                assertEquals(2, newChannel.getPeers(EnumSet.of(PeerRole.EVENT_SOURCE)).size());
+                //Check some other roles too..
+                assertEquals(2, newChannel.getPeers(EnumSet.of(PeerRole.CHAINCODE_QUERY, PeerRole.LEDGER_QUERY)).size());
+                assertEquals(2, newChannel.getPeers(PeerRole.ALL).size());  //really same as newChannel.getPeers()
             }
+
+            assertEquals(IS_FABRIC_V10 ? sampleOrg.getEventHubNames().size() : 0, newChannel.getEventHubs().size());
         }
 
         //Just some sanity check tests
@@ -514,12 +585,41 @@ public class End2endAndBackAgainIT {
         assertTrue(client == TestUtils.getField(newChannel, "client"));
         assertEquals(name, newChannel.getName());
         assertEquals(2, newChannel.getPeers().size());
-        assertEquals(2, newChannel.getEventHubs().size());
         assertEquals(1, newChannel.getOrderers().size());
         assertFalse(newChannel.isShutdown());
         assertFalse(newChannel.isInitialized());
 
+        //Just checks if channel can be serialized and deserialized .. otherwise this is just a waste :)
+        assertFalse(newChannel.isInitialized());
+        assertFalse(newChannel.isShutdown());
+        byte[] serializedChannelBytes = newChannel.serializeChannel();
+        //We can remove all peers since it's now serialized :)
+        for (Peer peer : new ArrayList<Peer>(newChannel.getPeers())) {
+            newChannel.removePeer(peer);
+        }
+        assertTrue(newChannel.getPeers().isEmpty());
+        assertTrue(newChannel.getPeers(EnumSet.of(PeerRole.CHAINCODE_QUERY, PeerRole.ENDORSING_PEER)).isEmpty());
+        assertTrue(newChannel.getPeers(EnumSet.of(PeerRole.LEDGER_QUERY)).isEmpty());
+
+        assertNotNull(client.getChannel(name));
+        newChannel.shutdown(true);
+        assertNull(client.getChannel(name));
+
+        // Get channel back.
+        newChannel = client.deSerializeChannel(serializedChannelBytes);
+
+        assertEquals(2, newChannel.getPeers().size());
+        assertEquals(1, newChannel.getOrderers().size());
+
+        assertNotNull(client.getChannel(name));
+        assertEquals(newChannel, client.getChannel(name));
+        assertFalse(newChannel.isInitialized());
+        assertFalse(newChannel.isShutdown());
         newChannel.initialize();
+        assertTrue(newChannel.isInitialized());
+        assertFalse(newChannel.isShutdown());
+
+        //Begin tests with de-serialized channel.
 
         //Query the actual peer for which channels it belongs to and check it belongs to this channel
         for (Peer peer : newChannel.getPeers()) {
@@ -585,7 +685,8 @@ public class End2endAndBackAgainIT {
             } else {
                 String payload = proposalResponse.getProposalResponse().getResponse().getPayload().toStringUtf8();
                 out("Query payload of b from peer %s returned %s", proposalResponse.getPeer().getName(), payload);
-                assertEquals(payload, expect);
+                assertEquals(format("Failed compare on channel %s chaincode id %s expected value:'%s', but got:'%s'",
+                        channel.getName(), chaincodeID, expect, payload), expect, payload);
             }
         }
     }
@@ -597,53 +698,6 @@ public class End2endAndBackAgainIT {
 
     ///// NO OP ... leave in case it's needed.
     private void waitOnFabric(int additional) {
-
-    }
-
-    private static boolean checkInstalledChaincode(HFClient client, Peer peer, String ccName, String ccPath, String ccVersion) throws InvalidArgumentException, ProposalException {
-
-        out("Checking installed chaincode: %s, at version: %s, on peer: %s", ccName, ccVersion, peer.getName());
-        List<ChaincodeInfo> ccinfoList = client.queryInstalledChaincodes(peer);
-
-        boolean found = false;
-
-        for (ChaincodeInfo ccifo : ccinfoList) {
-
-            found = ccName.equals(ccifo.getName()) && ccPath.equals(ccifo.getPath()) && ccVersion.equals(ccifo.getVersion());
-            if (found) {
-                break;
-            }
-
-        }
-
-        return found;
-    }
-
-    private static boolean checkInstantiatedChaincode(Channel channel, Peer peer, String ccName, String ccPath, String ccVersion) throws InvalidArgumentException, ProposalException {
-        out("Checking instantiated chaincode: %s, at version: %s, on peer: %s", ccName, ccVersion, peer.getName());
-        List<ChaincodeInfo> ccinfoList = channel.queryInstantiatedChaincodes(peer);
-
-        boolean found = false;
-
-        for (ChaincodeInfo ccifo : ccinfoList) {
-            found = ccName.equals(ccifo.getName()) && ccPath.equals(ccifo.getPath()) && ccVersion.equals(ccifo.getVersion());
-            if (found) {
-                break;
-            }
-
-        }
-
-        return found;
-    }
-
-    static void out(String format, Object... args) {
-
-        System.err.flush();
-        System.out.flush();
-
-        System.out.println(format(format, args));
-        System.err.flush();
-        System.out.flush();
 
     }
 
