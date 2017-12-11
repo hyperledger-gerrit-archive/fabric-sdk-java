@@ -15,6 +15,8 @@
 package org.hyperledger.fabric.sdk;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -22,13 +24,25 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.common.Common;
+import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
+import org.hyperledger.fabric.protos.common.Common.Envelope;
+import org.hyperledger.fabric.protos.common.Common.Payload;
+import org.hyperledger.fabric.protos.common.Common.SignatureHeader;
+import org.hyperledger.fabric.protos.orderer.Ab;
+import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
+import org.hyperledger.fabric.protos.orderer.Ab.SeekInfo;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
+import org.hyperledger.fabric.sdk.exception.TransactionException;
+import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.helper.Utils.checkGrpcUrl;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createChannelHeader;
+import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.getCurrentFabricTimestamp;
 
 /**
  * The Peer class represents a peer to which SDK sends deploy, or query proposals requests.
@@ -235,4 +249,149 @@ public class Peer implements Serializable {
         shutdown(true);
         super.finalize();
     }
+
+    //=========================================================
+    // Peer eventing
+    void peerVent(TransactionContext transactionContext) throws TransactionException {
+
+        final PeerEventServiceClient peerEventServiceClient = new PeerEventServiceClient(this,
+                new Endpoint(url, properties).getChannelBuilder(), properties);
+
+        getLatestBlock(peerEventServiceClient, transactionContext);
+
+    }
+
+    private void getLatestBlock(PeerEventServiceClient orderer, TransactionContext transactionContext) throws TransactionException {
+
+        logger.debug(format("getConfigurationBlock for channel %s", name));
+
+        Ab.SeekPosition seekPosition = Ab.SeekPosition.newBuilder()
+                .setNewest(Ab.SeekNewest.getDefaultInstance())
+                .build();
+
+        Ab.SeekPosition wayout = Ab.SeekPosition.newBuilder()
+                .setSpecified(Ab.SeekSpecified.newBuilder().setNumber(Long.MAX_VALUE).build())
+                .build();
+
+        SeekInfo seekInfo = SeekInfo.newBuilder()
+                .setStart(seekPosition)
+                .setStop(wayout)
+                .setBehavior(SeekInfo.SeekBehavior.BLOCK_UNTIL_READY)
+                .build();
+
+        ArrayList<DeliverResponse> deliverResponses = new ArrayList<>();
+
+        seekBlock(transactionContext, seekInfo, deliverResponses, orderer);
+
+//        DeliverResponse blockresp = deliverResponses.get(1);
+//
+//        Block latestBlock = blockresp.getBlock();
+//
+//        if (latestBlock == null) {
+//            throw new TransactionException(format("newest block for channel %s fetch bad deliver returned null:", name));
+//        }
+//
+//        logger.trace(format("Received latest  block for channel %s, block no:%d", name, latestBlock.getHeader().getNumber()));
+//        return latestBlock;
+    }
+
+    int seekBlock(TransactionContext transactionContext, SeekInfo seekInfo, List<DeliverResponse> deliverResponses, PeerEventServiceClient peerEventServiceClient) throws TransactionException {
+
+        logger.trace(format("seekBlock for channel %s", name));
+        final long start = System.currentTimeMillis();
+        @SuppressWarnings ("UnusedAssignment")
+        int statusRC = 404;
+
+        try {
+
+            //    do {
+
+            statusRC = 404;
+
+            //        final PeerEventServiceClient peerEventServiceClient = ordererIn;
+
+            //  TransactionContext transactionContext = channel.getTransactionContext();
+
+            ChannelHeader seekInfoHeader = createChannelHeader(Common.HeaderType.DELIVER_SEEK_INFO,
+                    transactionContext.getTxID(), channel.getName(), transactionContext.getEpoch(), getCurrentFabricTimestamp(), null);
+
+            SignatureHeader signatureHeader = SignatureHeader.newBuilder()
+                    .setCreator(transactionContext.getIdentity().toByteString())
+                    .setNonce(transactionContext.getNonce())
+                    .build();
+
+            Common.Header seekHeader = Common.Header.newBuilder()
+                    .setSignatureHeader(signatureHeader.toByteString())
+                    .setChannelHeader(seekInfoHeader.toByteString())
+                    .build();
+
+            Payload seekPayload = Payload.newBuilder()
+                    .setHeader(seekHeader)
+                    .setData(seekInfo.toByteString())
+                    .build();
+
+            Envelope envelope = Envelope.newBuilder().setSignature(transactionContext.signByteString(seekPayload.toByteArray()))
+                    .setPayload(seekPayload.toByteString())
+                    .build();
+
+            DeliverResponse[] deliver = peerEventServiceClient.connect(envelope);
+
+//            if (deliver.length < 1) {
+//                logger.warn(format("Genesis block for channel %s fetch bad deliver missing status block only got blocks:%d", name, deliver.length));
+//                //odd so lets try again....
+//                statusRC = 404;
+//
+//            } else {
+//
+//                DeliverResponse status = deliver[0];
+//                statusRC = status.getStatusValue();
+//
+//                if (statusRC == 404 || statusRC == 503) { //404 - block not found.  503 - service not available usually means kafka is not ready but starting.
+//                    logger.warn(format("Bad deliver expected status 200  got  %d, Channel %s", status.getStatusValue(), name));
+//                    // keep trying... else
+//                    statusRC = 404;
+//
+//                } else if (statusRC != 200) { // Assume for anything other than 200 we have a non retryable situation
+//                    throw new TransactionException(format("Bad newest block expected status 200  got  %d, Channel %s", status.getStatusValue(), name));
+//                } else {
+//                    if (deliver.length < 2) {
+//                        throw new TransactionException(format("Newest block for channel %s fetch bad deliver missing genesis block only got %d:", name, deliver.length));
+//                    } else {
+//
+//                        deliverResponses.addAll(Arrays.asList(deliver));
+//                    }
+//                }
+//
+//            }
+//
+//            // Not 200 so sleep to try again
+//
+//            if (200 != statusRC) {
+//                long duration = System.currentTimeMillis() - start;
+//
+//                if (duration > 90000000) {
+//                    throw new TransactionException(format("Getting block time exceeded %s seconds for channel %s", Long.toString(TimeUnit.MILLISECONDS.toSeconds(duration)), name));
+//                }
+//                try {
+//                    Thread.sleep(1000); //try again
+//                } catch (InterruptedException e) {
+//                    TransactionException te = new TransactionException("seekBlock thread Sleep", e);
+//                    logger.warn(te.getMessage(), te);
+//                }
+//            }
+
+            //     } while (statusRC != 200);
+
+        } catch (TransactionException e) {
+            logger.error(e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new TransactionException(e);
+        }
+
+        return statusRC;
+
+    }
+
 } // end Peer

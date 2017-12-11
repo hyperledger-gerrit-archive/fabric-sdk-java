@@ -731,6 +731,8 @@ public class Channel implements Serializable {
 
             this.initialized = true;
 
+            getRandomPeer().peerVent(getTransactionContext());
+
             logger.debug(format("Channel %s initialized", name));
 
             return this;
@@ -1200,7 +1202,7 @@ public class Channel implements Serializable {
 
     }
 
-    private int seekBlock(SeekInfo seekInfo, List<DeliverResponse> deliverResponses, Orderer ordererIn) throws TransactionException {
+    int seekBlock(SeekInfo seekInfo, List<DeliverResponse> deliverResponses, Orderer ordererIn) throws TransactionException {
 
         logger.trace(format("seekBlock for channel %s", name));
         final long start = System.currentTimeMillis();
