@@ -15,8 +15,10 @@
 package org.hyperledger.fabric.sdk;
 
 import java.io.Serializable;
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.internal.StringUtil;
@@ -26,6 +28,8 @@ import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.PeerException;
+import org.hyperledger.fabric.sdk.exception.TransactionException;
+import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.helper.Utils.checkGrpcUrl;
@@ -37,13 +41,15 @@ public class Peer implements Serializable {
 
     private static final Log logger = LogFactory.getLog(Peer.class);
     private static final long serialVersionUID = -5273194649991828876L;
-    private transient volatile EndorserClient endorserClent;
     private final Properties properties;
     private final String name;
     private final String url;
+    private transient volatile EndorserClient endorserClent;
+    private transient PeerEventServiceClient peerEventingClient;
     private transient boolean shutdown = false;
     private Channel channel;
 
+    // private Set<PeerRole> roles = EnumSet.allOf(PeerRole.class).clone();
     Peer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
 
         Exception e = checkGrpcUrl(grpcURL);
@@ -62,6 +68,11 @@ public class Peer implements Serializable {
 
     }
 
+    static Peer createNewInstance(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
+
+        return new Peer(name, grpcURL, properties);
+    }
+
     /**
      * Peer's name
      *
@@ -78,6 +89,40 @@ public class Peer implements Serializable {
         return properties == null ? null : (Properties) properties.clone();
     }
 
+    void unsetChannel() {
+        channel = null;
+    }
+
+    ExecutorService getExecutorService() {
+        return channel.getExecutorService();
+    }
+
+    void initiateEventing(TransactionContext transactionContext) throws TransactionException {
+
+        if (peerEventingClient == null) {
+
+            //PeerEventServiceClient(Peer peer, ManagedChannelBuilder<?> channelBuilder, Properties properties)
+            //   peerEventingClient = new PeerEventServiceClient(this, new HashSet<Channel>(Arrays.asList(new Channel[] {channel})));
+            peerEventingClient = new PeerEventServiceClient(this, new Endpoint(url, properties).getChannelBuilder(), properties);
+
+            peerEventingClient.connect(transactionContext);
+
+        }
+
+    }
+
+    /**
+     * The channel the peer is set on.
+     *
+     * @return
+     */
+
+    Channel getChannel() {
+
+        return channel;
+
+    }
+
     /**
      * Set the channel the peer is on.
      *
@@ -92,23 +137,6 @@ public class Peer implements Serializable {
         }
 
         this.channel = channel;
-
-    }
-
-    void unsetChannel() {
-        channel = null;
-
-    }
-
-    /**
-     * The channel the peer is set on.
-     *
-     * @return
-     */
-
-    Channel getChannel() {
-
-        return channel;
 
     }
 
@@ -205,11 +233,6 @@ public class Peer implements Serializable {
         }
     }
 
-    static Peer createNewInstance(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
-
-        return new Peer(name, grpcURL, properties);
-    }
-
     synchronized void shutdown(boolean force) {
         if (shutdown) {
             return;
@@ -223,11 +246,16 @@ public class Peer implements Serializable {
 
         endorserClent = null;
 
-        if (lendorserClent == null) {
-            return;
+        if (lendorserClent != null) {
+
+            lendorserClent.shutdown(force);
         }
 
-        lendorserClent.shutdown(force);
+        if (null != peerEventingClient) {
+            PeerEventServiceClient peerEventingClient1 = peerEventingClient;
+            peerEventingClient = null;
+            peerEventingClient1.shutdown(force);
+        }
     }
 
     @Override
@@ -235,4 +263,45 @@ public class Peer implements Serializable {
         shutdown(true);
         super.finalize();
     }
+
+    /**
+     * Possible roles a peer can perform.
+     */
+    public enum PeerRole {
+        /**
+         * Endorsing peer installs and runs chaincode.
+         */
+        ENDORSING_PEER("endorsingPeer"),
+        /**
+         * Chaincode query peer will be used to invoke chaincode on chaincode query requests.
+         */
+        CHAINCODE_QUERY("chaincodeQuery"),
+        /**
+         * Ledger Query will be used when query ledger operations are requested.
+         */
+        LEDGER_QUERY("ledgerQuery"),
+        /**
+         * Peer will monitor block events for the channel it belongs to.
+         */
+        EVENT_SOURCE("eventSource");
+
+        /**
+         * All roles.
+         */
+        public static final EnumSet<PeerRole> ALL = EnumSet.allOf(PeerRole.class);
+        /**
+         * All roles except event source.
+         */
+        public static final EnumSet<PeerRole> NO_EVENT_SOURCE = EnumSet.complementOf(EnumSet.of(PeerRole.EVENT_SOURCE));
+        private String propertyName;
+
+        PeerRole(String propertyName) {
+            this.propertyName = propertyName;
+        }
+
+        public String getPropertyName() {
+            return propertyName;
+        }
+    }
+
 } // end Peer
