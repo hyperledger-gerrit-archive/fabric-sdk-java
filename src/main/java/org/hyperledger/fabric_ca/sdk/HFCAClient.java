@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.TimeZone;
@@ -96,6 +97,7 @@ import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.exception.AffiliationException;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.GenerateCRLException;
 import org.hyperledger.fabric_ca.sdk.exception.HTTPException;
@@ -875,6 +877,51 @@ public class HFCAClient {
 
     }
 
+    /**
+     * @param name Name of the affiliation
+     * @return HFCAAffiliation object
+     * @throws InvalidArgumentException Invalid (null) argument specified
+     */
+    public HFCAAffiliation newHFCAAffiliation(String name) throws InvalidArgumentException {
+        return new HFCAAffiliation(name, this);
+    }
+
+    /**
+     * gets all affiliations that the registrar is allowed to see
+     *
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return The affiliations that were requested
+     * @throws IdentityException    if adding an identity fails.
+     * @throws InvalidArgumentException
+     */
+
+    public Collection<String> getAllAffiliations(User registrar) throws AffiliationException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        logger.debug(format("affiliations  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
+            JsonObject result = httpGet(HFCAAffiliation.HFCA_AFFILIATION, authHdr);
+            HFCAAffiliation affiliations = new HFCAAffiliation(result);
+
+            logger.debug(format("affiliations  url: %s, registrar: %s done.", url, registrar));
+            return affiliations.getNames();
+        } catch (Exception e) {
+            String msg = format("Error while getting all users url:%s %s ", url, e.getMessage());
+            AffiliationException affiliationException = new AffiliationException(msg, e);
+            logger.error(msg);
+            throw affiliationException;
+        }
+
+    }
 
     private String toJson(Date date) {
         final TimeZone utc = TimeZone.getTimeZone("UTC");
@@ -1246,6 +1293,21 @@ public class HFCAClient {
         URIBuilder uri = new URIBuilder(url);
         if (caName != null) {
              uri.addParameter("ca", caName);
+        }
+        return uri.build().toURL().toString();
+    }
+
+     String getURL(String endpoint, Map<String, String> queryMap) throws URISyntaxException, MalformedURLException, InvalidArgumentException {
+        setUpSSL();
+        String url = this.url + endpoint;
+        URIBuilder uri = new URIBuilder(url);
+        if (caName != null) {
+            uri.addParameter("ca", caName);
+        }
+        if (queryMap != null) {
+            for (Map.Entry<String, String> param : queryMap.entrySet()) {
+                 uri.addParameter(param.getKey(), param.getValue());
+            }
         }
         return uri.build().toURL().toString();
     }
