@@ -49,6 +49,7 @@ import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.SHA3Digest;
 import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.encoders.Hex;
+import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.codec.binary.Hex.encodeHexString;
@@ -321,6 +322,50 @@ public final class Utils {
     public static boolean isNullOrEmpty(String url) {
         return url == null || url.isEmpty();
     }
+
+    /**
+     * Validate affiliation name for proper formatting
+     *
+     * @param url the string to test.
+     * @throws InvalidArgumentException
+     */
+    public static void validateAffiliationNames(String name) throws InvalidArgumentException {
+        checkFormat(name);
+        if (name.startsWith(".")) {
+            throw new InvalidArgumentException("Affiliation name cannot start with a dot '.'");
+        }
+        if (name.endsWith(".")) {
+            throw new InvalidArgumentException("Affiliation name cannot end with a dot '.'");
+        }
+        for (int i = 0; i < name.length(); i++) {
+            if ((name.charAt(i) == '.') && (name.charAt(i) == name.charAt(i - 1))) {
+                throw new InvalidArgumentException("Affiliation name cannot contain multiple consecutive dots '.'");
+            }
+        }
+    }
+
+    /**
+     * Validate affiliation name for proper formatting
+     *
+     * @param url the string to test.
+     * @throws InvalidArgumentException
+     */
+    public static void validateSingleAffiliationName(String name) throws InvalidArgumentException {
+        checkFormat(name);
+        if (name.contains(".")) {
+            throw new InvalidArgumentException("Single affiliation name cannot contain an dots '.'");
+        }
+    }
+
+    static void checkFormat(String name) throws InvalidArgumentException {
+        if (isNullOrEmpty(name)) {
+            throw new InvalidArgumentException("Affiliation name cannot be null or empty");
+        }
+        if (name.contains(" ") || name.contains("\t")) {
+            throw new InvalidArgumentException("Affiliation name cannot contain an empty space or tab");
+        }
+    }
+
 
     /**
      * Makes logging strings which can be long or with unprintable characters be logged and trimmed.
