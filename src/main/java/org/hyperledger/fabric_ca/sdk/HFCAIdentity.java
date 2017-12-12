@@ -58,7 +58,7 @@ public class HFCAIdentity {
     private int statusCode;
 
     static final String HFCA_IDENTITY = HFCAClient.HFCA_CONTEXT_ROOT + "identities";
-    private static final Log logger = LogFactory.getLog(HFCAClient.class);
+    private static final Log logger = LogFactory.getLog(HFCAIdentity.class);
 
     HFCAIdentity(String enrollmentID, HFCAClient client) throws InvalidArgumentException {
         if (Utils.isNullOrEmpty(enrollmentID)) {
@@ -177,8 +177,7 @@ public class HFCAIdentity {
             readIdURL = HFCA_IDENTITY + "/" + enrollmentID;
             logger.debug(format("identity  url: %s, registrar: %s", readIdURL, registrar.getName()));
 
-            String authHdr = client.getHTTPAuthCertificate(registrar.getEnrollment(), "");
-            JsonObject result = client.httpGet(readIdURL, authHdr);
+            JsonObject result = client.httpGet(readIdURL, registrar);
 
             statusCode = result.getInt("statusCode");
             if (statusCode < 400) {
@@ -233,9 +232,8 @@ public class HFCAIdentity {
             createURL = client.getURL(HFCA_IDENTITY);
             logger.debug(format("identity  url: %s, registrar: %s", createURL, registrar.getName()));
 
-            String body = this.toJson();
-            String authHdr = client.getHTTPAuthCertificate(registrar.getEnrollment(), body);
-            JsonObject result = client.httpPost(createURL, body, authHdr);
+            String body = client.toJson(idToJsonObject());
+            JsonObject result = client.httpPost(createURL, body, registrar);
             statusCode = result.getInt("statusCode");
             if (statusCode >= 400) {
                 getHFCAIdentity(result);
@@ -256,7 +254,7 @@ public class HFCAIdentity {
     }
 
      /**
-     * modify an identity
+     * update an identity
      *
      * @param registrar The identity of the registrar (i.e. who is performing the registration).
      * @return statusCode The HTTP status code in the response
@@ -274,10 +272,9 @@ public class HFCAIdentity {
             updateURL = client.getURL(HFCA_IDENTITY + "/" + getEnrollmentId());
             logger.debug(format("identity  url: %s, registrar: %s", updateURL, registrar.getName()));
 
-            String body = this.toJson();
-            String authHdr = client.getHTTPAuthCertificate(registrar.getEnrollment(), body);
+            String body = client.toJson(idToJsonObject());
+            JsonObject result = client.httpPut(updateURL, body, registrar);
 
-            JsonObject result = client.httpPut(updateURL, body, authHdr);
             statusCode = result.getInt("statusCode");
             if (statusCode < 400) {
                 getHFCAIdentity(result);
@@ -316,8 +313,8 @@ public class HFCAIdentity {
             deleteURL = client.getURL(HFCA_IDENTITY + "/" + getEnrollmentId());
             logger.debug(format("identity  url: %s, registrar: %s", deleteURL, registrar.getName()));
 
-            String authHdr = client.getHTTPAuthCertificate(registrar.getEnrollment(), "");
-            JsonObject result = client.httpDelete(deleteURL, authHdr);
+            JsonObject result = client.httpDelete(deleteURL, registrar);
+
             statusCode = result.getInt("statusCode");
             if (statusCode < 400) {
                 getHFCAIdentity(result);
@@ -357,17 +354,8 @@ public class HFCAIdentity {
         this.attrs = attrs;
     }
 
- // Convert the identity request to a JSON string
-    String toJson() {
-        StringWriter stringWriter = new StringWriter();
-        JsonWriter jsonWriter = Json.createWriter(new PrintWriter(stringWriter));
-        jsonWriter.writeObject(toJsonObject());
-        jsonWriter.close();
-        return stringWriter.toString();
-    }
-
     // Convert the identity request to a JSON object
-    JsonObject toJsonObject() {
+    private JsonObject idToJsonObject() {
         JsonObjectBuilder ob = Json.createObjectBuilder();
         ob.add("id", enrollmentID);
         ob.add("type", type);
@@ -377,21 +365,17 @@ public class HFCAIdentity {
         if (affiliation != null) {
             ob.add("affiliation", affiliation);
         }
-
         JsonArrayBuilder ab = Json.createArrayBuilder();
         for (Attribute attr : attrs) {
             ab.add(attr.toJsonObject());
         }
         ob.add("attrs", ab.build());
-
-        JsonObjectBuilder ob2 = Json.createObjectBuilder();
-        ob2.add("info", ob);
         if (this.secret != null) {
-            ob2.add("secret", secret);
+            ob.add("secret", secret);
         }
         if (client.getCAName() != null) {
-            ob2.add(HFCAClient.FABRIC_CA_REQPROP, client.getCAName());
+            ob.add(HFCAClient.FABRIC_CA_REQPROP, client.getCAName());
         }
-        return ob2.build();
+        return ob.build();
     }
 }
