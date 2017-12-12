@@ -41,6 +41,8 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
 
@@ -93,6 +95,7 @@ import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.exception.AffiliationException;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.GenerateCRLException;
 import org.hyperledger.fabric_ca.sdk.exception.IdentityException;
@@ -120,7 +123,6 @@ public class HFCAClient {
     private static final String HFCA_REVOKE = HFCA_CONTEXT_ROOT + "revoke";
     private static final String HFCA_INFO = HFCA_CONTEXT_ROOT + "cainfo";
     private static final String HFCA_GENCRL = HFCA_CONTEXT_ROOT + "gencrl";
-
 
     final String url;
     private final boolean isSSL;
@@ -772,13 +774,9 @@ public class HFCAClient {
             setUpSSL();
 
             String getAllURL = getURL(url + HFCAIdentity.HFCA_IDENTITY);
-            String caname = "";
             String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
             JsonObject result = httpGet(getAllURL, authHdr);
 
-            if (result.containsKey("caname")) {
-                caname = result.getString("caname");
-            }
             Collection<HFCAIdentity> allIdentities = new ArrayList<HFCAIdentity>();
 
             JsonArray identities = result.getJsonArray("identities");
@@ -801,6 +799,49 @@ public class HFCAClient {
 
     }
 
+    public HFCAAffiliation newHFCAAffiliation(String name) throws InvalidArgumentException {
+        return new HFCAAffiliation(name, this);
+    }
+
+    /**
+     * gets all affiliations that the registrar is allowed to see
+     *
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return the affiliations that were requested
+     * @throws IdentityException    if adding an identity fails.
+     * @throws InvalidArgumentException
+     */
+
+    public Collection<String> getAllAffiliations(User registrar) throws AffiliationException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        logger.debug(format("affiliations  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            setUpSSL();
+
+            String getAllURL = getURL(url + HFCAAffiliation.HFCA_AFFILIATION);
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
+            JsonObject result = httpGet(getAllURL, authHdr);
+            HFCAAffiliation affiliations = new HFCAAffiliation(result);
+
+            logger.debug(format("affiliations  url: %s, registrar: %s done.", url, registrar));
+            return affiliations.getNames();
+        } catch (Exception e) {
+            String msg = format("Error while getting all users url:%s %s ", url, e.getMessage());
+            AffiliationException affiliationException = new AffiliationException(msg, e);
+            logger.error(msg);
+            throw affiliationException;
+        }
+
+    }
 
     private String toJson(Date date) {
         final TimeZone utc = TimeZone.getTimeZone("UTC");
@@ -1134,6 +1175,16 @@ public class HFCAClient {
         URIBuilder uri = new URIBuilder(url);
         if (caName != null) {
              uri.addParameter("ca", caName);
+        }
+        return uri.build().toURL().toString();
+    }
+
+     String getURL(String url, Map<String, String> queryMap) throws URISyntaxException, MalformedURLException {
+        URIBuilder uri = new URIBuilder(url);
+        if (queryMap != null) {
+            for (Map.Entry<String, String> param : queryMap.entrySet()) {
+                 uri.addParameter(param.getKey(), param.getValue());
+            }
         }
         return uri.build().toURL().toString();
     }

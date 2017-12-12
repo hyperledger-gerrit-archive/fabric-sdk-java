@@ -57,7 +57,7 @@ public class HFCAIdentity {
     private HFCAClient client;
 
     static final String HFCA_IDENTITY = HFCAClient.HFCA_CONTEXT_ROOT + "identities";
-    private static final Log logger = LogFactory.getLog(HFCAClient.class);
+    private static final Log logger = LogFactory.getLog(HFCAIdentity.class);
 
     HFCAIdentity(String enrollmentID, HFCAClient client) throws InvalidArgumentException {
         if (Utils.isNullOrEmpty(enrollmentID)) {
@@ -73,7 +73,7 @@ public class HFCAIdentity {
     }
 
     HFCAIdentity(JsonObject result) {
-        this.getHFCAIdentity(result);
+        getHFCAIdentity(result);
     }
 
     /**
@@ -177,9 +177,8 @@ public class HFCAIdentity {
     /**
      * gets a specific identity
      *
-     * @param getId   Name if the id being requested
      * @param registrar The identity of the registrar (i.e. who is performing the registration).
-     * @throws IdentityException    if adding an identity fails.
+     * @throws IdentityException    if getting an identity fails.
      * @throws InvalidArgumentException
      */
 
@@ -229,11 +228,9 @@ public class HFCAIdentity {
     }
 
     /**
-     * add an identity
+     * create an identity
      *
-     * @param request   Adding an identity request
      * @param registrar The identity of the registrar (i.e. who is performing the registration).
-     * @return the identity that was added along with secret
      * @throws IdentityException    if adding an identity fails.
      * @throws InvalidArgumentException
      */
@@ -266,11 +263,9 @@ public class HFCAIdentity {
     }
 
      /**
-     * modify an identity
+     * update an identity
      *
-     * @param request   Modification request for an identity
      * @param registrar The identity of the registrar (i.e. who is performing the registration).
-     * @return the identity that was added along with secret
      * @throws IdentityException    if adding an identity fails.
      * @throws InvalidArgumentException
      */
@@ -306,9 +301,7 @@ public class HFCAIdentity {
     /**
      * delete an identity
      *
-     * @param request   Modification request for an identity
      * @param registrar The identity of the registrar (i.e. who is performing the registration).
-     * @return the identity that was added along with secret
      * @throws IdentityException    if adding an identity fails.
      * @throws InvalidArgumentException
      */
