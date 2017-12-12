@@ -93,6 +93,7 @@ import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.exception.AffiliationException;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.GenerateCRLException;
 import org.hyperledger.fabric_ca.sdk.exception.IdentityException;
@@ -118,6 +119,7 @@ public class HFCAClient {
     private static final String HFCA_INFO = HFCA_CONTEXT_ROOT + "cainfo";
     private static final String HFCA_GENCRL = HFCA_CONTEXT_ROOT + "gencrl";
     private static final String HFCA_IDENTITY = HFCA_CONTEXT_ROOT + "identities";
+    private static final String HFCA_AFFILIATION = HFCA_CONTEXT_ROOT + "affiliations";
 
     static final String FABRIC_CA_REQPROP = "caname";
 
@@ -1015,6 +1017,103 @@ public class HFCAClient {
         }
 
     }
+
+    /**
+     * gets all affiliations that the registrar is allowed to see
+     *
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return the affiliations that were requested
+     * @throws IdentityException    if adding an identity fails.
+     * @throws InvalidArgumentException
+     */
+
+    public Collection<HFCAAffiliation> getAllAffiliations(User registrar) throws AffiliationException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        logger.debug(format("affiliations  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            setUpSSL();
+
+            String getAllURL = getURL(url + HFCA_AFFILIATION);
+            String caname = "";
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
+            JsonObject result = httpGet(getAllURL, authHdr);
+
+            if (result.containsKey("caname")) {
+                caname = result.getString("caname");
+            }
+
+            Collection<HFCAAffiliation> allAffiliations = new ArrayList<HFCAAffiliation>();
+            JsonArray affiliations = result.getJsonArray("affiliations");
+            if (affiliations != null && !affiliations.isEmpty()) {
+                for (int i = 0; i < affiliations.size(); i++) {
+                    JsonObject affiliation = affiliations.getJsonObject(i);
+                    String name = affiliation.getString("name");
+
+                    HFCAAffiliation aff = new HFCAAffiliation(name, caname);
+                    allAffiliations.add(aff);
+                }
+            }
+
+            logger.debug(format("affiliations  url: %s, registrar: %s done.", url, registrar));
+            return allAffiliations;
+        } catch (Exception e) {
+            String msg = format("Error while getting all users url:%s %s ", url, e.getMessage());
+            AffiliationException affiliationException = new AffiliationException(msg, e);
+            logger.error(msg);
+            throw affiliationException;
+        }
+
+    }
+
+    /**
+     * gets a specific affiliation
+     *
+     * @param getAffiliation   Name if the affiliation being requested
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return the identity that was requested
+     * @throws IdentityException    if adding an identity fails.
+     * @throws InvalidArgumentException
+     */
+
+    public HFCAAffiliation getAffiliation(String getAffiliation, User registrar) throws AffiliationException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        logger.debug(format("affiliation  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            setUpSSL();
+
+            String getIdURL = getURL(url + HFCA_AFFILIATION + "/" + getAffiliation);
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
+            JsonObject result = httpGet(getIdURL, authHdr);
+            System.out.println("result >>> " + result);
+            HFCAAffiliation resp = new HFCAAffiliation(result);
+            logger.debug(format("affiliation  url: %s, registrar: %s done.", url, registrar));
+            return resp;
+        } catch (Exception e) {
+            String msg = format("Error while getting the affiliation %s url: %s  %s ", getAffiliation, url, e.getMessage());
+            AffiliationException affiliationException = new AffiliationException(msg, e);
+            logger.error(msg);
+            throw affiliationException;
+        }
+    }
+
 
     private String toJson(Date date) {
         final TimeZone utc = TimeZone.getTimeZone("UTC");

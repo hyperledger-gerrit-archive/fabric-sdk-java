@@ -24,6 +24,7 @@ import java.util.Base64;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,6 +39,7 @@ import org.hyperledger.fabric.sdkintegration.SampleStore;
 import org.hyperledger.fabric.sdkintegration.SampleUser;
 import org.hyperledger.fabric_ca.sdk.Attribute;
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
+import org.hyperledger.fabric_ca.sdk.HFCAAffiliation;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.HFCAIdentity;
 import org.hyperledger.fabric_ca.sdk.IdentityRequest;
@@ -697,6 +699,45 @@ public class HFCAClientIT {
 
         client2.addIdentity(addIdentity, admin2);
         client2.deleteIdentity("testuser5", admin2);
+    }
+
+    // Tests getting all affiliation
+    @Test
+    public void testGetAllAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        Collection<HFCAAffiliation> resp = client.getAllAffiliations(admin);
+
+        String[] expectedAffiliations = new String[]{"org2", "org2.department1", "org1", "org1.department1", "org1.department2"};
+        Integer found = 0;
+
+        for (HFCAAffiliation aff : resp) {
+            for (String name : expectedAffiliations) {
+                if (aff.getName().equals(name)) {
+                    found++;
+                }
+            }
+        }
+
+        if (found != 5) {
+            fail("Failed to get the correct number of affiliations");
+        }
+    }
+
+    // Tests getting all affiliation
+    @Test
+    public void testGetAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        HFCAAffiliation resp = client.getAffiliation("org2.department1", admin);
+        assertNotNull("Response for getting an affiliation should not be null", resp);
+        assertEquals("Incorrect response for affiliation name", "org2.department1", resp.getName());
     }
 
     @Test
