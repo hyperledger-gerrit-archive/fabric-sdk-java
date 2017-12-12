@@ -25,6 +25,7 @@ import java.util.Base64;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,6 +40,7 @@ import org.hyperledger.fabric.sdkintegration.SampleStore;
 import org.hyperledger.fabric.sdkintegration.SampleUser;
 import org.hyperledger.fabric_ca.sdk.Attribute;
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
+import org.hyperledger.fabric_ca.sdk.HFCAAffiliation;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.HFCAIdentity;
 import org.hyperledger.fabric_ca.sdk.MockHFCAClient;
@@ -651,6 +653,226 @@ public class HFCAClientIT {
 
         ident.create(admin2);
         ident.delete(admin2);
+    }
+
+    // Tests getting an affiliation
+    @Test
+    public void testGetAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        HFCAAffiliation aff = client.newHFCAAffiliation("org2.department1");
+        aff.read(admin);
+
+        assertEquals("Incorrect response for affiliation name", "org2.department1", aff.getName());
+    }
+
+    // Tests getting all affiliation
+    @Test
+    public void testGetAllAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        Collection<String> resp = client.getAllAffiliations(admin);
+
+        String[] expectedAffiliations = new String[]{"org2", "org2.department1", "org1", "org1.department1", "org1.department2"};
+        Integer found = 0;
+
+        for (String aff : resp) {
+            for (String name : expectedAffiliations) {
+                if (aff.equals(name)) {
+                    found++;
+                }
+            }
+        }
+
+        if (found != 5) {
+            fail("Failed to get the correct number of affiliations");
+        }
+    }
+
+    // Tests adding an affiliation
+    @Test
+    public void testCreateAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        HFCAAffiliation aff = client.newHFCAAffiliation("org3");
+        aff.create(admin);
+
+        assertEquals("Incorrect response for id", "org3", aff.getName());
+    }
+
+    // Tests updating an affiliation
+    @Test
+    public void testUpdateAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        HFCAAffiliation aff = client.newHFCAAffiliation("org4");
+
+        aff.create(admin);
+        aff.update("org5", admin);
+
+        boolean found = false;
+        // Should contain the affiliations affected by the update request
+        for (String name : aff.getNames()) {
+            if (name.equals("org4")) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            fail("Incorrect response received");
+        }
+
+        assertEquals("Incorrect response for id", "org5", aff.getName());
+    }
+
+    // Tests force updating an affiliation
+    @Test
+    public void testForceUpdateAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        HFCAAffiliation aff = client.newHFCAAffiliation("org1.dept1");
+        aff.create(admin);
+
+        HFCAIdentity ident = getIdentityReq("testorg1dept1", "client");
+        ident.setAffiliation("org1.dept1");
+        ident.create(admin);
+
+        aff.setForce(true);
+        aff.update("org1.dept2", admin);
+        boolean affFound = false;
+        for (String name : aff.getNames()) {
+            if (name.equals("org1.dept1")) {
+                affFound = true;
+                break;
+            }
+        }
+
+        if (!affFound) {
+            fail("Incorrect response received for affiliations names");
+        }
+
+        boolean idFound = false;
+        for (HFCAIdentity ids : aff.getIdentities()) {
+            if (ids.getEnrollmentId().equals("testorg1dept1")) {
+                idFound = true;
+                break;
+            }
+        }
+
+        if (!idFound) {
+            fail("Incorrect response received for identities affected");
+        }
+
+        ident.read(admin);
+        assertEquals("Identity should have new affiliation", "org1.dept2", ident.getAffiliation());
+    }
+
+    // Tests deleting an affiliation
+    @Test
+    public void testDeleteAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        HFCAAffiliation aff = client.newHFCAAffiliation("org6");
+        aff.create(admin);
+
+        aff.delete(admin);
+        boolean found = false;
+        for (String name : aff.getNames()) {
+            if (name.equals("org6")) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            fail("Incorrect response received");
+        }
+    }
+
+    // Tests force deleting an affiliation
+    @Test
+    public void testForceDeleteAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        HFCAAffiliation aff = client.newHFCAAffiliation("org1.dept3");
+        aff.create(admin);
+
+        HFCAIdentity ident = getIdentityReq("testorg1dept3", "client");
+        ident.setAffiliation("org1.dept3");
+        ident.create(admin);
+
+        aff.setForce(true);
+        aff.delete(admin);
+        boolean affFound = false;
+        for (String name : aff.getNames()) {
+            if (name.equals("org1.dept3")) {
+                affFound = true;
+                break;
+            }
+        }
+
+        if (!affFound) {
+            fail("Incorrect response received for affiliations name");
+        }
+
+        boolean idFound = false;
+        for (HFCAIdentity ids : aff.getIdentities()) {
+            if (ids.getEnrollmentId().equals("testorg1dept3")) {
+                idFound = true;
+                break;
+            }
+        }
+
+        if (!idFound) {
+            fail("Incorrect response received for identities affected");
+        }
+    }
+
+    // Tests deleting an affiliation on CA that does not allow affiliation removal
+    @Test
+    public void testDeleteAffiliationNotAllowed() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        thrown.expectMessage("Authorization failure");
+
+        HFCAClient client2 = HFCAClient.createNewInstance(
+                testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG2).getCALocation(),
+                testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG2).getCAProperties());
+        client2.setCryptoSuite(crypto);
+
+        // SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
+        SampleUser admin2 = sampleStore.getMember(TEST_ADMIN_NAME, "org2");
+        if (!admin2.isEnrolled()) { // Preregistered admin only needs to be enrolled with Fabric CA.
+            admin2.setEnrollment(client2.enroll(admin2.getName(), TEST_ADMIN_PW));
+        }
+
+        HFCAAffiliation aff = client2.newHFCAAffiliation("org6");
+        aff.delete(admin2);
     }
 
     @Test

@@ -58,7 +58,7 @@ public class HFCAIdentity {
     private int statusCode;
 
     static final String HFCA_IDENTITY = HFCAClient.HFCA_CONTEXT_ROOT + "identities";
-    private static final Log logger = LogFactory.getLog(HFCAClient.class);
+    private static final Log logger = LogFactory.getLog(HFCAIdentity.class);
 
     HFCAIdentity(String enrollmentID, HFCAClient client) throws InvalidArgumentException {
         if (Utils.isNullOrEmpty(enrollmentID)) {
@@ -256,7 +256,7 @@ public class HFCAIdentity {
     }
 
      /**
-     * modify an identity
+     * update an identity
      *
      * @param registrar The identity of the registrar (i.e. who is performing the registration).
      * @return statusCode The HTTP status code in the response
