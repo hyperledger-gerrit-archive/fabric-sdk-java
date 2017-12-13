@@ -30,6 +30,10 @@ public class HFCAAffiliation {
     // Optional CA name
     private String caName = "";
 
+    private Collection<String> names = new ArrayList<String>();
+
+    private Collection<HFCAIdentity> identities = new ArrayList<HFCAIdentity>();
+
 
     public HFCAAffiliation(String name) {
         this.name = name;
@@ -41,10 +45,33 @@ public class HFCAAffiliation {
     }
 
     public HFCAAffiliation(JsonObject result) {
-        JsonObject info = result.getJsonObject("info");
-        this.name = info.getString("name");
+        if (result.containsKey("info")) {
+            JsonObject info = result.getJsonObject("info");
+            if (info.containsKey("name")) {
+                this.name = info.getString("name");
+            }
+        }
         if (result.containsKey("caname")) {
             this.caName = result.getString("caname");
+        }
+        if (result.containsKey("affiliations")) {
+            JsonArray affiliations = result.getJsonArray("affiliations");
+            if (affiliations != null && !affiliations.isEmpty()) {
+                for (int i = 0; i < affiliations.size(); i++) {
+                    JsonObject aff = affiliations.getJsonObject(i);
+                    names.add(aff.getString("name"));
+                }
+            }
+        }
+        if (result.containsKey("identities")) {
+            JsonArray ids = result.getJsonArray("identities");
+            if (ids != null && !ids.isEmpty()) {
+                for (int i = 0; i < ids.size(); i++) {
+                    JsonObject id = ids.getJsonObject(i);
+                    HFCAIdentity hfcaID = new HFCAIdentity(id);
+                    identities.add(hfcaID);
+                }
+            }
         }
     }
 
@@ -56,6 +83,26 @@ public class HFCAAffiliation {
 
     public String getName() {
         return name;
+    }
+
+    /**
+     * The name of the affiliation affected during request
+     *
+     * @return The affiliation names.
+     */
+
+    public Collection<String> getNames() {
+        return names;
+    }
+
+    /**
+     * The identities affected during request
+     *
+     * @return The identities affected.
+     */
+
+    public Collection<HFCAIdentity> getIdentities() {
+        return identities;
     }
 
     /**

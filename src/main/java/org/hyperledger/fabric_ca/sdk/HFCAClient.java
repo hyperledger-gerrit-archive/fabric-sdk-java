@@ -41,6 +41,8 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
 
@@ -1043,10 +1045,10 @@ public class HFCAClient {
             setUpSSL();
 
             String getAllURL = getURL(url + HFCA_AFFILIATION);
-            String caname = "";
             String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
             JsonObject result = httpGet(getAllURL, authHdr);
 
+            String caname = "";
             if (result.containsKey("caname")) {
                 caname = result.getString("caname");
             }
@@ -1078,8 +1080,8 @@ public class HFCAClient {
      * gets a specific affiliation
      *
      * @param getAffiliation   Name if the affiliation being requested
-     * @param registrar The identity of the registrar (i.e. who is performing the registration).
-     * @return the identity that was requested
+     * @param registrar The identity of the registrar
+     * @return the affiliation that was requested
      * @throws IdentityException    if adding an identity fails.
      * @throws InvalidArgumentException
      */
@@ -1099,10 +1101,10 @@ public class HFCAClient {
         try {
             setUpSSL();
 
-            String getIdURL = getURL(url + HFCA_AFFILIATION + "/" + getAffiliation);
+            String getAffURL = getURL(url + HFCA_AFFILIATION + "/" + getAffiliation);
             String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
-            JsonObject result = httpGet(getIdURL, authHdr);
-            System.out.println("result >>> " + result);
+            JsonObject result = httpGet(getAffURL, authHdr);
+
             HFCAAffiliation resp = new HFCAAffiliation(result);
             logger.debug(format("affiliation  url: %s, registrar: %s done.", url, registrar));
             return resp;
@@ -1114,6 +1116,140 @@ public class HFCAClient {
         }
     }
 
+    /**
+     * add an affiliation
+     *
+     * @param request   The affiliation to be added
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return the identity that was added along with secret
+     * @throws IdentityException    if adding an identity fails.
+     * @throws InvalidArgumentException
+     */
+
+    public HFCAAffiliation addAffiliation(AffiliationRequest request, User registrar) throws AffiliationException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        if (request == null) {
+            throw new InvalidArgumentException("Affiliation to be removed is required");
+        }
+
+        logger.debug(format("affiliation  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            setUpSSL();
+
+            Map<String, String> queryParm = new HashMap<String, String>();
+            queryParm.put("ca", caName);
+            queryParm.put("force", String.valueOf(request.getForce()));
+            String addURL = getURL(url + HFCA_AFFILIATION, queryParm);
+            String body = request.toJson();
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), body);
+            JsonObject result = httpPost(addURL, body, authHdr);
+
+            HFCAAffiliation resp = new HFCAAffiliation(result);
+            logger.debug(format("identity  url: %s, registrar: %s done.", url, registrar));
+            return resp;
+        } catch (Exception e) {
+            String msg = format("Error while adding the affiliation %s url: %s  %s ", request.getName(), url, e.getMessage());
+            AffiliationException affiliationException = new AffiliationException(msg, e);
+            logger.error(msg);
+            throw affiliationException;
+        }
+
+    }
+
+    /**
+     * modify an affiliation
+     *
+     * @param request   The affiliation to be added
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @return the identity that was added along with secret
+     * @throws IdentityException    if adding an identity fails.
+     * @throws InvalidArgumentException
+     */
+
+    public HFCAAffiliation modifyAffiliation(String modifyAffiliation, AffiliationRequest request, User registrar) throws AffiliationException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        if (modifyAffiliation == null) {
+            throw new InvalidArgumentException("Affiliation to be modified is required");
+        }
+
+        logger.debug(format("affiliation  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            setUpSSL();
+
+            Map<String, String> queryParm = new HashMap<String, String>();
+            queryParm.put("ca", caName);
+            queryParm.put("force", String.valueOf(request.getForce()));
+            String modifyURL = getURL(url + HFCA_AFFILIATION + "/" + modifyAffiliation, queryParm);
+            String body = request.toJson();
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), body);
+            JsonObject result = httpPut(modifyURL, body, authHdr);
+
+            HFCAAffiliation resp = new HFCAAffiliation(result);
+            logger.debug(format("identity  url: %s, registrar: %s done.", url, registrar));
+            return resp;
+        } catch (Exception e) {
+            String msg = format("Error while modifying the affiliation %s url: %s  %s ", request.getName(), url, e.getMessage());
+            AffiliationException affiliationException = new AffiliationException(msg, e);
+            logger.error(msg);
+            throw affiliationException;
+        }
+    }
+
+    public HFCAAffiliation deleteAffiliation(AffiliationRequest request, User registrar) throws AffiliationException, InvalidArgumentException {
+
+        if (cryptoSuite == null) {
+            throw new InvalidArgumentException("Crypto primitives not set.");
+        }
+
+        if (registrar == null) {
+            throw new InvalidArgumentException("Registrar should be a valid member");
+        }
+
+        if (request == null) {
+            throw new InvalidArgumentException("Affiliation to be removed is required");
+        }
+
+        logger.debug(format("affiliation  url: %s, registrar: %s", url, registrar.getName()));
+
+        try {
+            setUpSSL();
+
+            Map<String, String> queryParm = new HashMap<String, String>();
+            queryParm.put("ca", caName);
+            queryParm.put("force", String.valueOf(request.getForce()));
+            String deleteURL = getURL(url + HFCA_AFFILIATION + "/" + request.getName(), queryParm);
+            String body = request.toJson();
+            String authHdr = getHTTPAuthCertificate(registrar.getEnrollment(), "");
+            JsonObject result = httpDelete(deleteURL, authHdr);
+
+            HFCAAffiliation resp = new HFCAAffiliation(result);
+            logger.debug(format("identity  url: %s, registrar: %s done.", url, registrar));
+            return resp;
+        } catch (Exception e) {
+            String msg = format("Error while deleting the affiliation %s url: %s  %s ", request.getName(), url, e.getMessage());
+            AffiliationException affiliationException = new AffiliationException(msg, e);
+            logger.error(msg);
+            throw affiliationException;
+        }
+    }
 
     private String toJson(Date date) {
         final TimeZone utc = TimeZone.getTimeZone("UTC");
@@ -1447,6 +1583,16 @@ public class HFCAClient {
         URIBuilder uri = new URIBuilder(url);
         if (caName != null) {
              uri.addParameter("ca", caName);
+        }
+        return uri.build().toURL().toString();
+    }
+
+    private String getURL(String url, Map<String, String> queryMap) throws URISyntaxException, MalformedURLException {
+        URIBuilder uri = new URIBuilder(url);
+        if (queryMap != null) {
+            for (Map.Entry<String, String> param : queryMap.entrySet()) {
+                 uri.addParameter(param.getKey(), param.getValue());
+            }
         }
         return uri.build().toURL().toString();
     }

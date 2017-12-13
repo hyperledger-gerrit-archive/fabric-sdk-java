@@ -37,6 +37,7 @@ import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric.sdkintegration.SampleStore;
 import org.hyperledger.fabric.sdkintegration.SampleUser;
+import org.hyperledger.fabric_ca.sdk.AffiliationRequest;
 import org.hyperledger.fabric_ca.sdk.Attribute;
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
 import org.hyperledger.fabric_ca.sdk.HFCAAffiliation;
@@ -738,6 +739,100 @@ public class HFCAClientIT {
         HFCAAffiliation resp = client.getAffiliation("org2.department1", admin);
         assertNotNull("Response for getting an affiliation should not be null", resp);
         assertEquals("Incorrect response for affiliation name", "org2.department1", resp.getName());
+    }
+
+    // Tests adding an affiliation
+    @Test
+    public void testAddAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        AffiliationRequest addAffiliation = new AffiliationRequest("org3");
+
+        HFCAAffiliation resp = client.addAffiliation(addAffiliation, admin);
+        assertNotNull("Response for adding affiliation should not be null", resp);
+        assertEquals("Incorrect response for id", "org3", resp.getName());
+    }
+
+    // Tests modifying an affiliation
+    @Test
+    public void testModifyAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        AffiliationRequest addAffiliation = new AffiliationRequest("org4");
+
+        client.addAffiliation(addAffiliation, admin);
+
+        AffiliationRequest modifyAffiliation = new AffiliationRequest("org5");
+        HFCAAffiliation resp = client.modifyAffiliation("org4", modifyAffiliation, admin);
+        assertNotNull("Response for modifying affiliation should not be null", resp);
+        boolean found = false;
+        for (String name : resp.getNames()) {
+            if (name.equals("org4")) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            fail("Incorrect response received");
+        }
+    }
+
+    // Tests deleting an affiliation
+    @Test
+    public void testDeleteAffiliation() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        AffiliationRequest affiliation = new AffiliationRequest("org6");
+        client.addAffiliation(affiliation, admin);
+
+        HFCAAffiliation resp = client.deleteAffiliation(affiliation, admin);
+        assertNotNull("Response for deleting affiliation should not be null", resp);
+        boolean found = false;
+        for (String name : resp.getNames()) {
+            if (name.equals("org6")) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            fail("Incorrect response received");
+        }
+    }
+
+    // Tests deleting an affiliation on CA that does not allow affiliation removal
+    @Test
+    public void testDeleteAffiliationNotAllowed() throws Exception {
+
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        thrown.expectMessage("Authorization failure");
+
+        HFCAClient client2 = HFCAClient.createNewInstance(
+                testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG2).getCALocation(),
+                testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG2).getCAProperties());
+        client2.setCryptoSuite(crypto);
+
+        // SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
+        SampleUser admin2 = sampleStore.getMember(TEST_ADMIN_NAME, "org2");
+        if (!admin2.isEnrolled()) { // Preregistered admin only needs to be enrolled with Fabric CA.
+            admin2.setEnrollment(client2.enroll(admin2.getName(), TEST_ADMIN_PW));
+        }
+
+        AffiliationRequest delAffiliation = new AffiliationRequest("org6");
+        client2.deleteAffiliation(delAffiliation, admin2);
     }
 
     @Test
