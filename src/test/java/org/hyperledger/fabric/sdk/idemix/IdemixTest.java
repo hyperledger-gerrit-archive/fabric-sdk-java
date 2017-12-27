@@ -20,6 +20,7 @@ import org.apache.milagro.amcl.FP256BN.BIG;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.junit.Test;
 
+import static org.hyperledger.fabric.sdk.idemix.IdemixUtils.getRand;
 import static org.junit.Assert.assertTrue;
 
 public class IdemixTest {
