@@ -146,7 +146,7 @@ public class End2endIT {
                 sampleStoreFile.delete();
             }
 
-            final SampleStore sampleStore = new SampleStore(sampleStoreFile);
+            final SampleStore sampleStore = new SampleStore(sampleStoreFile, client.getCryptoSuite());
             //  sampleStoreFile.deleteOnExit();
 
             //SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
