@@ -143,7 +143,7 @@ public class End2endAndBackAgainIT {
 //            //   MUST be replaced with more robust application implementation  (Database, LDAP)
             File sampleStoreFile = new File(System.getProperty("java.io.tmpdir") + "/HFCSampletest.properties");
 
-            sampleStore = new SampleStore(sampleStoreFile);
+            sampleStore = new SampleStore(sampleStoreFile, client.getCryptoSuite());
 
 //            //SampleUser can be any implementation that implements org.hyperledger.fabric.sdk.User Interface
 
