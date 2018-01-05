@@ -2514,7 +2514,7 @@ public class Channel implements Serializable {
 
         return Envelope.newBuilder()
                 .setPayload(transactionPayload.toByteString())
-                .setSignature(ByteString.copyFrom(client.getCryptoSuite().sign(user.getEnrollment().getKey(), transactionPayload.toByteArray())))
+                .setSignature(ByteString.copyFrom(user.getSigningIdentity().sign(transactionPayload.toByteArray())))
                 .build();
 
     }
