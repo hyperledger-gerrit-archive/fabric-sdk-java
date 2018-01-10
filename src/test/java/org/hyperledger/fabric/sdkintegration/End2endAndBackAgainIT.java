@@ -42,7 +42,6 @@ import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.ChaincodeResponse.Status;
 import org.hyperledger.fabric.sdk.Channel;
-import org.hyperledger.fabric.sdk.Channel.PeerOptions;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
@@ -67,6 +66,7 @@ import org.junit.Test;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.hyperledger.fabric.sdk.Channel.PeerOptions.createPeerOptions;
 import static org.hyperledger.fabric.sdk.testutils.TestUtils.resetConfig;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -580,7 +580,7 @@ public class End2endAndBackAgainIT {
                 Properties peerProperties = testConfig.getPeerProperties(peerName);
                 Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
                 newChannel.addPeer(peer, IS_FABRIC_V10 ?
-                        PeerOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE) : PeerOptions.create());
+                        createPeerOptions().setPeerRoles(PeerRole.NO_EVENT_SOURCE) : createPeerOptions().registerEventsForFilteredBlocks());
             }
 
             //For testing mix it up. For v1.1 use just peer eventing service for foo channel.
@@ -726,14 +726,14 @@ public class End2endAndBackAgainIT {
 
         if (-1L == stop) { //the height of the blockchain
 
-            replayTestChannel.addPeer(eventingPeer, PeerOptions.create().setPeerRoles(EnumSet.of(PeerRole.EVENT_SOURCE))
+            replayTestChannel.addPeer(eventingPeer, createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.EVENT_SOURCE))
                     .startEvents(start)); // Eventing peer start getting blocks from block 0
         } else {
-            replayTestChannel.addPeer(eventingPeer, PeerOptions.create().setPeerRoles(EnumSet.of(PeerRole.EVENT_SOURCE))
+            replayTestChannel.addPeer(eventingPeer, createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.EVENT_SOURCE))
                     .startEvents(start).stopEvents(stop)); // Eventing peer start getting blocks from block 0
 
         }
-        replayTestChannel.addPeer(ledgerPeer, PeerOptions.create().setPeerRoles(EnumSet.of(PeerRole.LEDGER_QUERY)));
+        replayTestChannel.addPeer(ledgerPeer, createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.LEDGER_QUERY)));
 
         CompletableFuture<Long> done = new CompletableFuture<>(); // future to set when done.
         // some variable used by the block listener being set up.
