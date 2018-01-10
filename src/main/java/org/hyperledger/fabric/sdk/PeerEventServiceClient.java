@@ -30,9 +30,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.orderer.Ab;
-import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekInfo;
-import org.hyperledger.fabric.protos.orderer.AtomicBroadcastGrpc;
+import org.hyperledger.fabric.protos.peer.DeliverGrpc;
+import org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse;
 import org.hyperledger.fabric.sdk.Channel.PeerOptions;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
@@ -40,8 +40,13 @@ import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
 import static java.lang.String.format;
-import static org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse.TypeCase.STATUS;
+import static org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse.TypeCase.BLOCK;
+import static org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse.TypeCase.FILTERED_BLOCK;
+import static org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse.TypeCase.STATUS;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createSeekInfoEnvelope;
+
+//import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
+//import static org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse.TypeCase.STATUS;
 
 /**
  * Sample client code that makes gRPC calls to the server.
@@ -56,8 +61,11 @@ class PeerEventServiceClient {
     private final String url;
     private final long ordererWaitTimeMilliSecs;
     private final PeerOptions peerOptions;
-    private Channel.ChannelEventQue channelEventQue;
+    private final boolean filterBlock;
     Properties properties = new Properties();
+    StreamObserver<Envelope> nso = null;
+    StreamObserver<DeliverResponse> so = null;
+    private Channel.ChannelEventQue channelEventQue;
     private boolean shutdown = false;
     private ManagedChannel managedChannel = null;
     private transient TransactionContext transactionContext;
@@ -69,6 +77,7 @@ class PeerEventServiceClient {
     PeerEventServiceClient(Peer peer, ManagedChannelBuilder<?> channelBuilder, Properties properties, PeerOptions peerOptions) {
 
         this.channelBuilder = channelBuilder;
+        this.filterBlock = peerOptions.isRegisterEventsForFilteredBlocks();
         this.peer = peer;
         name = peer.getName();
         url = peer.getUrl();
@@ -140,9 +149,6 @@ class PeerEventServiceClient {
 
     }
 
-    StreamObserver<Envelope> nso = null;
-    StreamObserver<DeliverResponse> so = null;
-
     @Override
     public void finalize() {
         shutdown(true);
@@ -165,7 +171,7 @@ class PeerEventServiceClient {
 
         try {
 
-            AtomicBroadcastGrpc.AtomicBroadcastStub broadcast = AtomicBroadcastGrpc.newStub(lmanagedChannel);
+            DeliverGrpc.DeliverStub broadcast = DeliverGrpc.newStub(lmanagedChannel);
 
             // final DeliverResponse[] ret = new DeliverResponse[1];
             final List<DeliverResponse> retList = new ArrayList<>();
@@ -192,7 +198,9 @@ class PeerEventServiceClient {
                         return;
                     }
 
-                    if (resp.getTypeCase() == STATUS) {
+                    final DeliverResponse.TypeCase typeCase = resp.getTypeCase();
+
+                    if (typeCase == STATUS) {
                         done = true;
                         logger.debug(format("DeliverResponse channel %s peer %s setting done.",
                                 channelName, peer.getName()));
@@ -200,12 +208,16 @@ class PeerEventServiceClient {
 
                         finishLatch.countDown();
 
-                    } else {
+                    } else if (typeCase == FILTERED_BLOCK || typeCase == BLOCK) {
                         logger.trace(format("Channel %s peer %s got event block hex hashcode: %016x, block number: %d",
                                 channelName, peer.getName(), resp.getBlock().hashCode(), resp.getBlock().getHeader().getNumber()));
                         retList.add(resp);
                         finishLatch.countDown();
                         channelEventQue.addBEvent(new BlockEvent(peer, resp));
+                    } else {
+                        logger.error(format("Channel %s peer %s got event block with unknown type: %s, %d",
+                                channelName, peer.getName(), typeCase.name(), typeCase.getNumber())
+                        );
                     }
 
                 }
@@ -217,7 +229,7 @@ class PeerEventServiceClient {
                         return; // make sure we do this once.
                     }
                     if (!shutdown) {
-                        logger.error(format("Received error on channel %s, orderer %s, url %s, %s",
+                        logger.error(format("Received error on channel %s, peer %s, url %s, %s",
                                 channelName, name, url, t.getMessage()), t);
 
                         done = true;
@@ -243,7 +255,8 @@ class PeerEventServiceClient {
                 }
             };
 
-            nso = broadcast.deliver(so);
+            nso = filterBlock ? broadcast.deliverFiltered(so) : broadcast.deliver(so);
+
             nso.onNext(envelope);
             //nso.onCompleted();
 
@@ -251,7 +264,7 @@ class PeerEventServiceClient {
                 //   if (!finishLatch.await(ordererWaitTimeMilliSecs, TimeUnit.MILLISECONDS)) {
                 if (!finishLatch.await(9999999, TimeUnit.MILLISECONDS)) {
                     TransactionException ex = new TransactionException(format(
-                            "Channel %s connect time exceeded for orderer %s, timed out at %d ms.", channelName, name, ordererWaitTimeMilliSecs));
+                            "Channel %s connect time exceeded for peer eventing service %s, timed out at %d ms.", channelName, name, ordererWaitTimeMilliSecs));
                     logger.error(ex.getMessage(), ex);
                     throw ex;
                 }
@@ -264,7 +277,7 @@ class PeerEventServiceClient {
             if (!throwableList.isEmpty()) {
                 Throwable throwable = throwableList.get(0);
                 TransactionException e = new TransactionException(format(
-                        "Channel %s connect failed on orderer %s. Reason: %s", channelName, name, throwable.getMessage()), throwable);
+                        "Channel %s connect failed on peer eventing service %s. Reason: %s", channelName, name, throwable.getMessage()), throwable);
                 logger.error(e.getMessage(), e);
                 throw e;
             }
