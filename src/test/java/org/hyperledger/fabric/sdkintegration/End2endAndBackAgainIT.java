@@ -67,6 +67,7 @@ import org.junit.Test;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.hyperledger.fabric.sdk.Channel.PeerOptions.createPeerOptions;
 import static org.hyperledger.fabric.sdk.testutils.TestUtils.resetConfig;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -238,15 +239,15 @@ public class End2endAndBackAgainIT {
                 barChannel.shutdown(true);
                 Channel replayChannel = client.deSerializeChannel(replayChannelBytes);
 
-                testPeerServiceEventingReplay(client, replayChannel, 0L, -1L);
+                testPeerServiceEventingReplay(client, replayChannel, 0L, -1L, false);
 
-                //Now do it again starting at block 1
+                //Now do it again starting at block 1 and use filtered blocks.
                 replayChannel = client.deSerializeChannel(replayChannelBytes);
-                testPeerServiceEventingReplay(client, replayChannel, 1L, -1L);
+                testPeerServiceEventingReplay(client, replayChannel, 1L, -1L, true);
 
                 //Now do it again starting at block 2 to 3
                 replayChannel = client.deSerializeChannel(replayChannelBytes);
-                testPeerServiceEventingReplay(client, replayChannel, 2L, 3L);
+                testPeerServiceEventingReplay(client, replayChannel, 2L, 3L, false);
 
             }
 
@@ -575,12 +576,21 @@ public class End2endAndBackAgainIT {
                         testConfig.getOrdererProperties(ordererName)));
             }
 
+            boolean everyOther = false;
+
             for (String peerName : sampleOrg.getPeerNames()) {
                 String peerLocation = sampleOrg.getPeerLocation(peerName);
                 Properties peerProperties = testConfig.getPeerProperties(peerName);
                 Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
+                final PeerOptions peerEventingOptions = // we have two peers on one use block on other use filtered
+                        everyOther ?
+                                createPeerOptions().registerEventsForBlocks() :
+                                createPeerOptions().registerEventsForFilteredBlocks();
+
                 newChannel.addPeer(peer, IS_FABRIC_V10 ?
-                        PeerOptions.create().setPeerRoles(PeerRole.NO_EVENT_SOURCE) : PeerOptions.create());
+                        createPeerOptions().setPeerRoles(PeerRole.NO_EVENT_SOURCE) : peerEventingOptions);
+
+                everyOther = !everyOther;
             }
 
             //For testing mix it up. For v1.1 use just peer eventing service for foo channel.
@@ -700,7 +710,8 @@ public class End2endAndBackAgainIT {
      * @throws ProposalException
      */
 
-    void testPeerServiceEventingReplay(HFClient client, Channel replayTestChannel, final long start, final long stop) throws InvalidArgumentException, TransactionException, InterruptedException, ExecutionException, TimeoutException, ProposalException {
+    void testPeerServiceEventingReplay(HFClient client, Channel replayTestChannel, final long start, final long stop,
+                                       final boolean useFilteredBlocks) throws InvalidArgumentException, TransactionException, InterruptedException, ExecutionException, TimeoutException, ProposalException {
 
         if (testConfig.isRunningAgainstFabric10()) {
             return; // not supported for v1.0
@@ -724,16 +735,20 @@ public class End2endAndBackAgainIT {
 
         assertNotNull(client.getChannel(replayTestChannel.getName())); // should be known by client.
 
+        final PeerOptions eventingPeerOptions = createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.EVENT_SOURCE));
+        if (useFilteredBlocks) {
+            eventingPeerOptions.registerEventsForFilteredBlocks();
+        }
+
         if (-1L == stop) { //the height of the blockchain
 
-            replayTestChannel.addPeer(eventingPeer, PeerOptions.create().setPeerRoles(EnumSet.of(PeerRole.EVENT_SOURCE))
-                    .startEvents(start)); // Eventing peer start getting blocks from block 0
+            replayTestChannel.addPeer(eventingPeer, eventingPeerOptions.startEvents(start)); // Eventing peer start getting blocks from block 0
         } else {
-            replayTestChannel.addPeer(eventingPeer, PeerOptions.create().setPeerRoles(EnumSet.of(PeerRole.EVENT_SOURCE))
+            replayTestChannel.addPeer(eventingPeer, eventingPeerOptions
                     .startEvents(start).stopEvents(stop)); // Eventing peer start getting blocks from block 0
-
         }
-        replayTestChannel.addPeer(ledgerPeer, PeerOptions.create().setPeerRoles(EnumSet.of(PeerRole.LEDGER_QUERY)));
+        //add a ledger peer
+        replayTestChannel.addPeer(ledgerPeer, createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.LEDGER_QUERY)));
 
         CompletableFuture<Long> done = new CompletableFuture<>(); // future to set when done.
         // some variable used by the block listener being set up.
@@ -749,6 +764,10 @@ public class End2endAndBackAgainIT {
                 final long blockNumber = blockEvent.getBlockNumber();
                 BlockEvent seen = blockEvents.put(blockNumber, blockEvent);
                 assertNull(format("Block number %d seen twice", blockNumber), seen);
+
+                assertTrue(format("Wrong type of block seen block number %d. expected filtered block %b but got %b",
+                        blockNumber, useFilteredBlocks, blockEvent.isFiltered()),
+                        useFilteredBlocks ? blockEvent.isFiltered() : !blockEvent.isFiltered());
                 final long count = bcount.getAndIncrement(); //count starts with 0 not 1 !
 
                 out("Block count: %d, block number: %d  received from peer: %s", count, blockNumber, blockEvent.getPeer().getName());
@@ -774,22 +793,41 @@ public class End2endAndBackAgainIT {
             }
 
         });
-        replayTestChannel.initialize(); // start it all up.
-        done.get(30, TimeUnit.SECONDS); // give a timeout here.
-        Thread.sleep(1000); // sleep a little to see if more blocks trickle in .. they should not
-        replayTestChannel.unregisterBlockListener(blockListenerHandle);
 
-        final long expectNumber = stopValue.longValue() - start + 1L; // Start 2 and stop is 3  expect 2
+        try {
+            replayTestChannel.initialize(); // start it all up.
+            done.get(30, TimeUnit.SECONDS); // give a timeout here.
+            Thread.sleep(1000); // sleep a little to see if more blocks trickle in .. they should not
+            replayTestChannel.unregisterBlockListener(blockListenerHandle);
 
-        assertEquals(format("Didn't get number we expected %d but got %d block events. Start: %d, end: %d, height: %d",
-                expectNumber, blockEvents.size(), start, stop, stopValue.longValue()), expectNumber, blockEvents.size());
+            final long expectNumber = stopValue.longValue() - start + 1L; // Start 2 and stop is 3  expect 2
 
-        for (long i = stopValue.longValue(); i >= start; i--) { //make sure all are there.
-            final BlockEvent blockEvent = blockEvents.get(i);
-            assertNotNull(format("Missing block event for block number %d. Start= %d", i, start), blockEvent);
+            assertEquals(format("Didn't get number we expected %d but got %d block events. Start: %d, end: %d, height: %d",
+                    expectNumber, blockEvents.size(), start, stop, stopValue.longValue()), expectNumber, blockEvents.size());
+
+            for (long i = stopValue.longValue(); i >= start; i--) { //make sure all are there.
+                final BlockEvent blockEvent = blockEvents.get(i);
+                assertNotNull(format("Missing block event for block number %d. Start= %d", i, start), blockEvent);
+            }
+            if (useFilteredBlocks) { // lets see if filtered blocks give back expected info.
+
+                for (long i = stopValue.longValue(); i >= start; i--) { //make sure all are there.
+                    final BlockEvent blockEvent = blockEvents.get(i);
+                    assertTrue(blockEvent.isFiltered()); // check again
+                    final long blockNumber = blockEvent.getBlockNumber();
+                    assertNull(blockEvent.getBlock()); // should not have raw block event.
+                    assertNotNull(blockEvent.getFilteredBlock()); // should have raw filtered block.
+                    assertEquals(replayTestChannel.getName(), blockEvent.getChannelId());
+
+                }
+
+            }
+
+            replayTestChannel.shutdown(true); //all done.
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
         }
-
-        replayTestChannel.shutdown(true); //all done.
     }
 
     private void queryChaincodeForExpectedValue(HFClient client, Channel channel, final String expect, ChaincodeID chaincodeID) {

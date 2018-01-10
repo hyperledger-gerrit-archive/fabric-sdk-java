@@ -36,6 +36,7 @@ import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -223,6 +224,7 @@ public class ChannelTest {
 
     }
 
+    @Ignore
     @Test
     public void testChannelInitialize() throws Exception { //test may not be doable once initialize is done
 
@@ -246,7 +248,7 @@ public class ChannelTest {
         final Channel testChannel = new MockChannel(CHANNEL_NAME, hfclient);
         final Peer peer = hfclient.newPeer("peer_", "grpc://localhost:7051");
 
-        testChannel.addPeer(peer, Channel.PeerOptions.create().setPeerRoles(Peer.PeerRole.NO_EVENT_SOURCE));
+        testChannel.addPeer(peer, Channel.PeerOptions.createPeerOptions().setPeerRoles(Peer.PeerRole.NO_EVENT_SOURCE));
         Assert.assertFalse(testChannel.isInitialized());
         testChannel.initialize();
         Assert.assertTrue(testChannel.isInitialized());
