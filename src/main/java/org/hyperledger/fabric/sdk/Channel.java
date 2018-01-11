@@ -101,6 +101,7 @@ import org.hyperledger.fabric.sdk.exception.TransactionException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.DiagnosticFileDumper;
 import org.hyperledger.fabric.sdk.helper.Utils;
+import org.hyperledger.fabric.sdk.transaction.GetConfigBlockBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
@@ -644,8 +645,7 @@ public class Channel implements Serializable {
     }
 
     /**
-     *
-     * @param peer the peer to join the channel.
+     * @param peer        the peer to join the channel.
      * @param peerOptions see {@link PeerOptions}
      * @return
      * @throws ProposalException
@@ -713,6 +713,52 @@ public class Channel implements Serializable {
         }
 
         return this;
+    }
+
+    Block getConfigBlock(Peer peer) throws ProposalException {
+
+        logger.debug(format("Channel %s joining peer %s, url: %s", name, peer.getName(), peer.getUrl()));
+
+        if (shutdown) {
+            throw new ProposalException(format("Channel %s has been shutdown.", name));
+        }
+
+        try {
+
+            final Channel systemChannel = newSystemChannel(client); //channel is not really created and this is targeted to system channel
+
+            TransactionContext transactionContext = systemChannel.getTransactionContext();
+
+            FabricProposal.Proposal proposal = GetConfigBlockBuilder.newBuilder()
+                    .context(transactionContext)
+                    .channelId(name)
+                    .build();
+
+            logger.debug("Getting signed proposal.");
+            SignedProposal signedProposal = getSignedProposal(transactionContext, proposal);
+            logger.debug("Got signed proposal.");
+
+            Collection<ProposalResponse> resp = sendProposalToPeers(new ArrayList<>(Collections.singletonList(peer)),
+                    signedProposal, transactionContext);
+
+            ProposalResponse pro = resp.iterator().next();
+
+            if (pro.getStatus() == ProposalResponse.Status.SUCCESS) {
+                logger.trace(format("getConfigBlock from peer %s on channel %s success", peer.getName(), name));
+                return Block.parseFrom(pro.getProposalResponse().getResponse().getPayload().toByteArray());
+            } else {
+                throw new ProposalException(format("getConfigBlock for channel %s failed with peer %s.  Status %s, details: %s",
+                        name, peer.getName(), pro.getStatus().toString(), pro.getMessage()));
+
+            }
+        } catch (ProposalException e) {
+            logger.error(format("getConfigBlock for channel %s failed with peer %s.", name, peer.getName()), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error(format("getConfigBlock for channel %s failed with peer %s.", name, peer.getName()), e);
+            throw new ProposalException(e.getMessage(), e);
+        }
+
     }
 
     /**
@@ -852,7 +898,7 @@ public class Channel implements Serializable {
     /**
      * Set peerOptions in the channel that has not be initialized yet.
      *
-     * @param peer the peer to set options on.
+     * @param peer        the peer to set options on.
      * @param peerOptions see {@link PeerOptions}
      * @return old options.
      */
@@ -1040,6 +1086,7 @@ public class Channel implements Serializable {
 
     /**
      * Is the channel shutdown.
+     *
      * @return return true if the channel is shutdown.
      */
     public boolean isShutdown() {
@@ -1048,6 +1095,7 @@ public class Channel implements Serializable {
 
     /**
      * Get signed byes of the update channel.
+     *
      * @param updateChannelConfiguration
      * @param signer
      * @return
@@ -1099,11 +1147,13 @@ public class Channel implements Serializable {
 
         try {
 
-            final Block configBlock = getConfigurationBlock();
+            Block parseFrom = getConfigBlock(getRandomPeer());
+
+            // final Block configBlock = getConfigurationBlock();
 
             logger.debug(format("Channel %s Got config block getting MSP data and anchorPeers data", name));
 
-            Envelope envelope = Envelope.parseFrom(configBlock.getData().getData(0));
+            Envelope envelope = Envelope.parseFrom(parseFrom.getData().getData(0));
             Payload payload = Payload.parseFrom(envelope.getPayload());
             ConfigEnvelope configEnvelope = ConfigEnvelope.parseFrom(payload.getData());
             ConfigGroup channelGroup = configEnvelope.getConfig().getChannelGroup();
@@ -1113,9 +1163,6 @@ public class Channel implements Serializable {
 
 //            anchorPeers = Collections.unmodifiableSet(traverseConfigGroupsAnchors("", channelGroup, new HashSet<>()));
 
-        } catch (TransactionException e) {
-            logger.error(e.getMessage(), e);
-            throw e;
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             throw new TransactionException(e);
@@ -1216,7 +1263,7 @@ public class Channel implements Serializable {
 
     public byte[] getChannelConfigurationBytes() throws TransactionException {
         try {
-            final Block configBlock = getConfigurationBlock();
+            final Block configBlock = getConfigBlock(getRandomPeer());
 
             Envelope envelopeRet = Envelope.parseFrom(configBlock.getData().getData(0));
 
@@ -1694,6 +1741,17 @@ public class Channel implements Serializable {
 
         return ledgerQueryPeers.get(RANDOM.nextInt(ledgerQueryPeers.size()));
 
+    }
+
+    private Peer getRandomPeer() throws InvalidArgumentException {
+
+        final ArrayList<Peer> randPicks = new ArrayList<>(getPeers()); //copy to avoid unlikely changes
+
+        if (randPicks.isEmpty()) {
+            throw new InvalidArgumentException("Channel " + name + " does not have any peers associated with it.");
+        }
+
+        return randPicks.get(RANDOM.nextInt(randPicks.size()));
     }
 
     private Orderer getRandomOrderer() throws InvalidArgumentException {
@@ -2404,8 +2462,8 @@ public class Channel implements Serializable {
 
     /**
      * Send transaction to one of a specified set of orderers with the specified user context.
-     *  IF there are no event hubs or eventing peers this future returns immediately completed
-     *  indicating that orderer has accepted the transaction only.
+     * IF there are no event hubs or eventing peers this future returns immediately completed
+     * indicating that orderer has accepted the transaction only.
      *
      * @param proposalResponses
      * @param orderers
@@ -3152,6 +3210,7 @@ public class Channel implements Serializable {
 
         /**
          * Get newest block on startup.
+         *
          * @return
          */
         Boolean getNewest() {
@@ -3184,6 +3243,7 @@ public class Channel implements Serializable {
 
         /**
          * Create an instance of PeerOptions.
+         *
          * @return the PeerOptions instance.
          */
 
@@ -3206,6 +3266,7 @@ public class Channel implements Serializable {
 
         /**
          * Set the roles this peer will have on the chain it will added or joined.
+         *
          * @param peerRoles {@link PeerRole}
          * @return This PeerOptions.
          */
@@ -3217,6 +3278,7 @@ public class Channel implements Serializable {
 
         /**
          * Add to the roles this peer will have on the chain it will added or joined.
+         *
          * @param peerRole see {@link PeerRole}
          * @return This PeerOptions.
          */
@@ -3233,6 +3295,7 @@ public class Channel implements Serializable {
 
         /**
          * Set the block number the eventing peer will start relieving events.
+         *
          * @param start The staring block number.
          * @return This PeerOptions.
          */
@@ -3246,6 +3309,7 @@ public class Channel implements Serializable {
         /**
          * This is the default. It will start retrieving events with the newest. Note this is not the
          * next block that is added to the chain  but the current block on the chain.
+         *
          * @return This PeerOptions.
          */
 
@@ -3258,6 +3322,7 @@ public class Channel implements Serializable {
 
         /**
          * The block number to stop sending events.
+         *
          * @param stop the number to stop sending events.
          * @return This PeerOptions.
          */
@@ -3268,6 +3333,7 @@ public class Channel implements Serializable {
 
         /**
          * Clone.
+         *
          * @return return a duplicate of this instance.
          */
 
