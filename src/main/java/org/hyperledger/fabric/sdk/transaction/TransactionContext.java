@@ -20,6 +20,7 @@ import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.sdk.Channel;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.identity.SigningIdentity;
@@ -52,7 +53,7 @@ public class TransactionContext {
     private final Identities.SerializedIdentity identity;
     private SigningIdentity signingIdentity;
 
-    public TransactionContext(Channel channel, User user, CryptoSuite cryptoPrimitives) {
+    public TransactionContext(Channel channel, User user, CryptoSuite cryptoPrimitives) throws InvalidArgumentException {
 
         this.user = user;
         this.channel = channel;
@@ -63,7 +64,11 @@ public class TransactionContext {
         this.cryptoPrimitives = cryptoPrimitives;
 
         // Get the signing identity from the user
-        this.signingIdentity = user.getSigningIdentity();
+        try {
+            this.signingIdentity = user.getSigningIdentity();
+        } catch (CryptoException e) {
+            throw new InvalidArgumentException(e);
+        }
 
         // Serialize signingIdentity
         identity = signingIdentity.createSerializedIdentity();
