@@ -16,6 +16,7 @@ package org.hyperledger.fabric.sdk;
 
 import java.util.Set;
 
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.identity.SigningIdentity;
@@ -75,7 +76,7 @@ public interface User {
      *
      * @return the signing identity of this user.
      */
-    SigningIdentity getSigningIdentity();
+    SigningIdentity getSigningIdentity() throws CryptoException;
 
     static void userContextCheck(User userContext) throws InvalidArgumentException {
 

@@ -17,6 +17,7 @@ package org.hyperledger.fabric.sdk;
 import java.security.PrivateKey;
 import java.util.Set;
 
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.identity.SigningIdentity;
@@ -295,7 +296,7 @@ public class ClientTest {
         }
 
         @Override
-        public SigningIdentity getSigningIdentity() {
+        public SigningIdentity getSigningIdentity() throws CryptoException {
             return null;
         }
     }
