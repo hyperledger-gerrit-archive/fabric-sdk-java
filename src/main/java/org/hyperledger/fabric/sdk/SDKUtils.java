@@ -121,8 +121,8 @@ public class SDKUtils {
                 invalid.add(proposalResponse);
             } else {
 
-                ByteString rwsetByteString = proposalResponse.getProposalResponsePayloadDeserializer()
-                        .getExtension().getChaincodeAction().getResults();
+                ByteString rwsetByteString = proposalResponse.getPayloadBytes(); // payload bytes is what's being signed over
+                // so it must be consistent.
 
                 Set<ProposalResponse> set = ret.computeIfAbsent(rwsetByteString, k -> new HashSet<>());
 
