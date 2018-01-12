@@ -315,7 +315,7 @@ public class HFCAClientIT {
             String password = "testUserRevoke";
             rr.setSecret(password);
             rr.addAttribute(new Attribute("user.role", "department lead"));
-            rr.addAttribute(new Attribute("hf.revoker", "true"));
+            rr.addAttribute(new Attribute("hf.Revoker", "true"));
             user.setEnrollmentSecret(client.register(rr, admin)); // Admin can register other users.
             if (!user.getEnrollmentSecret().equals(password)) {
                 fail("Secret returned from RegistrationRequest not match : " + user.getEnrollmentSecret());
@@ -375,7 +375,7 @@ public class HFCAClientIT {
             String password = "testUserRevoke";
             rr.setSecret(password);
             rr.addAttribute(new Attribute("user.role", "department lead"));
-            rr.addAttribute(new Attribute("hf.revoker", "true"));
+            rr.addAttribute(new Attribute("hf.Revoker", "true"));
             user.setEnrollmentSecret(client.register(rr, admin)); // Admin can register other users.
             if (!user.getEnrollmentSecret().equals(password)) {
                 fail("Secret returned from RegistrationRequest not match : " + user.getEnrollmentSecret());
@@ -441,7 +441,7 @@ public class HFCAClientIT {
                 String password = "testUserRevoke";
                 rr.setSecret(password);
                 rr.addAttribute(new Attribute("user.role", "department lead"));
-                rr.addAttribute(new Attribute("hf.revoker", "true"));
+                rr.addAttribute(new Attribute("hf.Revoker", "true"));
                 user.setEnrollmentSecret(client.register(rr, admin)); // Admin can register other users.
                 if (!user.getEnrollmentSecret().equals(password)) {
                     fail("Secret returned from RegistrationRequest not match : " + user.getEnrollmentSecret());
