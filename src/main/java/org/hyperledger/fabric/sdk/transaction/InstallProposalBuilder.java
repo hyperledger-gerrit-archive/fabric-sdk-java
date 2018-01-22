@@ -153,9 +153,29 @@ public class InstallProposalBuilder extends LSCCProposalBuilder {
                 }
                 break;
 
+            case NODE:
+
+                // chaincodePath is mandatory
+                // chaincodeSource may be a File or InputStream
+
+                //   Verify that chaincodePath is being passed
+                if (Utils.isNullOrEmpty(chaincodePath)) {
+                    throw new IllegalArgumentException("Missing chaincodePath in InstallRequest");
+                }
+
+                dplang = "Node";
+                ccType = Type.NODE;
+                if (null != chaincodeSource) {
+
+                    projectSourceDir = Paths.get(chaincodeSource.toString(), "src", chaincodePath).toFile();
+                    targetPathPrefix = Paths.get("src", chaincodePath).toString();
+                }
+                break;
             default:
                 throw new IllegalArgumentException("Unexpected chaincode language: " + chaincodeLanguage);
         }
+
+        ccType(ccType);
 
         final byte[] data;
         String chaincodeID = chaincodeName + "::" + chaincodePath + "::" + chaincodeVersion;

@@ -53,6 +53,7 @@ import org.hyperledger.fabric.sdk.SDKUtils;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.TransactionInfo;
 import org.hyperledger.fabric.sdk.TransactionProposalRequest;
+import org.hyperledger.fabric.sdk.TransactionRequest.Type;
 import org.hyperledger.fabric.sdk.TxReadWriteSetInfo;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
@@ -88,16 +89,18 @@ public class End2endIT {
     private static final String TESTUSER_1_NAME = "user1";
     private static final String TEST_FIXTURES_PATH = "src/test/fixture";
 
-    private static final String CHAIN_CODE_NAME = "example_cc_go";
-    private static final String CHAIN_CODE_PATH = "github.com/example_cc";
-    private static final String CHAIN_CODE_VERSION = "1";
-
     private static final String FOO_CHANNEL_NAME = "foo";
     private static final String BAR_CHANNEL_NAME = "bar";
 
     private static final byte[] EXPECTED_EVENT_DATA = "!".getBytes(UTF_8);
     private static final String EXPECTED_EVENT_NAME = "event";
     private static final Map<String, String> TX_EXPECTED;
+
+    String CHAIN_CODE_FILEPATH;
+    String CHAIN_CODE_NAME = "example_cc_go";
+    String CHAIN_CODE_PATH = "github.com/example_cc";
+    String CHAIN_CODE_VERSION = "1";
+    Type CHAIN_CODE_LANG;
 
     static {
         TX_EXPECTED = new HashMap<>();
@@ -156,10 +159,19 @@ public class End2endIT {
         }
     }
 
+    void setupChainCode() {
+        this.CHAIN_CODE_FILEPATH = "/sdkintegration/gocc/sample1";
+        this.CHAIN_CODE_NAME = "example_cc_go";
+        this.CHAIN_CODE_PATH = "github.com/example_cc";
+        this.CHAIN_CODE_VERSION = "1";
+        this.CHAIN_CODE_LANG = Type.GO_LANG;
+    }
+
     @Test
     public void setup() {
 
         try {
+            setupChainCode();
 
             ////////////////////////////
             // Setup client
@@ -343,17 +355,17 @@ public class End2endIT {
                     // on foo chain install from directory.
 
                     ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
-                    installProposalRequest.setChaincodeSourceLocation(new File(TEST_FIXTURES_PATH + "/sdkintegration/gocc/sample1"));
+                    installProposalRequest.setChaincodeSourceLocation(new File(TEST_FIXTURES_PATH + CHAIN_CODE_FILEPATH));
                 } else {
                     // On bar chain install from an input stream.
 
                     installProposalRequest.setChaincodeInputStream(Util.generateTarGzInputStream(
-                            (Paths.get(TEST_FIXTURES_PATH, "/sdkintegration/gocc/sample1", "src", CHAIN_CODE_PATH).toFile()),
+                            (Paths.get(TEST_FIXTURES_PATH, CHAIN_CODE_FILEPATH, "src", CHAIN_CODE_PATH).toFile()),
                             Paths.get("src", CHAIN_CODE_PATH).toString()));
-
                 }
 
                 installProposalRequest.setChaincodeVersion(CHAIN_CODE_VERSION);
+                installProposalRequest.setChaincodeLanguage(CHAIN_CODE_LANG);
 
                 out("Sending install proposal");
 
@@ -395,6 +407,7 @@ public class End2endIT {
             InstantiateProposalRequest instantiateProposalRequest = client.newInstantiationProposalRequest();
             instantiateProposalRequest.setProposalWaitTime(testConfig.getProposalWaitTime());
             instantiateProposalRequest.setChaincodeID(chaincodeID);
+            instantiateProposalRequest.setChaincodeLanguage(CHAIN_CODE_LANG);
             instantiateProposalRequest.setFcn("init");
             instantiateProposalRequest.setArgs(new String[] {"a", "500", "b", "" + (200 + delta)});
             Map<String, byte[]> tm = new HashMap<>();
@@ -418,7 +431,6 @@ public class End2endIT {
                 responses = channel.sendInstantiationProposal(instantiateProposalRequest, channel.getPeers());
             } else {
                 responses = channel.sendInstantiationProposal(instantiateProposalRequest);
-
             }
             for (ProposalResponse response : responses) {
                 if (response.isVerified() && response.getStatus() == ProposalResponse.Status.SUCCESS) {

@@ -86,8 +86,15 @@ public class ProposalBuilder {
         this.request = request;
 
         chaincodeID(request.getChaincodeID().getFabricChaincodeID());
-        ccType(request.getChaincodeLanguage() == TransactionRequest.Type.JAVA ?
-                Chaincode.ChaincodeSpec.Type.JAVA : Chaincode.ChaincodeSpec.Type.GOLANG);
+
+        switch (request.getChaincodeLanguage()) {
+            case JAVA:
+                ccType(Chaincode.ChaincodeSpec.Type.JAVA);
+            case NODE:
+                ccType(Chaincode.ChaincodeSpec.Type.NODE);
+            default:
+                ccType(Chaincode.ChaincodeSpec.Type.GOLANG);
+        }
 
         transientMap = request.getTransientMap();
 

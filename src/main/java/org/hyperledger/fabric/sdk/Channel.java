@@ -1493,6 +1493,7 @@ public class Channel implements Serializable {
             instantiateProposalbuilder.context(transactionContext);
             instantiateProposalbuilder.argss(instantiateProposalRequest.getArgs());
             instantiateProposalbuilder.chaincodeName(instantiateProposalRequest.getChaincodeName());
+            instantiateProposalbuilder.chaincodeType(instantiateProposalRequest.getChaincodeLanguage());
             instantiateProposalbuilder.chaincodePath(instantiateProposalRequest.getChaincodePath());
             instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
             instantiateProposalbuilder.chaincodEndorsementPolicy(instantiateProposalRequest.getChaincodeEndorsementPolicy());
