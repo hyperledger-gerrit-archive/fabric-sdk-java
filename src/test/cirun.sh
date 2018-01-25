@@ -27,8 +27,8 @@ export IMAGE_TAG_FABRIC=:x86_64-1.0.0
 export IMAGE_TAG_FABRIC_CA=:x86_64-1.0.0
 else
 export ORG_HYPERLEDGER_FABRIC_SDKTEST_ITSUITE=""
-export IMAGE_TAG_FABRIC=:latest
-export IMAGE_TAG_FABRIC_CA=:latest
+export IMAGE_TAG_FABRIC=
+export IMAGE_TAG_FABRIC_CA=
 fi
 
 cd $WD/src/test/fixture/sdkintegration
