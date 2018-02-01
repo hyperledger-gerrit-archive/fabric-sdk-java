@@ -345,7 +345,6 @@ public class HFCAClientIT {
         int startedWithRevokes = -1;
 
         if (!testConfig.isRunningAgainstFabric10()) {
-            Thread.sleep(1000); //prevent clock skewing. make sure we request started with revokes.
             startedWithRevokes = getRevokes(null).length; //one more after we do this revoke.
             Thread.sleep(1000); //prevent clock skewing. make sure we request started with revokes.
         }
@@ -359,9 +358,9 @@ public class HFCAClientIT {
             assertEquals(format("Expected one more revocation %d, but got %d", startedWithRevokes + 1, newRevokes), startedWithRevokes + 1, newRevokes);
 
             // see if we can get right number of revokes that we started with by specifying the time: revokedTinyBitAgoTime
-            // TODO: Investigate clock scew
-//            final int revokestinybitago = getRevokes(revokedTinyBitAgoTime).length; //Should be same number when test case was started.
-//            assertEquals(format("Expected same revocations %d, but got %d", startedWithRevokes, revokestinybitago), startedWithRevokes, revokestinybitago);
+            System.out.println("revokedTinyBitAgoTime - " + revokedTinyBitAgoTime.toString());
+            final int revokestinybitago = getRevokes(revokedTinyBitAgoTime).length; //Should be same number when test case was started.
+            assertEquals(format("Expected same revocations %d, but got %d", startedWithRevokes, revokestinybitago), startedWithRevokes, revokestinybitago);
         }
 
         // trying to reenroll the revoked user should fail with an EnrollmentException
