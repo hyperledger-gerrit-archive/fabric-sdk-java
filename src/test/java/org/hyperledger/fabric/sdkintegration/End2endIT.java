@@ -40,6 +40,7 @@ import org.hyperledger.fabric.sdk.ChaincodeEvent;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.Channel;
 import org.hyperledger.fabric.sdk.ChannelConfiguration;
+import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
@@ -60,6 +61,7 @@ import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
+import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.HFCAInfo;
 import org.hyperledger.fabric_ca.sdk.RegistrationRequest;
@@ -156,6 +158,8 @@ public class End2endIT {
         }
     }
 
+    Map<String, Properties> clientTLSProperties = new HashMap<>();
+
     @Test
     public void setup() {
 
@@ -196,6 +200,21 @@ public class End2endIT {
                 final String orgName = sampleOrg.getName();
                 final String mspid = sampleOrg.getMSPID();
                 ca.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
+
+                final EnrollmentRequest enrollmentRequestTLS = new EnrollmentRequest();
+                enrollmentRequestTLS.addHost("localhost");
+                enrollmentRequestTLS.setProfile("tls");
+                final Enrollment enroll = ca.enroll("admin", "adminpw", enrollmentRequestTLS);
+                final byte[] tlsCertBytes = enroll.getCert().getBytes(UTF_8);
+                final byte[] tlsKeyBytes = enroll.getKey().getEncoded();
+
+                final Properties tlsProperties = new Properties();
+
+                tlsProperties.put("clientKeyBytes", tlsKeyBytes);
+                tlsProperties.put("clientCertBytes", tlsCertBytes);
+                //       clientTLSProperties.put(sampleOrg.getName(), tlsProperties);
+
+//                System.exit(3);
 
                 HFCAInfo info = ca.info(); //just check if we connect at all.
                 assertNotNull(info);
@@ -244,22 +263,28 @@ public class End2endIT {
             Channel fooChannel = constructChannel(FOO_CHANNEL_NAME, client, sampleOrg);
             runChannel(client, fooChannel, true, sampleOrg, 0);
 
+            assertFalse(fooChannel.isShutdown());
             fooChannel.shutdown(true); // Force foo channel to shutdown clean up resources.
+            assertTrue(fooChannel.isShutdown());
 
             assertNull(client.getChannel(FOO_CHANNEL_NAME));
             out("\n");
 
             sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
             Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
+            assertTrue(barChannel.isInitialized());
             /**
              * sampleStore.saveChannel uses {@link Channel#serializeChannel()}
              */
             sampleStore.saveChannel(barChannel);
+            assertFalse(barChannel.isShutdown());
             runChannel(client, barChannel, true, sampleOrg, 100); //run a newly constructed bar channel with different b value!
             //let bar channel just shutdown so we have both scenarios.
 
             out("\nTraverse the blocks for chain %s ", barChannel.getName());
             blockWalker(client, barChannel);
+            assertFalse(barChannel.isShutdown());
+            assertTrue(barChannel.isInitialized());
             out("That's all folks!");
 
         } catch (Exception e) {
@@ -696,6 +721,10 @@ public class End2endIT {
             ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[] {5L, TimeUnit.MINUTES});
             ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[] {8L, TimeUnit.SECONDS});
             ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls", new Object[] {true});
+
+            if (!clientTLSProperties.isEmpty()) {
+                ordererProperties.putAll(clientTLSProperties.get(sampleOrg.getName()));
+            }
 
             orderers.add(client.newOrderer(orderName, sampleOrg.getOrdererLocation(orderName),
                     ordererProperties));
