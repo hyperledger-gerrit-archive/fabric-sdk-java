@@ -28,6 +28,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.orderer.Ab;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekInfo;
@@ -44,7 +45,6 @@ import static org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse.Type
 import static org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse.TypeCase.FILTERED_BLOCK;
 import static org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse.TypeCase.STATUS;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createSeekInfoEnvelope;
-
 
 /**
  * Sample client code that makes gRPC calls to the server.
@@ -202,7 +202,14 @@ class PeerEventServiceClient {
                         done = true;
                         logger.debug(format("DeliverResponse channel %s peer %s setting done.",
                                 channelName, peer.getName()));
-                        retList.add(0, resp);
+
+                        if (resp.getStatus() == Common.Status.SUCCESS) {
+                            retList.add(0, resp);
+                        } else {
+
+                            throwableList.add(new Throwable(format("Channel %s peer %s Status returned failure code %d (%s) during peer service event registration",
+                                    channelName, peer.getName(), resp.getStatusValue(), resp.getStatus().name())));
+                        }
 
                         finishLatch.countDown();
 
