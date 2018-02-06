@@ -17,6 +17,7 @@
 package org.hyperledger.fabric.sdk;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
@@ -28,6 +29,8 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.bouncycastle.crypto.Digest;
+import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.orderer.Ab;
@@ -41,6 +44,7 @@ import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse.TypeCase.BLOCK;
 import static org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse.TypeCase.FILTERED_BLOCK;
 import static org.hyperledger.fabric.protos.peer.PeerEvents.DeliverResponse.TypeCase.STATUS;
@@ -60,6 +64,7 @@ class PeerEventServiceClient {
     private final long peerEventRegistrationWaitTimeMilliSecs;
     private final PeerOptions peerOptions;
     private final boolean filterBlock;
+    private byte[] clientTLSCertificateDigest;
     Properties properties = new Properties();
     StreamObserver<Envelope> nso = null;
     StreamObserver<DeliverResponse> so = null;
@@ -72,15 +77,36 @@ class PeerEventServiceClient {
     /**
      * Construct client for accessing Peer eventing service using the existing managedChannel.
      */
-    PeerEventServiceClient(Peer peer, ManagedChannelBuilder<?> channelBuilder, Properties properties, PeerOptions peerOptions) {
+    PeerEventServiceClient(Peer peer, Endpoint endpoint, Properties properties, PeerOptions peerOptions) {
 
-        this.channelBuilder = channelBuilder;
+        this.channelBuilder = endpoint.getChannelBuilder();
         this.filterBlock = peerOptions.isRegisterEventsForFilteredBlocks();
         this.peer = peer;
         name = peer.getName();
         url = peer.getUrl();
         channelName = peer.getChannel().getName();
         this.peerOptions = peerOptions;
+        final byte[] tlsClientCertificatePEMBytes = endpoint.getTlsClientCertificatePEMBytes();
+        if (null != tlsClientCertificatePEMBytes) {
+
+            String pemCert = new String(tlsClientCertificatePEMBytes, UTF_8);
+//            final Pattern compile = Pattern.compile("(?<=-----BEGIN CERTIFICATE----- )(?:\\S+|\\s(?!-----END CERTIFICATE-----))+(?=\\s-----END CERTIFICATE-----)", Pattern.MULTILINE);
+//            final Matcher matcher = compile.matcher(pemCert);
+//            if (matcher.matches()) {
+//                final String group = matcher.group(1);
+//                System.out.println(group);
+//            }
+
+            byte[] derBytes = Base64.getDecoder().decode(
+                    pemCert.replaceAll("-----(BEGIN|END) CERTIFICATE-----", "").replaceAll("\n", "").trim()
+            );
+
+            Digest digest = new SHA256Digest();
+            clientTLSCertificateDigest = new byte[digest.getDigestSize()];
+            digest.update(derBytes, 0, derBytes.length);
+            digest.doFinal(clientTLSCertificateDigest, 0);
+
+        }
 
         this.channelEventQue = peer.getChannel().getChannelEventQue();
 
@@ -322,7 +348,7 @@ class PeerEventServiceClient {
     // Peer eventing
     void peerVent(TransactionContext transactionContext) throws TransactionException {
 
-        final Envelope latestBlock;
+        final Envelope envelope;
         try {
 
             Ab.SeekPosition.Builder start = Ab.SeekPosition.newBuilder();
@@ -334,16 +360,17 @@ class PeerEventServiceClient {
                 start.setNewest(Ab.SeekNewest.getDefaultInstance());
             }
 
-            latestBlock = createSeekInfoEnvelope(transactionContext,
+            //   properties.
+
+            envelope = createSeekInfoEnvelope(transactionContext,
                     start.build(),
                     Ab.SeekPosition.newBuilder()
                             .setSpecified(Ab.SeekSpecified.newBuilder().setNumber(peerOptions.getStopEvents()).build())
-                            //                          .setSpecified(Ab.SeekSpecified.newBuilder().setNumber(1L).build())
                             .build(),
-                    SeekInfo.SeekBehavior.BLOCK_UNTIL_READY
+                    SeekInfo.SeekBehavior.BLOCK_UNTIL_READY,
 
-            );
-            DeliverResponse[] deliver = connectEnvelope(latestBlock);
+                    clientTLSCertificateDigest);
+            connectEnvelope(envelope);
         } catch (CryptoException e) {
             throw new TransactionException(e);
         }

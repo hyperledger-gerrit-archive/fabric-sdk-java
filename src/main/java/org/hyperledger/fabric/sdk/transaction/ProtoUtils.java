@@ -66,7 +66,7 @@ public final class ProtoUtils {
 
     // static CryptoSuite suite = null;
 
-    /**
+    /*
      * createChannelHeader create chainHeader
      *
      * @param type                     header type. See {@link ChannelHeader.Builder#setType}.
@@ -75,9 +75,12 @@ public final class ProtoUtils {
      * @param epoch                    the epoch in which this header was generated. See {@link ChannelHeader.Builder#setEpoch}.
      * @param timeStamp                local time when the message was created. See {@link ChannelHeader.Builder#setTimestamp}.
      * @param chaincodeHeaderExtension extension to attach dependent on the header type. See {@link ChannelHeader.Builder#setExtension}.
+     * @param tlsCertHash
      * @return a new chain header.
      */
-    public static ChannelHeader createChannelHeader(HeaderType type, String txID, String channelID, long epoch, Timestamp timeStamp, ChaincodeHeaderExtension chaincodeHeaderExtension) {
+    public static ChannelHeader createChannelHeader(HeaderType type, String txID, String channelID, long epoch,
+                                                    Timestamp timeStamp, ChaincodeHeaderExtension chaincodeHeaderExtension,
+                                                    byte[] tlsCertHash) {
 
         if (isDebugLevel) {
             logger.debug(format("ChannelHeader: type: %s, version: 1, Txid: %s, channelId: %s, epoch %d",
@@ -94,6 +97,10 @@ public final class ProtoUtils {
                 .setEpoch(epoch);
         if (null != chaincodeHeaderExtension) {
             ret.setExtension(chaincodeHeaderExtension.toByteString());
+        }
+
+        if (tlsCertHash != null) {
+            ret.setTlsCertHash(ByteString.copyFrom(tlsCertHash));
         }
 
         return ret.build();
@@ -239,11 +246,11 @@ public final class ProtoUtils {
                 .setNanos((int) ((millis % 1000) * 1000000)).build();
     }
 
-    public static Envelope createSeekInfoEnvelope(TransactionContext transactionContext, SeekInfo seekInfo) throws CryptoException {
+    public static Envelope createSeekInfoEnvelope(TransactionContext transactionContext, SeekInfo seekInfo, byte[] tlsCertHash) throws CryptoException {
 
         ChannelHeader seekInfoHeader = createChannelHeader(Common.HeaderType.DELIVER_SEEK_INFO,
                 transactionContext.getTxID(), transactionContext.getChannelID(), transactionContext.getEpoch(),
-                transactionContext.getFabricTimestamp(), null);
+                transactionContext.getFabricTimestamp(), null, tlsCertHash);
 
         SignatureHeader signatureHeader = SignatureHeader.newBuilder()
                 .setCreator(transactionContext.getIdentity().toByteString())
@@ -268,13 +275,13 @@ public final class ProtoUtils {
 
     public static Envelope createSeekInfoEnvelope(TransactionContext transactionContext, SeekPosition startPosition,
                                                   SeekPosition stopPosition,
-                                                  SeekBehavior seekBehavior) throws CryptoException {
+                                                  SeekBehavior seekBehavior, byte[] tlsCertHash) throws CryptoException {
 
         return createSeekInfoEnvelope(transactionContext, SeekInfo.newBuilder()
                 .setStart(startPosition)
                 .setStop(stopPosition)
                 .setBehavior(seekBehavior)
-                .build());
+                .build(), tlsCertHash);
 
     }
 }

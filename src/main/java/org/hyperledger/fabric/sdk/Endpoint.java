@@ -60,6 +60,12 @@ class Endpoint {
     private final String addr;
     private final int port;
     private final String url;
+
+    byte[] getTlsClientCertificatePEMBytes() {
+        return tlsClientCertificatePEMBytes;
+    }
+
+    private byte[] tlsClientCertificatePEMBytes;
     private NettyChannelBuilder channelBuilder = null;
 
     private static final Map<String, String> CN_CACHE = Collections.synchronizedMap(new HashMap<>());
@@ -155,6 +161,7 @@ class Endpoint {
                         logger.trace("client TLS certificate bytes:" + Hex.encodeHexString(ccb));
                         clientCert = new X509Certificate[] {(X509Certificate) cp.bytesToCertificate(ccb)};
                         logger.trace("converted client TLS certificate.");
+                        tlsClientCertificatePEMBytes = ccb;
                     } catch (CryptoException e) {
                         throw new RuntimeException("Failed to parse TLS client " + what, e);
                     }
