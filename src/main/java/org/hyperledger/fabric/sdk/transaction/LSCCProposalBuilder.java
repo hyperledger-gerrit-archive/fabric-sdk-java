@@ -33,7 +33,6 @@ public class LSCCProposalBuilder extends ProposalBuilder {
     @Override
     public FabricProposal.Proposal build() throws ProposalException {
 
-        ccType(GOLANG);
         chaincodeID(CHAINCODE_ID_LSCC);
 
         return super.build();

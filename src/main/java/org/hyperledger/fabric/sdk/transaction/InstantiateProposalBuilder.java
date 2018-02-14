@@ -23,9 +23,11 @@ import java.util.Map;
 import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.protos.peer.Chaincode;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeDeploymentSpec;
 import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.sdk.ChaincodeEndorsementPolicy;
+import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 
@@ -40,6 +42,7 @@ public class InstantiateProposalBuilder extends LSCCProposalBuilder {
     private String chaincodeName;
     private List<String> argList;
     private String chaincodeVersion;
+    private TransactionRequest.Type chaincodeType = TransactionRequest.Type.GO_LANG;
 
     private byte[] chaincodePolicy = null;
     protected String action = "deploy";
@@ -73,6 +76,14 @@ public class InstantiateProposalBuilder extends LSCCProposalBuilder {
     public InstantiateProposalBuilder chaincodeName(String chaincodeName) {
 
         this.chaincodeName = chaincodeName;
+
+        return this;
+
+    }
+
+    public InstantiateProposalBuilder chaincodeType(TransactionRequest.Type chaincodeType) {
+
+        this.chaincodeType = chaincodeType;
 
         return this;
 
@@ -114,6 +125,16 @@ public class InstantiateProposalBuilder extends LSCCProposalBuilder {
         List<String> modlist = new LinkedList<>();
         modlist.add("init");
         modlist.addAll(argList);
+
+        switch (chaincodeType) {
+            case JAVA:
+                ccType(Chaincode.ChaincodeSpec.Type.JAVA);
+            case NODE:
+                ccType(Chaincode.ChaincodeSpec.Type.NODE);
+            default:
+                ccType(Chaincode.ChaincodeSpec.Type.GOLANG); // some are more equal than others :)
+
+        }
 
         ChaincodeDeploymentSpec depspec = createDeploymentSpec(ccType,
                 chaincodeName, chaincodePath, chaincodeVersion, modlist, null);

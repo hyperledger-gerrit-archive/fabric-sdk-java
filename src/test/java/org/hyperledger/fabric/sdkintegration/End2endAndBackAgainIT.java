@@ -511,8 +511,8 @@ public class End2endAndBackAgainIT {
             /// Send transaction proposal to all peers
             TransactionProposalRequest transactionProposalRequest = client.newTransactionProposalRequest();
             transactionProposalRequest.setChaincodeID(chaincodeID);
-            transactionProposalRequest.setFcn("invoke");
-            transactionProposalRequest.setArgs(new byte[][] {"move".getBytes(UTF_8), //test using bytes .. end2end uses Strings.
+            transactionProposalRequest.setFcn("move");
+            transactionProposalRequest.setArgs(new byte[][] {//test using bytes .. end2end uses Strings.
                     "a".getBytes(UTF_8), "b".getBytes(UTF_8), moveAmount.getBytes(UTF_8)});
             transactionProposalRequest.setProposalWaitTime(testConfig.getProposalWaitTime());
             if (user != null) { // specific user use that
@@ -909,8 +909,8 @@ public class End2endAndBackAgainIT {
 
         out("Now query chaincode on channel %s for the value of b expecting to see: %s", channel.getName(), expect);
         QueryByChaincodeRequest queryByChaincodeRequest = client.newQueryProposalRequest();
-        queryByChaincodeRequest.setArgs("query".getBytes(UTF_8), "b".getBytes(UTF_8)); // test using bytes as args. End2end uses Strings.
-        queryByChaincodeRequest.setFcn("invoke");
+        queryByChaincodeRequest.setArgs("b".getBytes(UTF_8)); // test using bytes as args. End2end uses Strings.
+        queryByChaincodeRequest.setFcn("query");
         queryByChaincodeRequest.setChaincodeID(chaincodeID);
 
         Collection<ProposalResponse> queryProposals;
