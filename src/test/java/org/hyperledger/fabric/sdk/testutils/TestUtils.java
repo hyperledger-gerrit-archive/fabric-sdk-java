@@ -16,22 +16,34 @@
 
 package org.hyperledger.fabric.sdk.testutils;
 
+import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
 
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.hyperledger.fabric.sdk.Enrollment;
-//import org.hyperledger.fabric.sdk.MockUser;
 import org.hyperledger.fabric.sdk.User;
-//import org.hyperledger.fabric.sdk.ClientTest.MockEnrollment;
 import org.hyperledger.fabric.sdk.helper.Config;
+import org.junit.Assert;
+
+import static java.lang.String.format;
+
+//import org.hyperledger.fabric.sdk.MockUser;
+//import org.hyperledger.fabric.sdk.ClientTest.MockEnrollment;
 
 public class TestUtils {
 
@@ -182,6 +194,45 @@ public class TestUtils {
 
     public static MockEnrollment getMockEnrollment(PrivateKey key, String cert) {
         return new MockEnrollment(key, cert);
+    }
+
+    public static ArrayList tarBytesToEntryArrayList(byte[] bytes) throws Exception {
+
+        ArrayList<String> ret = new ArrayList<>();
+
+        TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GZIPInputStream(new ByteArrayInputStream(bytes)));
+
+        for (TarArchiveEntry ta = tarArchiveInputStream.getNextTarEntry(); null != ta; ta = tarArchiveInputStream.getNextTarEntry()) {
+
+            Assert.assertTrue(format("Tar entry %s is not a file.", ta.getName()), ta.isFile()); //we only expect files.
+            ret.add(ta.getName());
+
+        }
+
+        return ret;
+
+    }
+
+    public static void assertArrayListEquals(String failmsg, ArrayList expect, ArrayList actual) {
+        ArrayList expectSort = new ArrayList(expect);
+        Collections.sort(expectSort);
+        ArrayList actualSort = new ArrayList(actual);
+        Collections.sort(actualSort);
+        Assert.assertArrayEquals(failmsg, expectSort.toArray(), actualSort.toArray());
+    }
+
+    public static Matcher<String> matchesRegex(final String regex) {
+        return new TypeSafeMatcher<String>() {
+            @Override
+            public void describeTo(Description description) {
+
+            }
+
+            @Override
+            protected boolean matchesSafely(final String item) {
+                return item.matches(regex);
+            }
+        };
     }
 
     private static class MockPrivateKey implements PrivateKey {
