@@ -300,11 +300,15 @@ and one file in the _src/test/fixture/sdkintegration/e2e-2Orgs/channel_ director
 Channel configuration files and orderer bootstrap files ( see directory _src/test/fixture/sdkintegration/e2e-2Orgs/channel_ ) are needed when creating a new channel.
 This is created with the Hyperledger Fabric `configtxgen` tool.
 
-For End2endIT.java the commands are
+For v1.0 integration test the commands are:
 
  * build/bin/configtxgen -outputCreateChannelTx foo.tx -profile TwoOrgsChannel -channelID foo
  * build/bin/configtxgen -outputCreateChannelTx bar.tx -profile TwoOrgsChannel -channelID bar
- * build/bin/configtxgen -outputBlock orderer.block -profile TwoOrgsOrdererGenesis
+
+For v1.1 integration the commands use the v11 profiles in configtx.yaml :
+ * configtxgen -outputBlock orderer_v11.block -profile TwoOrgsOrdererGenesis_v11
+ * configtxgen -outputCreateChannelTx bar_v11.tx -profile TwoOrgsChannel_v11 -channelID bar
+ * configtxgen -outputCreateChannelTx foo_v11.tx -profile TwoOrgsChannel_v11 -channelID foo
 
 with the configtxgen config file _src/test/fixture/sdkintegration/e2e-2Orgs/channel/configtx.yaml_
 
