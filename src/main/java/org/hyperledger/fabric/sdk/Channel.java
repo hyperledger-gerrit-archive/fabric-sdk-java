@@ -1565,6 +1565,7 @@ public class Channel implements Serializable {
             installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
             installProposalbuilder.setChaincodeSource(installProposalRequest.getChaincodeSourceLocation());
             installProposalbuilder.setChaincodeInputStream(installProposalRequest.getChaincodeInputStream());
+            installProposalbuilder.setChaincodeMetaInfLocation(installProposalRequest.getChaincodeMetaInfLocation());
 
             FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
             SignedProposal signedProposal = getSignedProposal(transactionContext, deploymentProposal);
