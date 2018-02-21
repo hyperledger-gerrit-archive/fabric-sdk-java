@@ -26,6 +26,29 @@ public class InstallProposalRequest extends TransactionRequest {
 
     private File chaincodeSourceLocation = null;
     private InputStream chaincodeInputStream = null;
+    private File chaincodeMetaInfLocation = null;
+
+    File getChaincodeMetaInfLocation() {
+        return chaincodeMetaInfLocation;
+    }
+
+    /**
+     * Set the META-INF directory to be used for packaging chaincode.
+     *
+     * @param chaincodeMetaInfLocation The directory where the "META-INF" directory is located..
+     * @see <a href="http://hyperledger-fabric.readthedocs.io/en/master/couchdb_as_state_database.html#using-couchdb-from-chaincode">
+     * Fabric Read the docs couchdb as a state database
+     * </a>
+     */
+
+    public void setChaincodeMetaInfLocation(File chaincodeMetaInfLocation) throws InvalidArgumentException {
+        if (chaincodeSourceLocation == null) {
+            throw new InvalidArgumentException("Chaincode META-INF location may not be null.");
+        }
+        this.chaincodeMetaInfLocation = chaincodeMetaInfLocation;
+    }
+
+
 
     InstallProposalRequest(User userContext) {
         super(userContext);
