@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,6 +61,11 @@ public class TestConfig {
     private static final Pattern orgPat = Pattern.compile("^" + Pattern.quote(INTEGRATIONTESTS_ORG) + "([^\\.]+)\\.mspid$");
 
     private static final String INTEGRATIONTESTSTLS = PROPBASE + "integrationtests.tls";
+    // location switching between fabric cryptogen and configtxgen artifacts for v1.0 and v1.1 in src/test/fixture/sdkintegration/e2e-2Orgs
+    public static final String FAB_ORG_VERSION =
+            Objects.equals(System.getenv("ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION"), "1.0.0") ? "v1.0" : "v1.1";
+
+    //public static final String FAB_ORG_VERSION = "v1.0";
 
     private static TestConfig config;
     private static final Properties sdkProperties = new Properties();
@@ -166,7 +172,8 @@ public class TestConfig {
                 sampleOrg.setCAName(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".caName")));
 
                 if (runningFabricCATLS) {
-                    String cert = "src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/peerOrganizations/DNAME/ca/ca.DNAME-cert.pem".replaceAll("DNAME", domainName);
+                    String cert = "src/test/fixture/sdkintegration/e2e-2Orgs/FAB_ORG_VERSION/crypto-config/peerOrganizations/DNAME/ca/ca.DNAME-cert.pem"
+                            .replaceAll("DNAME", domainName).replaceAll("FAB_ORG_VERSION", FAB_ORG_VERSION);
                     File cf = new File(cert);
                     if (!cf.exists() || !cf.isFile()) {
                         throw new RuntimeException("TEST is missing cert file " + cf.getAbsolutePath());
@@ -313,7 +320,7 @@ public class TestConfig {
 
     public String getTestChannelPath() {
 
-        return "src/test/fixture/sdkintegration/e2e-2Orgs/channel";
+        return "src/test/fixture/sdkintegration/e2e-2Orgs/" + FAB_ORG_VERSION;
 
     }
 
@@ -331,10 +338,9 @@ public class TestConfig {
      */
     public File getTestNetworkConfigFileYAML() {
         String fname = runningTLS ? "network-config-tls.yaml" : "network-config.yaml";
-        String pname = "src/test/fixture/sdkintegration/e2e-2Orgs/channel/" + fname;
+        String pname = "src/test/fixture/sdkintegration/network_configs/" + fname;
         return new File(pname);
     }
-
 
     private String getDomainName(final String name) {
         int dot = name.indexOf(".");
