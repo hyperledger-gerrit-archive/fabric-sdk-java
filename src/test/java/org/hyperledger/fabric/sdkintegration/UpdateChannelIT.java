@@ -80,7 +80,6 @@ public class UpdateChannelIT {
         testSampleOrgs = testConfig.getIntegrationTestsSampleOrgs();
     }
 
-
     @Test
     public void setup() {
 
@@ -180,8 +179,8 @@ public class UpdateChannelIT {
 
             final String sampleOrgName = sampleOrg.getName();
             final SampleUser ordererAdmin = sampleStore.getMember(sampleOrgName + "OrderAdmin", sampleOrgName, "OrdererMSP",
-                    Util.findFileSk(Paths.get("src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/msp/keystore/").toFile()),
-                    Paths.get("src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/msp/signcerts/Admin@example.com-cert.pem").toFile());
+                    Util.findFileSk(Paths.get("src/test/fixture/sdkintegration/e2e-2Orgs/" + TestConfig.FAB_ORG_VERSION + "/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/msp/keystore/").toFile()),
+                    Paths.get("src/test/fixture/sdkintegration/e2e-2Orgs/" + TestConfig.FAB_ORG_VERSION + "/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/msp/signcerts/Admin@example.com-cert.pem").toFile());
 
             client.setUserContext(ordererAdmin);
 

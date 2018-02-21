@@ -60,6 +60,8 @@ public class TestConfig {
     private static final Pattern orgPat = Pattern.compile("^" + Pattern.quote(INTEGRATIONTESTS_ORG) + "([^\\.]+)\\.mspid$");
 
     private static final String INTEGRATIONTESTSTLS = PROPBASE + "integrationtests.tls";
+    //public static final String FAB_ORG_VERSION = "v1.1";
+    public static final String FAB_ORG_VERSION = "v1.0";
 
     private static TestConfig config;
     private static final Properties sdkProperties = new Properties();
@@ -166,7 +168,8 @@ public class TestConfig {
                 sampleOrg.setCAName(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".caName")));
 
                 if (runningFabricCATLS) {
-                    String cert = "src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/peerOrganizations/DNAME/ca/ca.DNAME-cert.pem".replaceAll("DNAME", domainName);
+                    String cert = "src/test/fixture/sdkintegration/e2e-2Orgs/FAB_ORG_VERSION/crypto-config/peerOrganizations/DNAME/ca/ca.DNAME-cert.pem"
+                            .replaceAll("DNAME", domainName).replaceAll("FAB_ORG_VERSION", FAB_ORG_VERSION);
                     File cf = new File(cert);
                     if (!cf.exists() || !cf.isFile()) {
                         throw new RuntimeException("TEST is missing cert file " + cf.getAbsolutePath());
@@ -313,7 +316,7 @@ public class TestConfig {
 
     public String getTestChannelPath() {
 
-        return "src/test/fixture/sdkintegration/e2e-2Orgs/channel";
+        return "src/test/fixture/sdkintegration/e2e-2Orgs/" + FAB_ORG_VERSION;
 
     }
 
@@ -334,7 +337,6 @@ public class TestConfig {
         String pname = "src/test/fixture/sdkintegration/e2e-2Orgs/channel/" + fname;
         return new File(pname);
     }
-
 
     private String getDomainName(final String name) {
         int dot = name.indexOf(".");

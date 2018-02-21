@@ -242,6 +242,7 @@ In the directory src/test/fixture/sdkintegration/e2e-2Orgs/channel
   The command used to generate end2end `crypto-config` artifacts:</br>
 
   ```build/bin/cryptogen generate --config crypto-config.yaml --output=crypto-config```
+   cryptogen generate --config crypto-config.yaml --output=v1.1/crypto-config
 
 For ease of assigning ports and mapping of artifacts to physical files, all peers, orderers, and fabric-ca are run as Docker containers controlled via a docker-compose configuration file.
 
@@ -300,11 +301,15 @@ and one file in the _src/test/fixture/sdkintegration/e2e-2Orgs/channel_ director
 Channel configuration files and orderer bootstrap files ( see directory _src/test/fixture/sdkintegration/e2e-2Orgs/channel_ ) are needed when creating a new channel.
 This is created with the Hyperledger Fabric `configtxgen` tool.
 
-For End2endIT.java the commands are
+For v1.0 integration test the commands are:
 
  * build/bin/configtxgen -outputCreateChannelTx foo.tx -profile TwoOrgsChannel -channelID foo
  * build/bin/configtxgen -outputCreateChannelTx bar.tx -profile TwoOrgsChannel -channelID bar
- * build/bin/configtxgen -outputBlock orderer.block -profile TwoOrgsOrdererGenesis
+
+For v1.1 integration the commands use the v11 profiles in configtx.yaml :
+ * configtxgen -outputBlock orderer_v11.block -profile TwoOrgsOrdererGenesis_v11
+ * configtxgen -outputCreateChannelTx bar.tx -profile TwoOrgsChannel_v11 -channelID bar
+ * configtxgen -outputCreateChannelTx foo.tx -profile TwoOrgsChannel_v11 -channelID foo
 
 with the configtxgen config file _src/test/fixture/sdkintegration/e2e-2Orgs/channel/configtx.yaml_
 
