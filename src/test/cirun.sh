@@ -25,6 +25,7 @@ export V11_IDENTITIES_ALLOWREMOVE=""
 export V11_AFFILIATIONS_ALLOWREMOVE=""
 export IMAGE_TAG_FABRIC=:x86_64-1.0.0
 export IMAGE_TAG_FABRIC_CA=:x86_64-1.0.0
+export FAB_ORG_VERSION="v1.0"
 else
 export ORG_HYPERLEDGER_FABRIC_SDKTEST_ITSUITE=""
 #unset to use what's in docker's .env file.
