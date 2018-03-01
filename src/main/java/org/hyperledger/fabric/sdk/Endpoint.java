@@ -40,6 +40,7 @@ import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.logging.Log;
@@ -200,10 +201,15 @@ class Endpoint {
                         NegotiationType ntype = nt.equals("TLS") ? NegotiationType.TLS : NegotiationType.PLAINTEXT;
 
                         InputStream myInputStream = new ByteArrayInputStream(pemBytes);
-                        SslContext sslContext = GrpcSslContexts.forClient().trustManager(myInputStream)
-                                .sslProvider(sslprovider).keyManager(clientKey, clientCert).build();
-                        this.channelBuilder = NettyChannelBuilder.forAddress(addr, port).sslContext(sslContext)
-                                .negotiationType(ntype);
+                        SslContextBuilder clientContextBuilder = GrpcSslContexts.configure(SslContextBuilder.forClient(), sslprovider);
+                        SslContext sslContext = clientContextBuilder
+                            .keyManager(clientKey, clientCert)
+                            .trustManager(myInputStream)
+                            .build();
+                        this.channelBuilder = NettyChannelBuilder
+                            .forAddress(addr, port)
+                            .sslContext(sslContext)
+                            .negotiationType(ntype);
                         if (cn != null) {
                             channelBuilder.overrideAuthority(cn);
                         }
