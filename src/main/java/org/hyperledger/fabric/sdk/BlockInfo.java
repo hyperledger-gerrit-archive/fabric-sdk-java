@@ -23,6 +23,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.hyperledger.fabric.protos.common.Common;
 import org.hyperledger.fabric.protos.common.Common.Block;
 import org.hyperledger.fabric.protos.ledger.rwset.Rwset.TxReadWriteSet;
+import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.protos.peer.Chaincode.ChaincodeInput;
 import org.hyperledger.fabric.protos.peer.FabricTransaction;
 import org.hyperledger.fabric.protos.peer.PeerEvents;
@@ -177,6 +178,37 @@ public class BlockInfo {
         public String getChannelId() {
 
             return BlockInfo.this.isFiltered() ? filteredBlock.getChannelId() : headerDeserializer.getChannelHeader().getChannelId();
+        }
+
+        public class IdentitiesInfo {
+            final String mspid;
+
+            public String getId() {
+                return id;
+            }
+
+            final String id;
+
+            public String getMspid() {
+                return mspid;
+            }
+
+            IdentitiesInfo(Identities.SerializedIdentity identity) {
+                mspid = identity.getMspid();
+                id = identity.getIdBytes().toStringUtf8();
+
+            }
+
+        }
+
+        public IdentitiesInfo getCreator() {
+            return isFiltered() ? null : new IdentitiesInfo(headerDeserializer.getCreator());
+
+        }
+
+        public byte[] getNonce() {
+            return isFiltered() ? null : headerDeserializer.getNonce();
+
         }
 
         public String getTransactionID() {
@@ -600,8 +632,30 @@ public class BlockInfo {
             return endorsement.getSignature().toByteArray();
         }
 
+        /**
+         * @return
+         * @deprecated use getId and getMspid
+         */
         public byte[] getEndorser() {
             return endorsement.getEndorser().toByteArray();
+        }
+
+        public String getId() {
+
+            try {
+                return Identities.SerializedIdentity.parseFrom(endorsement.getEndorser()).getIdBytes().toStringUtf8();
+            } catch (InvalidProtocolBufferException e) {
+                throw new InvalidProtocolBufferRuntimeException(e);
+            }
+
+        }
+
+        public String getMspid() {
+            try {
+                return Identities.SerializedIdentity.parseFrom(endorsement.getEndorser()).getMspid();
+            } catch (InvalidProtocolBufferException e) {
+                throw new InvalidProtocolBufferRuntimeException(e);
+            }
         }
 
     }
