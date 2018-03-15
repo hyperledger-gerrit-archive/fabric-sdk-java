@@ -68,6 +68,7 @@ import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERSequenceGenerator;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x9.ECNamedCurveTable;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.Digest;
@@ -755,12 +756,12 @@ public class CryptoPrimitives implements CryptoSuite {
      * @throws OperatorCreationException
      */
 
-    public String generateCertificationRequest(String subject, KeyPair pair)
+    public String generateCertificationRequest(X500Name subject, KeyPair pair)
             throws InvalidArgumentException {
 
         try {
             PKCS10CertificationRequestBuilder p10Builder = new JcaPKCS10CertificationRequestBuilder(
-                    new X500Principal("CN=" + subject), pair.getPublic());
+                  subject, pair.getPublic());
 
             JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder("SHA256withECDSA");
 

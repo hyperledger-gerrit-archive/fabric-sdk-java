@@ -28,6 +28,10 @@ import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonWriter;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
 
 /**
@@ -36,7 +40,7 @@ import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
 public class EnrollmentRequest {
 
     // A PEM-encoded string containing the CSR (Certificate Signing Request) based on PKCS #10
-    private String csr;
+    private CSRInfo csr;
     // Comma-separated list of host names to associate with the certificate
     private Collection<String> hosts = new ArrayList<>();
     // Name of the signing profile to use when issuing the certificate
@@ -48,8 +52,12 @@ public class EnrollmentRequest {
     // The Certificate Authority's name
     private String caName;
 
+    private String csrPEM = "";
+
     // Attribute requests. added v1.1
     private Map<String, AttrReq> attrreqs = null; //new HashMap<>();
+
+    private static final Log logger = LogFactory.getLog(HFCAEnrollment.class);
 
     /**
      * The certificate signing request if it's not supplied it will be generated.
@@ -57,7 +65,7 @@ public class EnrollmentRequest {
      * @param csr
      */
 
-    public void setCsr(String csr) {
+    public void setCsr(CSRInfo csr) {
         this.csr = csr;
     }
 
@@ -66,7 +74,7 @@ public class EnrollmentRequest {
 
     }
 
-    String getCsr() {
+    CSRInfo getCsr() {
         return csr;
     }
 
@@ -96,10 +104,6 @@ public class EnrollmentRequest {
         this.keypair = keypair;
     }
 
-    void setCSR(String csr) {
-        this.csr = csr;
-    }
-
     void setCAName(String caName) {
         this.caName = caName;
     }
@@ -126,6 +130,47 @@ public class EnrollmentRequest {
 
     public void addHost(String host) {
         this.hosts.add(host);
+    }
+
+    public void generateCSR(CryptoSuite cryptoSuite) throws InvalidArgumentException, EnrollmentException {
+        if (this.getCsr() == null) {
+            throw new InvalidArgumentException("CSR information needs to be provided before a CSR can be generated");
+        }
+        try {
+            if (this.getKeyPair() == null) {
+                logger.debug("[HFCAClient.enroll] Generating keys...");
+
+                // generate ECDSA keys: signing and encryption keys
+                this.keypair = cryptoSuite.keyGen();
+
+                logger.debug("[HFCAClient.enroll] Generating keys...done!");
+            }
+
+            String csr = cryptoSuite.generateCertificationRequest(this.getCsr().generateSubject(), this.getKeyPair());
+            this.csrPEM = csr;
+        } catch (Exception e) {
+            EnrollmentException ee = new EnrollmentException("Failed to generate Certificate Signing Request", e);
+            logger.error(e.getMessage(), e);
+            throw ee;
+        }
+    }
+
+    public void generateCSR(CryptoSuite cryptoSuite, KeyPair keypair) throws InvalidArgumentException, EnrollmentException {
+        if (null != this.getCsr() && keypair == null) {
+            throw new InvalidArgumentException("If certificate signing request is supplied the key pair needs to be supplied too.");
+        }
+        try {
+            String csr = cryptoSuite.generateCertificationRequest(this.getCsr().generateSubject(), keypair);
+            this.csrPEM = csr;
+        } catch (Exception e) {
+            EnrollmentException ee = new EnrollmentException("Failed to generate Certificate Signing Request", e);
+            logger.error(e.getMessage(), e);
+            throw ee;
+        }
+    }
+
+    public void initCSR(String enrollmentID) throws InvalidArgumentException {
+        this.setCsr(new CSRInfo(enrollmentID));
     }
 
     // Convert the enrollment request to a JSON string
@@ -157,7 +202,7 @@ public class EnrollmentRequest {
         if (caName != null) {
             factory.add(HFCAClient.FABRIC_CA_REQPROP, caName);
         }
-        factory.add("certificate_request", csr);
+        factory.add("certificate_request", csrPEM);
 
         if (attrreqs != null) {
             JsonArrayBuilder ab = Json.createArrayBuilder();

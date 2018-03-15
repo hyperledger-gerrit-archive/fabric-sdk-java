@@ -20,6 +20,7 @@ import java.security.cert.Certificate;
 import java.util.Collection;
 import java.util.Properties;
 
+import org.bouncycastle.asn1.x500.X500Name;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 
@@ -98,12 +99,12 @@ public interface CryptoSuite {
     /**
      * Generates a CertificationRequest
      *
-     * @param user
+     * @param subject
      * @param keypair
      * @return String in PEM format for certificate request.
      * @throws InvalidArgumentException
      */
-    String generateCertificationRequest(String user, KeyPair keypair) throws InvalidArgumentException;
+    String generateCertificationRequest(X500Name subject, KeyPair keypair) throws InvalidArgumentException;
 
     /**
      * Convert bytes in PEM format to Certificate.

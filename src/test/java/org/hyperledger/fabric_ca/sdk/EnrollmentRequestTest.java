@@ -74,14 +74,13 @@ public class EnrollmentRequestTest {
         try {
             EnrollmentRequest testEnrollReq = new EnrollmentRequest();
             testEnrollReq.addHost("d.com");
-            testEnrollReq.setCsr(csr);
-            testEnrollReq.setCSR(csr); // Unsure why there are two methods that
+            testEnrollReq.setCsr(new CSRInfo(csr));
             // set csr
             testEnrollReq.setProfile(profile);
             testEnrollReq.setLabel(label);
             testEnrollReq.setKeyPair(null);
             testEnrollReq.setCAName(caName);
-            Assert.assertEquals(testEnrollReq.getCsr(), csr);
+            Assert.assertEquals(testEnrollReq.getCsr().getCn(), csr);
             assertTrue(testEnrollReq.getHosts().contains("d.com"));
             Assert.assertEquals(testEnrollReq.getProfile(), profile);
             Assert.assertEquals(testEnrollReq.getLabel(), label);
@@ -98,14 +97,13 @@ public class EnrollmentRequestTest {
         try {
             EnrollmentRequest testEnrollReq = new EnrollmentRequest();
             testEnrollReq.addHost("d.com");
-            testEnrollReq.setCsr(csr);
-            testEnrollReq.setCSR(csr); // Two setters perform the same function
+            testEnrollReq.setCsr(new CSRInfo(csr));
             testEnrollReq.setProfile(profile);
             testEnrollReq.setLabel(label);
             testEnrollReq.setKeyPair(null);
             testEnrollReq.setCAName(caName);
 
-            assertTrue(testEnrollReq.toJson().contains(csr));
+            assertTrue(testEnrollReq.toJson().contains(profile));
 
         } catch (Exception e) {
             Assert.fail("Unexpected Exception " + e.getMessage());
@@ -117,7 +115,7 @@ public class EnrollmentRequestTest {
 
         EnrollmentRequest testEnrollReq = new EnrollmentRequest();
         testEnrollReq.addHost("d.com");
-        testEnrollReq.setCsr(csr);
+        testEnrollReq.setCsr(new CSRInfo(csr));
         testEnrollReq.setProfile(profile);
         testEnrollReq.setLabel(label);
         testEnrollReq.setKeyPair(null);
@@ -139,7 +137,7 @@ public class EnrollmentRequestTest {
 
         EnrollmentRequest testEnrollReq = new EnrollmentRequest();
         testEnrollReq.addHost("d.com");
-        testEnrollReq.setCsr(csr);
+        testEnrollReq.setCsr(new CSRInfo(csr));
         testEnrollReq.setProfile(profile);
         testEnrollReq.setLabel(label);
         testEnrollReq.setKeyPair(null);
@@ -155,7 +153,7 @@ public class EnrollmentRequestTest {
 
         EnrollmentRequest testEnrollReq = new EnrollmentRequest();
         testEnrollReq.addHost("d.com");
-        testEnrollReq.setCsr(csr);
+        testEnrollReq.setCsr(new CSRInfo(csr));
         testEnrollReq.setProfile(profile);
         testEnrollReq.setLabel(label);
         testEnrollReq.setKeyPair(null);
