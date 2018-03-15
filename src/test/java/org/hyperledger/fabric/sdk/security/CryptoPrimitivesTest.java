@@ -50,6 +50,7 @@ import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.testutils.TestUtils;
+import org.hyperledger.fabric_ca.sdk.CSRInfo;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -633,13 +634,15 @@ public class CryptoPrimitivesTest {
     @Test
     public void testGenerateCertificateRequest() throws Exception {
         KeyPair testKeyPair = crypto.keyGen();
-        Assert.assertSame(String.class, crypto.generateCertificationRequest("common name", testKeyPair).getClass());
+        CSRInfo csr = new CSRInfo("common name");
+        Assert.assertSame(String.class, crypto.generateCertificationRequest(csr.generateSubject(), testKeyPair).getClass());
     }
 
     @Test
     public void testCertificationRequestToPEM() throws Exception {
         KeyPair testKeyPair = crypto.keyGen();
-        String certRequest = crypto.generateCertificationRequest("common name", testKeyPair);
+        CSRInfo csr = new CSRInfo("common name");
+        String certRequest = crypto.generateCertificationRequest(csr.generateSubject(), testKeyPair);
         // Assert.assertSame(String.class, crypto.certificationRequestToPEM(certRequest).getClass());
 
         Assert.assertTrue(certRequest.contains("BEGIN CERTIFICATE REQUEST"));
@@ -648,7 +651,8 @@ public class CryptoPrimitivesTest {
     @Test
     public void testCertificateToDER() throws Exception {
         KeyPair testKeyPair = crypto.keyGen();
-        String certRequest = crypto.generateCertificationRequest("common name", testKeyPair);
+        CSRInfo csr = new CSRInfo("common name");
+        String certRequest = crypto.generateCertificationRequest(csr.generateSubject(), testKeyPair);
         //  String pemGenCert = crypto.certificationRequestToPEM(certRequest);
 
         Assert.assertTrue(crypto.certificateToDER(certRequest).length > 0);

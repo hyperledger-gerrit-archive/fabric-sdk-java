@@ -378,24 +378,13 @@ public class HFCAClient {
         setUpSSL();
 
         try {
-            String pem = req.getCsr();
-            KeyPair keypair = req.getKeyPair();
-            if (null != pem && keypair == null) {
-                throw new InvalidArgumentException("If certificate signing request is supplied the key pair needs to be supplied too.");
-            }
-            if (keypair == null) {
-                logger.debug("[HFCAClient.enroll] Generating keys...");
-
-                // generate ECDSA keys: signing and encryption keys
-                keypair = cryptoSuite.keyGen();
-
-                logger.debug("[HFCAClient.enroll] Generating keys...done!");
+            if (req.getCsr() == null) {
+                req.initCSR(user);
+            } else if (req.getCsr().getCn() != user) {
+                req.getCsr().setCn(user); // Override the CN in the CSR to always be the enrollment ID
             }
 
-            if (pem == null) {
-                String csr = cryptoSuite.generateCertificationRequest(user, keypair);
-                req.setCSR(csr);
-            }
+            req.generateCSR(cryptoSuite);
 
             if (caName != null && !caName.isEmpty()) {
                 req.setCAName(caName);
@@ -435,7 +424,7 @@ public class HFCAClient {
             }
             logger.debug("Enrollment done.");
 
-            return new HFCAEnrollment(keypair, signedPem);
+            return new HFCAEnrollment(req.getKeyPair(), signedPem);
 
         } catch (EnrollmentException ee) {
             logger.error(format("url:%s, user:%s  error:%s", url, user, ee.getMessage()), ee);
@@ -558,11 +547,15 @@ public class HFCAClient {
             KeyPair keypair = new KeyPair(publicKey, user.getEnrollment().getKey());
 
             // generate CSR
+            if (req.getCsr() == null) {
+                req.initCSR(user.getName());
+            } else if (req.getCsr().getCn() != user.getName()) {
+                req.getCsr().setCn(user.getName()); // Override the CN in the CSR to always be the enrollment ID
+            }
 
-            String pem = cryptoSuite.generateCertificationRequest(user.getName(), keypair);
+            req.generateCSR(cryptoSuite, keypair);
 
             // build request body
-            req.setCSR(pem);
             if (caName != null && !caName.isEmpty()) {
                 req.setCAName(caName);
             }

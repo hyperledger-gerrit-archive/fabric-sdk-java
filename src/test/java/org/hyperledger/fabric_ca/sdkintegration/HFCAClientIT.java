@@ -45,6 +45,7 @@ import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric.sdkintegration.SampleStore;
 import org.hyperledger.fabric.sdkintegration.SampleUser;
 import org.hyperledger.fabric_ca.sdk.Attribute;
+import org.hyperledger.fabric_ca.sdk.CSRInfo;
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
 import org.hyperledger.fabric_ca.sdk.HFCAAffiliation;
 import org.hyperledger.fabric_ca.sdk.HFCAAffiliation.HFCAAffiliationResp;
@@ -296,7 +297,7 @@ public class HFCAClientIT {
         sleepALittle();
 
         // get another enrollment
-        EnrollmentRequest req = new EnrollmentRequest(DEFAULT_PROFILE_NAME, "label 1", null);
+        EnrollmentRequest req = new EnrollmentRequest(user.getName(), DEFAULT_PROFILE_NAME, "label 1", null);
         req.addHost("example1.ibm.com");
         req.addHost("example2.ibm.com");
         Enrollment tmpEnroll = client.reenroll(user, req);
@@ -1098,16 +1099,45 @@ public class HFCAClientIT {
     }
 
     @Test
-    public void testEnrollNoKeyPair() throws Exception {
+    public void testCSRInfo() throws Exception {
 
-        thrown.expect(EnrollmentException.class);
-        thrown.expectMessage("Failed to enroll user");
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
 
-        SampleUser user = getEnrolledUser(TEST_ADMIN_ORG);
+        SampleUser user = new SampleUser("csr_test", TEST_ADMIN_ORG, sampleStore);
 
-        EnrollmentRequest req = new EnrollmentRequest(DEFAULT_PROFILE_NAME, "label 1", null);
-        req.setCsr("test");
-        client.enroll(user.getName(), user.getEnrollmentSecret(), req);
+        RegistrationRequest rr = new RegistrationRequest(user.getName(), TEST_USER1_AFFILIATION);
+        String password = "password";
+        rr.setSecret(password);
+
+        user.setEnrollmentSecret(client.register(rr, admin));
+        if (!user.getEnrollmentSecret().equals(password)) {
+            fail("Secret returned from RegistrationRequest not match : " + user.getEnrollmentSecret());
+        }
+
+        EnrollmentRequest req = new EnrollmentRequest();
+        CSRInfo csr = new CSRInfo("bad_cn"); // This should get overridden in the enroll logic because it does not match the enrollment ID
+        csr.addName("US", "test_street", "test_location", "IBM");
+        req.setCsr(csr);
+
+        user.setEnrollment(client.enroll(user.getName(), user.getEnrollmentSecret(), req));
+
+        // verify
+        String cert = user.getEnrollment().getCert();
+
+        BufferedInputStream pem = new BufferedInputStream(new ByteArrayInputStream(cert.getBytes()));
+        CertificateFactory certFactory = CertificateFactory.getInstance(Config.getConfig().getCertificateFormat());
+        X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(pem);
+
+        String name = certificate.getSubjectX500Principal().getName();
+
+        assertTrue(name.contains("CN=csr_test"));
+        assertTrue(name.contains("OU=client+OU=org1+OU=department1"));
+        assertTrue(name.contains("O=IBM"));
+        assertTrue(name.contains("L=test_location"));
+        assertTrue(name.contains("ST=test_street"));
+        assertTrue(name.contains("C=US"));
     }
 
     @Test

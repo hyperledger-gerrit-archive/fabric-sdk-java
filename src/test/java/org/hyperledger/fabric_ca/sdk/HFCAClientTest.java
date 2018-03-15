@@ -342,7 +342,7 @@ public class HFCAClientTest {
         CryptoSuite cryptoSuite = CryptoSuite.Factory.getCryptoSuite();
 
         EnrollmentRequest req = new EnrollmentRequest("profile 1", "label 1", null);
-        req.setCSR("abc");
+        req.setCsr(new CSRInfo("abc"));
 
         HFCAClient client = HFCAClient.createNewInstance("client", "http://localhost:99", null);
         client.setCryptoSuite(cryptoSuite);
