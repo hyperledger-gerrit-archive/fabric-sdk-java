@@ -1092,7 +1092,8 @@ public class HFCAClientIT {
 
         if (!testConfig.isRunningAgainstFabric10()) {
             HFCAInfo info = client.info();
-            assertTrue(info.getVersion().contains("1.1.0"));
+            String version = info.getVersion();
+            assertTrue(format("Version '%s' didn't match expected pattern", version), version.matches("^\\d+\\.\\d+\\.\\d+-.*"));
         }
 
     }
