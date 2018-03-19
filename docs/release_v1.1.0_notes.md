@@ -82,13 +82,41 @@ The registerChaincodeEventListener method on the channel registers a call back t
 chaincodeId.  When ledger block with an event that matches that criteria specified is found by event hub or new peer event service the
 callback is called to handle the event.
 
+### [FAB-8392 Include META-INF in chaincode packaging.](https://jira.hyperledger.org/browse/FAB-8392)
+When installing chaincode, need to package CouchDB indexes in chaincode tar. See [InstallProposalRequest.java#L35](https://github.com/hyperledger/fabric-sdk-java/blob/6ef1bc801dfdb8533952b69f11fe712dffc5aa91/src/main/java/org/hyperledger/fabric/sdk/InstallProposalRequest.java#L35-L45)
+Details for this can be found in the Fabric documentation [Using CouchDB from Chaincode](http://hyperledger-fabric.readthedocs.io/en/master/couchdb_as_state_database.html#using-couchdb-from-chaincode)
+
 ### [FAB-6200 Java serialize channels.](https://jira.hyperledger.org/browse/FAB-6200)
 Channels can be Java serialized and deserialized.  Examples of this can be found throughout the integration tests. Example of serialization
 in [End2endIT.java#L257](https://github.com/hyperledger/fabric-sdk-java/blob/9224fa3f45a70392d1b244c080bf41bd561470d3/src/test/java/org/hyperledger/fabric/sdkintegration/End2endIT.java#L257)
 where the sample store stores channel bar. Later in [End2endAndBackAgainIT.java#L562](https://github.com/hyperledger/fabric-sdk-java/blob/9224fa3f45a70392d1b244c080bf41bd561470d3/src/test/java/org/hyperledger/fabric/sdkintegration/End2endAndBackAgainIT.java#L562-L565)
 it's restored.
 *Applications using this serialziation means will be tasked with any migrating future changes. The SDK will not do this.*
-It's advised to use a different persistene means for saving and restoring channel.s
+It's advised to use a different persistene means for saving and restoring channels
+
+### [FAB-7324 JSDK Node CC example](https://jira.hyperledger.org/browse/FAB-7324)
+The JSDK added support for installing deploying Node chaincode.
+Example of this integration tests show mostly overriding the GO chaincode EndendIT.java as they mostly treated the same.
+See [End2endNodeIT.java#L23](https://github.com/hyperledger/fabric-sdk-java/blob/6ef1bc801dfdb8533952b69f11fe712dffc5aa91/src/test/java/org/hyperledger/fabric/sdkintegration/End2endNodeIT.java#L23-L62)
+
+### [FAB-7949 fabric-sdk-java Utilize TLS binding information and timestamp in eventhub registration messages](https://jira.hyperledger.org/browse/FAB-7949)
+Not directly exposed in the API however when utilizing TLS mutual auth the client will add hashing of client certificate in
+event registration for both Peer evening and Eventhub to prevent replay attacks.
+
+### [FAB-8842 Channel initialize and retry recovery.](https://jira.hyperledger.org/browse/FAB-8842)
+Channel will now initialize without needing to connecting to peers.  There may still be warning and error messages.
+Even with channel initialized however the lack of functioning peers will possible prevent other operations from completing.
+If peers come back online eventing services will reconnect.
+
+On many APIs the addition of specifying user context was added to allow thread safe invocation.
+
+Many APIs where peer was needed was enhanced to try all defined  peers till successful or all failed.
+
+### [FAB-8897 Customize transaction event handling.](https://jira.hyperledger.org/browse/FAB-8897)
+Enhanced application control over sending request to the Order.  Prior to change all Java futures returned would only
+be completed when the all channel defined  eventhubs and peer eventing services seen the block with the specific
+transaction.  This is still the default, but now can be changed with [TransactionOptions](https://github.com/hyperledger/fabric-sdk-java/blob/6ef1bc801dfdb8533952b69f11fe712dffc5aa91/src/main/java/org/hyperledger/fabric/sdk/Channel.java#L3082-L3167)
+Example of this which mostly shows the defaults is in [End2endIT.java#L517](https://github.com/hyperledger/fabric-sdk-java/blob/6ef1bc801dfdb8533952b69f11fe712dffc5aa91/src/test/java/org/hyperledger/fabric/sdkintegration/End2endIT.java#L517-L534)
 
 ## v1.1 Fabric/CA features
 
