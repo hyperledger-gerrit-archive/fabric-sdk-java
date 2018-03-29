@@ -187,7 +187,7 @@ public final class ProtoUtils {
 
     public static ByteString getSignatureHeaderAsByteString(User user, TransactionContext transactionContext) {
 
-        final Identities.SerializedIdentity identity = ProtoUtils.createSerializedIdentity(user);
+        final Identities.SerializedIdentity identity = transactionContext.getSerializedIdentity();
 
         if (isDebugLevel) {
 
