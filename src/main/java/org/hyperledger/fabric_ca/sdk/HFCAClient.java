@@ -93,6 +93,7 @@ import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
 import org.bouncycastle.asn1.x509.Extension;
 import org.hyperledger.fabric.sdk.Enrollment;
+import org.hyperledger.fabric.sdk.NetworkConfig;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
@@ -280,6 +281,24 @@ public class HFCAClient {
 
         return new HFCAClient(name, url, properties);
 
+    }
+
+    /**
+     * Create HFCAClient from a NetworkConfig.CAInfo
+     *
+     * @param caInfo created from NetworkConfig.getOrganizationInfo("org_name").getCertificateAuthorities()
+     * @return HFCAClient
+     * @throws MalformedURLException
+     * @throws InvalidArgumentException
+     */
+
+    public static HFCAClient createNewInstance(NetworkConfig.CAInfo caInfo) throws MalformedURLException, InvalidArgumentException {
+
+        if (null == caInfo) {
+            throw new InvalidArgumentException("The caInfo  parameter can not be null.");
+        }
+
+        return new HFCAClient(caInfo.getCAName(), caInfo.getUrl(), caInfo.getProperties());
     }
 
     public void setCryptoSuite(CryptoSuite cryptoSuite) {
