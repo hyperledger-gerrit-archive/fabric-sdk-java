@@ -68,8 +68,6 @@ public class EndpointTest {
 
     @Test
     public void testNullPropertySslProvider() {
-        thrown.expect(RuntimeException.class);
-        thrown.expectMessage("Property of sslProvider expected");
 
         Properties testprops = new Properties();
         testprops.setProperty("hostnameOverride", "override");
@@ -83,7 +81,7 @@ public class EndpointTest {
         thrown.expectMessage("Property of sslProvider has to be either openSSL or JDK");
 
         Properties testprops = new Properties();
-        testprops.setProperty("sslProvider", "");
+        testprops.setProperty("sslProvider", "closedSSL");
         testprops.setProperty("hostnameOverride", "override");
 
         new Endpoint("grpcs://localhost:594", testprops);
@@ -91,8 +89,6 @@ public class EndpointTest {
 
     @Test
     public void testNullPropertyNegotiationType() {
-        thrown.expect(RuntimeException.class);
-        thrown.expectMessage("Property of negotiationType expected");
 
         Properties testprops = new Properties();
         testprops.setProperty("sslProvider", "openSSL");

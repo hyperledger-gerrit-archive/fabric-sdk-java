@@ -53,6 +53,7 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.security.CryptoPrimitives;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -60,6 +61,9 @@ import static org.hyperledger.fabric.sdk.helper.Utils.parseGrpcUrl;
 
 class Endpoint {
     private static final Log logger = LogFactory.getLog(Endpoint.class);
+
+    private static final String SSLPROVIDER = Config.getConfig().getDefaultSSLProvider();
+    private static final String SSLNEGOTIATION = Config.getConfig().getDefaultSSLNegotiationType();
 
     private final String addr;
     private final int port;
@@ -168,18 +172,20 @@ class Endpoint {
                 }
 
                 sslp = properties.getProperty("sslProvider");
-                if (sslp == null) {
-                    throw new RuntimeException("Property of sslProvider expected");
+
+                if (null == sslp) {
+                    sslp = SSLPROVIDER;
                 }
-                if (!sslp.equals("openSSL") && !sslp.equals("JDK")) {
+                if (!"openSSL".equals(sslp) && !"JDK".equals(sslp)) {
                     throw new RuntimeException("Property of sslProvider has to be either openSSL or JDK");
                 }
 
                 nt = properties.getProperty("negotiationType");
-                if (nt == null) {
-                    throw new RuntimeException("Property of negotiationType expected");
+                if (null == nt) {
+                    nt = SSLNEGOTIATION;
                 }
-                if (!nt.equals("TLS") && !nt.equals("plainText")) {
+
+                if (!"TLS".equals(nt) && !"plainText".equals(nt)) {
                     throw new RuntimeException("Property of negotiationType has to be either TLS or plainText");
                 }
             }
