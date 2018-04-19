@@ -1,7 +1,11 @@
 /*
  *
 <<<<<<< HEAD
+<<<<<<< HEAD
  *  Copyright 2017, 2018 IBM Corp. All Rights Reserved.
+=======
+ *  Copyright IBM Corp. All Rights Reserved.
+>>>>>>> [FAB-6682] Adds identity mixer crypto in java
 =======
  *  Copyright IBM Corp. All Rights Reserved.
 >>>>>>> [FAB-6682] Adds identity mixer crypto in java

@@ -355,12 +355,6 @@ public class TestUtils {
         private Enrollment enrollment;
         private SigningIdentity signingIdentity;
 
-        public String getEnrollmentSecret() {
-            return enrollmentSecret;
-        }
-
-        private String enrollmentSecret;
-
         private MockUser(String name, String mspId) {
             this.name = name;
             this.mspId = mspId;
