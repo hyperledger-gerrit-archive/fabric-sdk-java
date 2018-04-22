@@ -114,12 +114,28 @@ public class TestConfig {
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.peer_locations", "peer0.org1.example.com@grpc://" + LOCALHOST + ":7051, peer1.org1.example.com@grpc://" + LOCALHOST + ":7056");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.orderer_locations", "orderer.example.com@grpc://" + LOCALHOST + ":7050");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg1.eventhub_locations", "peer0.org1.example.com@grpc://" + LOCALHOST + ":7053,peer1.org1.example.com@grpc://" + LOCALHOST + ":7058");
+
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.mspid", "Org2MSP");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.domname", "org2.example.com");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.ca_location", "http://" + LOCALHOST + ":8054");
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.caName", "ca1");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.peer_locations", "peer0.org2.example.com@grpc://" + LOCALHOST + ":8051,peer1.org2.example.com@grpc://" + LOCALHOST + ":8056");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.orderer_locations", "orderer.example.com@grpc://" + LOCALHOST + ":7050");
             defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg2.eventhub_locations", "peer0.org2.example.com@grpc://" + LOCALHOST + ":8053, peer1.org2.example.com@grpc://" + LOCALHOST + ":8058");
+
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg3.mspid", "Org3MSP");
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg3.domname", "org3.example.com");
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg3.caName", "ca2");
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg3.ca_location", "http://" + LOCALHOST + ":9054");
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg3.peer_locations", "peer0.org3.example.com@grpc://" + LOCALHOST + ":9051,peer1.org3.example.com@grpc://" + LOCALHOST + ":9056");
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg3.orderer_locations", "orderer.example.com@grpc://" + LOCALHOST + ":7050");
+            defaultProperty(INTEGRATIONTESTS_ORG + "peerOrg3.eventhub_locations", "peer0.org3.example.com@grpc://" + LOCALHOST + ":8053, peer1.org3.example.com@grpc://" + LOCALHOST + ":9058");
+
+            defaultProperty(INTEGRATIONTESTS_ORG + "ordererOrg.mspid", "OrdererMSP");
+            defaultProperty(INTEGRATIONTESTS_ORG + "ordererOrg.domname", "orderer.example.com");
+            defaultProperty(INTEGRATIONTESTS_ORG + "ordererOrg.peer_locations", "peer0.orderer.example.com@grpc://" + LOCALHOST + ":10051");
+            defaultProperty(INTEGRATIONTESTS_ORG + "ordererOrg.orderer_locations", "orderer.example.com@grpc://" + LOCALHOST + ":7050");
+            defaultProperty(INTEGRATIONTESTS_ORG + "ordererOrg.eventhub_locations", "peer0.orderer.example.com@grpc://" + LOCALHOST + ":10053");
 
             defaultProperty(INTEGRATIONTESTSTLS, null);
             runningTLS = null != sdkProperties.getProperty(INTEGRATIONTESTSTLS, null);
@@ -171,28 +187,29 @@ public class TestConfig {
                     sampleOrg.addEventHubLocation(nl[0], grpcTLSify(nl[1]));
                 }
 
-                sampleOrg.setCALocation(httpTLSify(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".ca_location"))));
+                // The orderer org is only for adding new orgs to the consortium. It doesn't need any CA stuff.
+                if (!sampleOrg.getName().equals("ordererOrg")) {
+                    sampleOrg.setCALocation(httpTLSify(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".ca_location"))));
 
-                sampleOrg.setCAName(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".caName")));
+                    sampleOrg.setCAName(sdkProperties.getProperty((INTEGRATIONTESTS_ORG + org.getKey() + ".caName")));
 
-                if (runningFabricCATLS) {
-                    String cert = "src/test/fixture/sdkintegration/e2e-2Orgs/FAB_CONFIG_GEN_VERS/crypto-config/peerOrganizations/DNAME/ca/ca.DNAME-cert.pem"
-                            .replaceAll("DNAME", domainName).replaceAll("FAB_CONFIG_GEN_VERS", FAB_CONFIG_GEN_VERS);
-                    File cf = new File(cert);
-                    if (!cf.exists() || !cf.isFile()) {
-                        throw new RuntimeException("TEST is missing cert file " + cf.getAbsolutePath());
+                    if (runningFabricCATLS) {
+                        String cert = "src/test/fixture/sdkintegration/e2e-2Orgs/FAB_CONFIG_GEN_VERS/crypto-config/peerOrganizations/DNAME/ca/ca.DNAME-cert.pem"
+                                .replaceAll("DNAME", domainName).replaceAll("FAB_CONFIG_GEN_VERS", FAB_CONFIG_GEN_VERS);
+                        File cf = new File(cert);
+                        if (!cf.exists() || !cf.isFile()) {
+                            throw new RuntimeException("TEST is missing cert file " + cf.getAbsolutePath());
+                        }
+                        Properties properties = new Properties();
+                        properties.setProperty("pemFile", cf.getAbsolutePath());
+
+                        properties.setProperty("allowAllHostNames", "true"); //testing environment only NOT FOR PRODUCTION!
+
+                        sampleOrg.setCAProperties(properties);
                     }
-                    Properties properties = new Properties();
-                    properties.setProperty("pemFile", cf.getAbsolutePath());
-
-                    properties.setProperty("allowAllHostNames", "true"); //testing environment only NOT FOR PRODUCTION!
-
-                    sampleOrg.setCAProperties(properties);
                 }
             }
-
         }
-
     }
 
     private String grpcTLSify(String location) {

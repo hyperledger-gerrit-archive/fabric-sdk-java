@@ -1,0 +1,21 @@
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+---
+################################################################################
+#
+#   Section: Organizations
+#
+################################################################################
+Organizations:
+    - &Org3
+        Name: Org3MSP
+        ID: Org3MSP
+
+        MSPDir: crypto-config/peerOrganizations/org3.example.com/msp
+
+        AnchorPeers:
+            - Host: peer0.org3.example.com
+              Port: 7051
