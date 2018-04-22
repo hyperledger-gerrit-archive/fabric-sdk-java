@@ -140,7 +140,7 @@ public class NetworkConfigIT {
         hfcaClient = HFCAClient.createNewInstance(caInfo);
         assertEquals(hfcaClient.getCAName(), caInfo.getCAName());
         info = hfcaClient.info(); //makes actual REST call.
-        assertEquals(info.getCAName(), "");
+        assertEquals(info.getCAName(), "ca1");
 
         registrars = caInfo.getRegistrars();
         assertTrue(!registrars.isEmpty());
