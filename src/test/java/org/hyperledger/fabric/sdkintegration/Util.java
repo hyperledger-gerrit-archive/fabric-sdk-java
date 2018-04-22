@@ -35,7 +35,7 @@ import org.hyperledger.fabric.sdk.helper.Utils;
 
 import static java.lang.String.format;
 
-class Util {
+public class Util {
 
     /**
      * Private constructor to prevent instantiation.
