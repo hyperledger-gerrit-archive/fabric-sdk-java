@@ -50,13 +50,11 @@ public class NetworkConfigTest {
     private static final String CHANNEL_NAME = "myChannel";
     private static final String CLIENT_ORG_NAME = "Org1";
 
-
     private static final String USER_NAME = "MockMe";
     private static final String USER_MSP_ID = "MockMSPID";
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
-
 
     @Test
     public void testLoadFromConfigNullStream() throws Exception {
@@ -258,7 +256,6 @@ public class NetworkConfigTest {
         //HFClient client = HFClient.loadFromConfig(jsonConfig);
         //TestHFClient.setupClient(client);
 
-
         //client.getChannel(CHANNEL_NAME);
 
         NetworkConfig config = NetworkConfig.fromJsonObject(jsonConfig);
@@ -288,7 +285,6 @@ public class NetworkConfigTest {
 
         //HFClient client = HFClient.loadFromConfig(jsonConfig);
         //TestHFClient.setupClient(client);
-
 
         //client.getChannel(CHANNEL_NAME);
 
@@ -325,6 +321,39 @@ public class NetworkConfigTest {
         }
 
     }
+
+    @Test
+    public void testLoadFromConfigFileYamlNOOverridesButSet() throws Exception {
+
+        // Should be able to instantiate a new instance of "Client" with a valid path to the YAML configuration
+        File f = new File("src/test/fixture/sdkintegration/network_configs/network-config.yaml");
+        NetworkConfig config = NetworkConfig.fromYamlFile(f);
+
+        //HFClient client = HFClient.loadFromConfig(f);
+        assertNotNull(config);
+
+        HFClient client = HFClient.createNewInstance();
+        client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
+        client.setUserContext(TestUtils.getMockUser(USER_NAME, USER_MSP_ID));
+
+        Channel channel = client.loadChannelFromConfig("foo", config);
+        assertNotNull(channel);
+
+        assertTrue(!channel.getOrderers().isEmpty());
+
+        for (Orderer orderer : channel.getOrderers()) {
+
+            final Properties properties = orderer.getProperties();
+            Object[] o = (Object[]) properties.get("grpc.NettyChannelBuilderOption.keepAliveTime");
+            assertEquals(o[0], 360000L);
+
+            o = (Object[]) properties.get("grpc.NettyChannelBuilderOption.keepAliveTimeout");
+            assertEquals(o[0], 180000L);
+
+        }
+
+    }
+
 
     @Test
     public void testLoadFromConfigFileYamlOverrides() throws Exception {
@@ -397,7 +426,6 @@ public class NetworkConfigTest {
 
     }
 
-
     // TODO: ca-org1 not defined
     @Ignore
     @Test
@@ -435,7 +463,6 @@ public class NetworkConfigTest {
         Assert.assertEquals("peer0.org1.example.com", peer.getName());
 
     }
-
 
     private static JsonObject getJsonConfig1(int nOrganizations, int nOrderers, int nPeers) {
 
@@ -515,17 +542,16 @@ public class NetworkConfigTest {
                 JsonObject orderer = createJsonOrderer(
                         "grpcs://localhost:" + port,
                         Json.createObjectBuilder()
-                            .add("ssl-target-name-override", "orderer" + i + ".example.com")
-                            .build(),
+                                .add("ssl-target-name-override", "orderer" + i + ".example.com")
+                                .build(),
                         Json.createObjectBuilder()
-                            .add("pem", "-----BEGIN CERTIFICATE----- <etc>")
-                            .build()
+                                .add("pem", "-----BEGIN CERTIFICATE----- <etc>")
+                                .build()
                 );
                 builder.add(ordererName, orderer);
             }
             mainConfig.add("orderers", builder.build());
         }
-
 
         if (nPeers > 0) {
             // Add some peers to the config
@@ -544,12 +570,12 @@ public class NetworkConfigTest {
                         "grpcs://localhost:" + port1,
                         "grpcs://localhost:" + port2,
                         Json.createObjectBuilder()
-                            .add("ssl-target-name-override", "peer" + peerNo + ".org" + orgNo + ".example.com")
-                            .build(),
+                                .add("ssl-target-name-override", "peer" + peerNo + ".org" + orgNo + ".example.com")
+                                .build(),
                         Json.createObjectBuilder()
-                            .add("path", "test/fixtures/channel/crypto-config/peerOrganizations/org" + orgNo + ".example.com/peers/peer" + peerNo + ".org" + orgNo + ".example.com/tlscacerts/org" + orgNo + ".example.com-cert.pem")
-                            .build(),
-                            createJsonArray(channelName)
+                                .add("path", "test/fixtures/channel/crypto-config/peerOrganizations/org" + orgNo + ".example.com/peers/peer" + peerNo + ".org" + orgNo + ".example.com/tlscacerts/org" + orgNo + ".example.com-cert.pem")
+                                .build(),
+                        createJsonArray(channelName)
                 );
                 builder.add(peerName, peer);
             }
@@ -567,23 +593,18 @@ public class NetworkConfigTest {
 
         mainConfig.add("certificateAuthorities", builder.build());
 
-
-        JsonObject config = mainConfig.build();
-
-        return config;
+        return mainConfig.build();
     }
-
-
 
     private static JsonObject createJsonChannelPeer(String name, Boolean endorsingPeer, Boolean chaincodeQuery, Boolean ledgerQuery, Boolean eventSource) {
 
         return Json.createObjectBuilder()
-            .add("name", name)
-            .add("endorsingPeer", endorsingPeer)
-            .add("chaincodeQuery", chaincodeQuery)
-            .add("ledgerQuery", ledgerQuery)
-            .add("eventSource", eventSource)
-            .build();
+                .add("name", name)
+                .add("endorsingPeer", endorsingPeer)
+                .add("chaincodeQuery", chaincodeQuery)
+                .add("ledgerQuery", ledgerQuery)
+                .add("eventSource", eventSource)
+                .build();
     }
 
     private static JsonObject createJsonChannel(JsonArray orderers, JsonObject peers, JsonArray chaincodes) {
@@ -625,7 +646,6 @@ public class NetworkConfigTest {
                 .build();
     }
 
-
     private static JsonObject createJsonOrderer(String url, JsonObject grpcOptions, JsonObject tlsCaCerts) {
 
         return Json.createObjectBuilder()
@@ -638,20 +658,19 @@ public class NetworkConfigTest {
     private static JsonObject createJsonPeer(String url, String eventUrl, JsonObject grpcOptions, JsonObject tlsCaCerts, JsonArray channels) {
 
         return Json.createObjectBuilder()
-            .add("url", url)
-            .add("eventUrl", eventUrl)
-            .add("grpcOptions", grpcOptions)
-            .add("tlsCaCerts", tlsCaCerts)
-            .add("channels", channels)
-            .build();
+                .add("url", url)
+                .add("eventUrl", eventUrl)
+                .add("grpcOptions", grpcOptions)
+                .add("tlsCaCerts", tlsCaCerts)
+                .add("channels", channels)
+                .build();
     }
-
 
     private static JsonArray createJsonArray(String... elements) {
 
         JsonArrayBuilder builder = Json.createArrayBuilder();
 
-        for (String ele: elements) {
+        for (String ele : elements) {
             builder.add(ele);
         }
 
@@ -662,7 +681,7 @@ public class NetworkConfigTest {
 
         JsonArrayBuilder builder = Json.createArrayBuilder();
 
-        for (JsonValue ele: elements) {
+        for (JsonValue ele : elements) {
             builder.add(ele);
         }
 
