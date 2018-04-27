@@ -536,6 +536,7 @@ public class End2endIT {
                 waitOnFabric(0);
 
                 assertTrue(transactionEvent.isValid()); // must be valid to be here.
+
                 assertNotNull(transactionEvent.getSignature()); //musth have a signature.
                 BlockEvent blockEvent = transactionEvent.getBlockEvent(); // This is the blockevent that has this transaction.
                 assertNotNull(blockEvent.getBlock()); // Make sure the RAW Fabric block is returned.
@@ -569,6 +570,7 @@ public class End2endIT {
 
                     out("sending transactionProposal to all peers with arguments: move(a,b,100)");
 
+                    //  Collection<ProposalResponse> transactionPropResp = channel.sendTransactionProposalToEndorsers(transactionProposalRequest);
                     Collection<ProposalResponse> transactionPropResp = channel.sendTransactionProposal(transactionProposalRequest, channel.getPeers());
                     for (ProposalResponse response : transactionPropResp) {
                         if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
@@ -845,10 +847,10 @@ public class End2endIT {
 
             Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
             if (doPeerEventing && everyother) {
-                newChannel.joinPeer(peer, createPeerOptions()); //Default is all roles.
+                newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.ENDORSING_PEER, PeerRole.LEDGER_QUERY, PeerRole.CHAINCODE_QUERY, PeerRole.EVENT_SOURCE))); //Default is all roles.
             } else {
                 // Set peer to not be all roles but eventing.
-                newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
+                newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.ENDORSING_PEER, PeerRole.LEDGER_QUERY, PeerRole.CHAINCODE_QUERY)));
             }
             out("Peer %s joined channel %s", peerName, name);
             everyother = !everyother;

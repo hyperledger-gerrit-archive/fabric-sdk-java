@@ -220,8 +220,6 @@ public class End2endAndBackAgainIT {
             setupUsers(sampleStore);
             runFabricTest(sampleStore);
 
-
-
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -649,11 +647,11 @@ public class End2endAndBackAgainIT {
                 Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
                 final PeerOptions peerEventingOptions = // we have two peers on one use block on other use filtered
                         everyOther ?
-                                createPeerOptions().registerEventsForBlocks() :
-                                createPeerOptions().registerEventsForFilteredBlocks();
+                                createPeerOptions().registerEventsForBlocks().setPeerRoles(EnumSet.of(PeerRole.ENDORSING_PEER, PeerRole.LEDGER_QUERY, PeerRole.CHAINCODE_QUERY, PeerRole.EVENT_SOURCE)) :
+                                createPeerOptions().registerEventsForFilteredBlocks().setPeerRoles(EnumSet.of(PeerRole.ENDORSING_PEER, PeerRole.LEDGER_QUERY, PeerRole.CHAINCODE_QUERY, PeerRole.EVENT_SOURCE));
 
                 newChannel.addPeer(peer, IS_FABRIC_V10 ?
-                        createPeerOptions().setPeerRoles(PeerRole.NO_EVENT_SOURCE) : peerEventingOptions);
+                        createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.ENDORSING_PEER, PeerRole.LEDGER_QUERY, PeerRole.CHAINCODE_QUERY)) : peerEventingOptions);
 
                 everyOther = !everyOther;
             }
@@ -799,8 +797,10 @@ public class End2endAndBackAgainIT {
             replayTestChannel.removePeer(peer);
         }
         assertTrue(savedPeers.size() > 1); //need at least two
-        final Peer eventingPeer = savedPeers.remove(0);
+        Peer eventingPeer = savedPeers.remove(0);
+        eventingPeer = client.newPeer(eventingPeer.getName(), eventingPeer.getUrl(), eventingPeer.getProperties());
         Peer ledgerPeer = savedPeers.remove(0);
+        ledgerPeer = client.newPeer(ledgerPeer.getName(), ledgerPeer.getUrl(), ledgerPeer.getProperties());
 
         assertTrue(replayTestChannel.getPeers().isEmpty()); // no more peers.
         assertTrue(replayTestChannel.getPeers(EnumSet.of(PeerRole.CHAINCODE_QUERY, PeerRole.ENDORSING_PEER)).isEmpty()); // just checking :)
