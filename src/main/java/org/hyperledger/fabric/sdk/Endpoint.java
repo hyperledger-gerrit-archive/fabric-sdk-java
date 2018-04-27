@@ -123,6 +123,7 @@ class Endpoint {
 
                     }
                     pemBytes = bis.toByteArray();
+                    logger.trace(format("Endpoint %s pemBytes: %s", url, Hex.encodeHexString(pemBytes)));
 
                     if (pemBytes.length == 0) {
                         pemBytes = null;
@@ -165,7 +166,9 @@ class Endpoint {
                 } else if (properties.containsKey("clientKeyFile") || properties.containsKey("clientCertFile")) {
                     if ((properties.getProperty("clientKeyFile") != null) && (properties.getProperty("clientCertFile") != null)) {
                         try {
+                            logger.trace(format("Endpoint %s reading clientKeyFile: %s", url, properties.getProperty("clientKeyFile")));
                             ckb = Files.readAllBytes(Paths.get(properties.getProperty("clientKeyFile")));
+                            logger.trace(format("Endpoint %s reading clientCertFile: %s", url, properties.getProperty("clientCertFile")));
                             ccb = Files.readAllBytes(Paths.get(properties.getProperty("clientCertFile")));
                         } catch (IOException e) {
                             throw new RuntimeException("Failed to parse TLS client key and/or cert", e);
@@ -183,17 +186,22 @@ class Endpoint {
 
                 if ((ckb != null) && (ccb != null)) {
                     String what = "private key";
+                    byte[] whatBytes = new byte[0];
                     try {
                         logger.trace("client TLS private key bytes size:" + ckb.length);
+                        whatBytes = ckb;
+                        logger.trace("client TLS key bytes:" + Hex.encodeHexString(ckb));
                         clientKey = cp.bytesToPrivateKey(ckb);
                         logger.trace("converted TLS key.");
                         what = "certificate";
+                        whatBytes = ccb;
                         logger.trace("client TLS certificate bytes:" + Hex.encodeHexString(ccb));
                         clientCert = new X509Certificate[] {(X509Certificate) cp.bytesToCertificate(ccb)};
                         logger.trace("converted client TLS certificate.");
                         tlsClientCertificatePEMBytes = ccb; // Save this away it's the exact pem we used.
                     } catch (CryptoException e) {
-                        throw new RuntimeException("Failed to parse TLS client " + what, e);
+                        logger.error(format("Failed endpoint %s to parse %s TLS client %s", url, what, new String(whatBytes)));
+                        throw new RuntimeException(format("Failed endpoint %s to parse TLS client %s", url, what), e);
                     }
                 }
 
@@ -238,6 +246,8 @@ class Endpoint {
                         SslContextBuilder clientContextBuilder = getSslContextBuilder(clientCert, clientKey, sslprovider);
                         SslContext sslContext;
 
+                        logger.trace(format("Endpoint %s  final server pemBytes: %s", url, Hex.encodeHexString(pemBytes)));
+
                         try (InputStream myInputStream = new ByteArrayInputStream(pemBytes)) {
                             sslContext = clientContextBuilder
                                     .trustManager(myInputStream)
@@ -250,10 +260,12 @@ class Endpoint {
                                 .negotiationType(ntype);
 
                         if (cn != null) {
+                            logger.debug(format("Endpoint %s, using CN overrideAuthority: '%s'", url, cn));
                             channelBuilder.overrideAuthority(cn);
                         }
                         addNettyBuilderProps(channelBuilder, properties);
                     } catch (SSLException sslex) {
+
                         throw new RuntimeException(sslex);
                     }
                 }
@@ -261,9 +273,10 @@ class Endpoint {
                 throw new RuntimeException("invalid protocol: " + protocol);
             }
         } catch (RuntimeException e) {
-            logger.error(e);
+            logger.error(format("Endpoint %s, exception '%s'", url, e.getMessage()), e);
             throw e;
         } catch (Exception e) {
+            logger.error(format("Endpoint %s, exception '%s'", url, e.getMessage()), e);
             logger.error(e);
             throw new RuntimeException(e);
         }
@@ -273,6 +286,8 @@ class Endpoint {
         SslContextBuilder clientContextBuilder = GrpcSslContexts.configure(SslContextBuilder.forClient(), sslprovider);
         if (clientKey != null && clientCert != null) {
             clientContextBuilder = clientContextBuilder.keyManager(clientKey, clientCert);
+        } else {
+            logger.debug(format("Endpoint %s with no ssl context", url));
         }
         return clientContextBuilder;
     }
@@ -395,6 +410,13 @@ class Endpoint {
 
     int getPort() {
         return this.port;
+    }
+
+
+    static Endpoint createEndpoint(String url, Properties properties) {
+
+        return new Endpoint(url, properties);
+
     }
 
 }
