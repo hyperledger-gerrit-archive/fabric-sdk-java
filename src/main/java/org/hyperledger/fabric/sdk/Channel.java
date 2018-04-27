@@ -91,6 +91,8 @@ import org.hyperledger.fabric.protos.peer.Query.ChaincodeQueryResponse;
 import org.hyperledger.fabric.protos.peer.Query.ChannelQueryResponse;
 import org.hyperledger.fabric.sdk.BlockEvent.TransactionEvent;
 import org.hyperledger.fabric.sdk.Peer.PeerRole;
+import org.hyperledger.fabric.sdk.ServiceDiscovery.EndorsementSelection;
+import org.hyperledger.fabric.sdk.ServiceDiscovery.SDNetwork;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.EventHubException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
@@ -142,13 +144,15 @@ public class Channel implements Serializable {
     // final Set<Peer> eventingPeers = Collections.synchronizedSet(new HashSet<>());
     private static final long DELTA_SWEEP = config.getTransactionListenerCleanUpTimeout();
     private static final String CHAINCODE_EVENTS_TAG = "CHAINCODE_EVENTS_HANDLE";
-    final Collection<Orderer> orderers = new LinkedList<>();
-    final Collection<EventHub> eventHubs = new LinkedList<>();
+    final Collection<Orderer> orderers = Collections.synchronizedCollection(new LinkedList<>());
+    private transient Map<String, Orderer> ordererEndpointMap = Collections.synchronizedMap(new HashMap<>());
+    final Collection<EventHub> eventHubs = Collections.synchronizedCollection(new LinkedList<>());
     // Name of the channel is only meaningful to the client
     private final String name;
     // The peers on this channel to which the client can connect
     private final Collection<Peer> peers = Collections.synchronizedSet(new HashSet<>());
     private final Map<Peer, PeerOptions> peerOptionsMap = Collections.synchronizedMap(new HashMap<>());
+    private transient Map<String, Peer> peerEndpointMap = Collections.synchronizedMap(new HashMap<>());
     private final Map<PeerRole, Set<Peer>> peerRoleSetMap = Collections.synchronizedMap(new HashMap<>());
     private final boolean systemChannel;
     private final LinkedHashMap<String, ChaincodeEventListenerEntry> chainCodeListeners = new LinkedHashMap<>();
@@ -329,6 +333,18 @@ public class Channel implements Serializable {
         txListeners = new LinkedHashMap<>();
         channelEventQue = new ChannelEventQue();
         blockListeners = new LinkedHashMap<>();
+        peerEndpointMap = Collections.synchronizedMap(new HashMap<>());
+        sdPeerAddition = DEFAULT_PEER_ADDITION;
+        sdOrdererAddition = DEFAULT_ORDERER_ADDITION;
+        endorsementSelection = ServiceDiscovery.DEFAULT_ENDORSEMENT_SELECTION;
+        for (Peer peer : peers) {
+            peerEndpointMap.put(peer.getEndpoint(), peer);
+        }
+
+        ordererEndpointMap = Collections.synchronizedMap(new HashMap<>());
+        for (Orderer orderer : orderers) {
+            ordererEndpointMap.put(orderer.getEndpoint(), orderer);
+        }
 
         for (EventHub eventHub : getEventHubs()) {
             eventHub.setEventQue(channelEventQue);
@@ -598,6 +614,7 @@ public class Channel implements Serializable {
 
         peers.add(peer);
         peerOptionsMap.put(peer, peerOptions.clone());
+        peerEndpointMap.put(peer.getEndpoint(), peer);
 
         for (Map.Entry<PeerRole, Set<Peer>> peerRole : peerRoleSetMap.entrySet()) {
             if (peerOptions.getPeerRoles().contains(peerRole.getKey())) {
@@ -642,6 +659,11 @@ public class Channel implements Serializable {
     private Collection<Peer> getLedgerQueryPeers() {
 
         return Collections.unmodifiableCollection(peerRoleSetMap.get(PeerRole.LEDGER_QUERY));
+    }
+
+    private Collection<Peer> getServiceDiscoveryPeers() {
+
+        return Collections.unmodifiableCollection(peerRoleSetMap.get(PeerRole.SERVICE_DISCOVERY));
     }
 
     /**
@@ -818,6 +840,7 @@ public class Channel implements Serializable {
 
         checkPeer(peer);
         removePeerInternal(peer);
+        peer.shutdown(true);
 
     }
 
@@ -825,6 +848,7 @@ public class Channel implements Serializable {
 
         peers.remove(peer);
         peerOptionsMap.remove(peer);
+        peerEndpointMap.remove(peer.getEndpoint());
 
         for (Set<Peer> peerRoleSet : peerRoleSetMap.values()) {
             peerRoleSet.remove(peer);
@@ -853,8 +877,27 @@ public class Channel implements Serializable {
         logger.debug(format("Channel %s adding orderer%s, url: %s", name, orderer.getName(), orderer.getUrl()));
 
         orderer.setChannel(this);
+        ordererEndpointMap.put(orderer.getEndpoint(), orderer);
         orderers.add(orderer);
         return this;
+    }
+
+    void removeOrderer(Orderer orderer) throws InvalidArgumentException {
+
+        if (shutdown) {
+            throw new InvalidArgumentException(format("Channel %s has been shutdown.", name));
+        }
+
+        if (null == orderer) {
+            throw new InvalidArgumentException("Orderer is invalid can not be null.");
+        }
+
+        logger.debug(format("Channel %s removing orderer%s, url: %s", name, orderer.getName(), orderer.getUrl()));
+
+        ordererEndpointMap.remove(orderer.getEndpoint());
+        orderers.remove(orderer);
+        orderer.shutdown(true);
+
     }
 
     public PeerOptions getPeersOptions(Peer peer) {
@@ -970,6 +1013,15 @@ public class Channel implements Serializable {
         } catch (Exception e) {
             logger.warn(format("Channel %s could not load peer CA certificates from any peers.", name));
         }
+        Collection<Peer> serviceDiscoveryPeers = getServiceDiscoveryPeers();
+        if (!serviceDiscoveryPeers.isEmpty()) {
+
+            Peer serviceDiscoveryPeer = serviceDiscoveryPeers.iterator().next();
+
+            SDNetwork sdNetwork = new ServiceDiscovery().networkDiscovery(serviceDiscoveryPeer, getTransactionContext(), name);
+            sdUpdate(serviceDiscoveryPeer, sdNetwork);
+
+        }
 
         try {
 
@@ -994,15 +1046,210 @@ public class Channel implements Serializable {
             logger.debug(format("Channel %s initialized", name));
 
             return this;
-//        } catch (TransactionException e) {
-//            logger.error(e.getMessage(), e);
-//            throw e;
 
         } catch (Exception e) {
             TransactionException exp = new TransactionException(e);
             logger.error(exp.getMessage(), exp);
             throw exp;
         }
+
+    }
+
+    private void sdUpdate(Peer serviceDiscoveryPeer, SDNetwork sdNetwork) throws InvalidArgumentException {
+        List<Orderer> remove = new ArrayList<>();
+        for (Orderer orderer : getOrderers()) {
+            if (!sdNetwork.getOrdererEndpoints().contains(orderer.getEndpoint())) {
+                remove.add(orderer);
+            }
+        }
+
+        remove.forEach(orderer -> {
+            try {
+                removeOrderer(orderer);
+            } catch (InvalidArgumentException e) {
+                logger.error(e);
+            }
+        });
+
+        for (String endpoing : sdNetwork.getOrdererEndpoints()) {
+            Orderer orderer = ordererEndpointMap.get(endpoing);
+            if (null == orderer) {
+                sdOrdererAddition.addOrderer(new SDOrdererAdditionInfo() {
+                    @Override
+                    public Peer getServiceDiscoveryPeer() {
+                        return serviceDiscoveryPeer;
+                    }
+
+                    @Override
+                    public String getEndpoint() {
+                        return endpoing;
+                    }
+
+                    @Override
+                    public Channel getChannel() {
+                        return Channel.this;
+                    }
+
+                    @Override
+                    public HFClient getClient() {
+                        return Channel.this.client;
+                    }
+
+                    @Override
+                    public Map<String, Orderer> getEndpointMap() {
+                        return Collections.unmodifiableMap(Channel.this.ordererEndpointMap);
+                    }
+                });
+            }
+
+        }
+
+        remove.clear();
+        List<Peer> removePeers = new ArrayList<>();
+
+        for (Peer peer : getPeers()) {
+            if (!sdNetwork.getPeerEndpoints().contains(peer.getEndpoint())) {
+                removePeers.add(peer);
+            }
+        }
+
+        removePeers.forEach(orderer -> {
+            try {
+                removePeer(orderer);
+            } catch (InvalidArgumentException e) {
+                logger.error(e);
+            }
+        });
+
+        for (String endpoing : sdNetwork.getPeerEndpoints()) {
+            Peer peer = peerEndpointMap.get(endpoing);
+            if (null == peer) {
+
+                sdPeerAddition.addPeer(new SDPeerAdditionInfo() {
+                    @Override
+                    public Peer getServiceDiscoveryPeer() {
+                        return serviceDiscoveryPeer;
+                    }
+
+                    @Override
+                    public String getEndpoint() {
+                        return endpoing;
+                    }
+
+                    @Override
+                    public Channel getChannel() {
+                        return Channel.this;
+                    }
+
+                    @Override
+                    public HFClient getClient() {
+                        return Channel.this.client;
+                    }
+
+                    @Override
+                    public Map<String, Peer> getEndpointMap() {
+                        return Collections.unmodifiableMap(Channel.this.peerEndpointMap);
+                    }
+                });
+            }
+
+        }
+    }
+
+    public interface SDPeerAdditionInfo {
+
+        Peer getServiceDiscoveryPeer();
+
+        String getEndpoint();
+
+        Channel getChannel();
+
+        HFClient getClient();
+
+        Map<String, Peer> getEndpointMap();
+
+    }
+
+    public interface SDPeerAddition {
+
+        Peer addPeer(SDPeerAdditionInfo sdPeerAddition) throws InvalidArgumentException;
+
+    }
+
+    transient SDPeerAddition sdPeerAddition = DEFAULT_PEER_ADDITION;
+
+    static final SDPeerAddition DEFAULT_PEER_ADDITION = sdPeerAdditionInfo -> {
+
+        Peer peer = sdPeerAdditionInfo.getClient().newPeer(sdPeerAdditionInfo.getEndpoint(),
+                sdPeerAdditionInfo.getServiceDiscoveryPeer().getProtocol() + "://" + sdPeerAdditionInfo.getEndpoint(),
+                sdPeerAdditionInfo.getServiceDiscoveryPeer().getProperties());
+        sdPeerAdditionInfo.getChannel().addPeer(peer);
+
+        return peer;
+
+    };
+
+    /**
+     * Set service discovery peer addition override.
+     *
+     * @param sdOrdererAddition
+     * @return
+     */
+
+    public SDOrdererAddition setSDOrdererAddition(SDOrdererAddition sdOrdererAddition) {
+        SDOrdererAddition ret = this.sdOrdererAddition;
+
+        this.sdOrdererAddition = sdOrdererAddition;
+
+        return ret;
+
+    }
+
+    public interface SDOrdererAdditionInfo {
+
+        Peer getServiceDiscoveryPeer();
+
+        String getEndpoint();
+
+        Channel getChannel();
+
+        HFClient getClient();
+
+        Map<String, Orderer> getEndpointMap();
+    }
+
+    public interface SDOrdererAddition {
+
+        Orderer addOrderer(SDOrdererAdditionInfo sdOrdererAdditionInfo) throws InvalidArgumentException;
+
+    }
+
+    private transient SDOrdererAddition sdOrdererAddition = DEFAULT_ORDERER_ADDITION;
+
+    private static final SDOrdererAddition DEFAULT_ORDERER_ADDITION = sdOrdererAdditionInfo -> {
+
+        Orderer orderer = sdOrdererAdditionInfo.getClient().newOrderer(sdOrdererAdditionInfo.getEndpoint(),
+                sdOrdererAdditionInfo.getServiceDiscoveryPeer().getProtocol() + "://" + sdOrdererAdditionInfo.getEndpoint(),
+                sdOrdererAdditionInfo.getServiceDiscoveryPeer().getProperties());
+        sdOrdererAdditionInfo.getChannel().addOrderer(orderer);
+
+        return orderer;
+
+    };
+
+    /**
+     * Set service discovery peer addition override.
+     *
+     * @param sdPeerAddition
+     * @return
+     */
+
+    public SDPeerAddition setSDPeerAddition(SDPeerAddition sdPeerAddition) {
+        SDPeerAddition ret = sdPeerAddition;
+
+        this.sdPeerAddition = sdPeerAddition;
+
+        return ret;
 
     }
 
@@ -1693,9 +1940,8 @@ public class Channel implements Serializable {
     /**
      * query this channel for a Block by the block hash.
      * The request is retried on each peer on the channel till successful.
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param blockHash the hash of the Block in the chain
      * @return the {@link BlockInfo} with the given block Hash
@@ -1722,9 +1968,8 @@ public class Channel implements Serializable {
 
     /**
      * Query a peer in this channel for a Block by the block hash.
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param peer      the Peer to query.
      * @param blockHash the hash of the Block in the chain.
@@ -1739,9 +1984,8 @@ public class Channel implements Serializable {
     /**
      * Query a peer in this channel for a Block by the block hash.
      * Each peer is tried until successful response.
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param peers     the Peers to query.
      * @param blockHash the hash of the Block in the chain.
@@ -1892,9 +2136,8 @@ public class Channel implements Serializable {
     /**
      * query this channel for a Block by the blockNumber.
      * The request is retried on all peers till successful
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>.
      *
      * @param blockNumber index of the Block in the chain
      * @return the {@link BlockInfo} with the given blockNumber
@@ -1921,9 +2164,8 @@ public class Channel implements Serializable {
 
     /**
      * Query a peer in this channel for a Block by the blockNumber
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param peer        the peer to send the request to
      * @param blockNumber index of the Block in the chain
@@ -1955,9 +2197,8 @@ public class Channel implements Serializable {
 
     /**
      * query a peer in this channel for a Block by the blockNumber
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param peers       the peers to try and send the request to
      * @param blockNumber index of the Block in the chain
@@ -2004,9 +2245,8 @@ public class Channel implements Serializable {
     /**
      * query this channel for a Block by a TransactionID contained in the block
      * The request is tried on on each peer till successful.
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param txID the transactionID to query on
      * @return the {@link BlockInfo} for the Block containing the transaction
@@ -2035,9 +2275,8 @@ public class Channel implements Serializable {
 
     /**
      * query a peer in this channel for a Block by a TransactionID contained in the block
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param peer the peer to send the request to
      * @param txID the transactionID to query on
@@ -2065,9 +2304,8 @@ public class Channel implements Serializable {
 
     /**
      * query a peer in this channel for a Block by a TransactionID contained in the block
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param peers the peers to try to send the request to.
      * @param txID  the transactionID to query on
@@ -2118,10 +2356,9 @@ public class Channel implements Serializable {
     /**
      * query this channel for chain information.
      * The request is sent to a random peer in the channel
-     * <p>
-     * <p>
+     *
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @return a {@link BlockchainInfo} object containing the chain info requested
      * @throws InvalidArgumentException
@@ -2148,10 +2385,9 @@ public class Channel implements Serializable {
 
     /**
      * query for chain information
-     * <p>
-     * <p>
+     *
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param peer The peer to send the request to
      * @return a {@link BlockchainInfo} object containing the chain info requested
@@ -2212,10 +2448,9 @@ public class Channel implements Serializable {
     /**
      * Query this channel for a Fabric Transaction given its transactionID.
      * The request is sent to a random peer in the channel.
-     * <p>
-     * <p>
+     *
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param txID the ID of the transaction
      * @return a {@link TransactionInfo}
@@ -2229,10 +2464,9 @@ public class Channel implements Serializable {
     /**
      * Query this channel for a Fabric Transaction given its transactionID.
      * The request is sent to a random peer in the channel.
-     * <p>
-     * <p>
+     *
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param txID        the ID of the transaction
      * @param userContext the user context used.
@@ -2246,10 +2480,9 @@ public class Channel implements Serializable {
 
     /**
      * Query for a Fabric Transaction given its transactionID
-     * <p>
-     * <p>
+     *
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param txID the ID of the transaction
      * @param peer the peer to send the request to
@@ -2446,9 +2679,8 @@ public class Channel implements Serializable {
 
     /**
      * Query peer for chaincode that has been instantiated
-     * <p>
+     *
      * <STRONG>This method may not be thread safe if client context is changed!</STRONG>
-     * </P>
      *
      * @param peer The peer to query.
      * @return A list of ChaincodeInfo @see {@link ChaincodeInfo}
@@ -2539,6 +2771,61 @@ public class Channel implements Serializable {
     public Collection<ProposalResponse> sendTransactionProposal(TransactionProposalRequest transactionProposalRequest) throws ProposalException, InvalidArgumentException {
 
         return sendProposal(transactionProposalRequest, getEndorsingPeers());
+    }
+
+    /**
+     * Send a transaction  proposal.
+     *
+     * @param transactionProposalRequest The transaction proposal to be sent to all the peers.
+     * @return responses from peers.
+     * @throws InvalidArgumentException
+     * @throws ProposalException
+     */
+    public Collection<ProposalResponse> sendTransactionProposalToEndorsers(TransactionProposalRequest transactionProposalRequest) throws ProposalException, InvalidArgumentException {
+        Collection<Peer> endorsingPeers = getEndorsingPeers();
+        if (endorsingPeers.isEmpty()) {
+            new ProposalException("No peers to do services discovery");
+        }
+        Peer sdPeer = endorsingPeers.iterator().next();
+        ServiceDiscovery.SDChaindcode sdChaindcode = new ServiceDiscovery().discoverEndorserEndpoints(sdPeer, getTransactionContext(), name, transactionProposalRequest.getChaincodeID().getName());
+        String[] ep = endorsementSelection.endorserSelector(sdChaindcode);
+
+        HashMap<String, Peer> stringPeerHashMap = new HashMap<>(peerEndpointMap);
+        ArrayList<Peer> endorsers = new ArrayList<>(ep.length);
+        for (String endpoint : ep) {
+
+            Peer epeer = stringPeerHashMap.get(endpoint);
+            if (epeer == null) {
+                epeer = sdPeerAddition.addPeer(new SDPeerAdditionInfo() {
+                    @Override
+                    public Peer getServiceDiscoveryPeer() {
+                        return sdPeer;
+                    }
+
+                    @Override
+                    public String getEndpoint() {
+                        return endpoint;
+                    }
+
+                    @Override
+                    public Channel getChannel() {
+                        return Channel.this;
+                    }
+
+                    @Override
+                    public HFClient getClient() {
+                        return Channel.this.client;
+                    }
+
+                    @Override
+                    public Map<String, Peer> getEndpointMap() {
+                        return Collections.unmodifiableMap(Channel.this.peerEndpointMap);
+                    }
+                });
+            }
+            endorsers.add(epeer);
+        }
+        return sendProposal(transactionProposalRequest, endorsers);
     }
 
     /**
@@ -2678,6 +2965,15 @@ public class Channel implements Serializable {
         }
     }
 
+    private transient EndorsementSelection endorsementSelection = ServiceDiscovery.DEFAULT_ENDORSEMENT_SELECTION;
+
+    public EndorsementSelection setSDEndorserSelector(EndorsementSelection endorsementSelection) {
+        EndorsementSelection ret = this.endorsementSelection;
+        this.endorsementSelection = endorsementSelection;
+        return ret;
+
+    }
+
     private Collection<ProposalResponse> sendProposalToPeers(Collection<Peer> peers,
                                                              SignedProposal signedProposal,
                                                              TransactionContext transactionContext) throws InvalidArgumentException, ProposalException {
@@ -2790,7 +3086,7 @@ public class Channel implements Serializable {
      */
     public CompletableFuture<TransactionEvent> sendTransaction(Collection<ProposalResponse> proposalResponses, User userContext) {
 
-        return sendTransaction(proposalResponses, orderers, userContext);
+        return sendTransaction(proposalResponses, getOrderers(), userContext);
 
     }
 
@@ -2802,7 +3098,7 @@ public class Channel implements Serializable {
      */
     public CompletableFuture<TransactionEvent> sendTransaction(Collection<ProposalResponse> proposalResponses) {
 
-        return sendTransaction(proposalResponses, orderers);
+        return sendTransaction(proposalResponses, getOrderers());
 
     }
 
@@ -3879,6 +4175,9 @@ public class Channel implements Serializable {
             }
         }
         peers.clear(); // make sure.
+
+        peerEndpointMap.clear();
+        ordererEndpointMap.clear();
 
         //Make sure
         for (Set<Peer> peerRoleSet : peerRoleSetMap.values()) {

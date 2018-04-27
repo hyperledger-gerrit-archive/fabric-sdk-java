@@ -28,6 +28,7 @@ import org.hyperledger.fabric.sdk.exception.TransactionException;
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.helper.Utils.checkGrpcUrl;
+import static org.hyperledger.fabric.sdk.helper.Utils.parseGrpcUrl;
 
 /**
  * The Orderer class represents a orderer to which SDK sends deploy, invoke, or query requests.
@@ -198,6 +199,16 @@ public class Orderer implements Serializable {
             torderClientDeliver.shutdown(force);
         }
 
+    }
+
+    String endPoint;
+
+    String getEndpoint() {
+        if (null == endPoint) {
+            Properties properties = parseGrpcUrl(url);
+            endPoint = properties.get("host") + ":" + properties.getProperty("port").toLowerCase().trim();
+        }
+        return endPoint;
     }
 
     @Override
