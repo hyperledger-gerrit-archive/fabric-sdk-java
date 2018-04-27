@@ -183,17 +183,21 @@ class Endpoint {
 
                 if ((ckb != null) && (ccb != null)) {
                     String what = "private key";
+                    byte[] whatBytes = new byte[0];
                     try {
                         logger.trace("client TLS private key bytes size:" + ckb.length);
+                        whatBytes = ckb;
                         clientKey = cp.bytesToPrivateKey(ckb);
                         logger.trace("converted TLS key.");
                         what = "certificate";
+                        whatBytes = ccb;
                         logger.trace("client TLS certificate bytes:" + Hex.encodeHexString(ccb));
                         clientCert = new X509Certificate[] {(X509Certificate) cp.bytesToCertificate(ccb)};
                         logger.trace("converted client TLS certificate.");
                         tlsClientCertificatePEMBytes = ccb; // Save this away it's the exact pem we used.
                     } catch (CryptoException e) {
-                        throw new RuntimeException("Failed to parse TLS client " + what, e);
+                        logger.error(format("Failed endpoint %s to parse %s TLS client %s", url, what, new String(whatBytes)));
+                        throw new RuntimeException(format("Failed endpoint %s to parse TLS client %s", url, what), e);
                     }
                 }
 
