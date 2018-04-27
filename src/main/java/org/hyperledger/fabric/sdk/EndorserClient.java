@@ -17,6 +17,8 @@ package org.hyperledger.fabric.sdk;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import discovery.DiscoveryGrpc;
+import discovery.Protocol;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -34,8 +36,8 @@ class EndorserClient {
     private static final Log logger = LogFactory.getLog(EndorserClient.class);
 
     private ManagedChannel managedChannel;
-    private EndorserGrpc.EndorserBlockingStub blockingStub;
     private EndorserGrpc.EndorserFutureStub futureStub;
+    DiscoveryGrpc.DiscoveryFutureStub discoveryFutureStub;
     private boolean shutdown = false;
 
     /**
@@ -45,8 +47,8 @@ class EndorserClient {
      */
     EndorserClient(ManagedChannelBuilder<?> channelBuilder) {
         managedChannel = channelBuilder.build();
-        blockingStub = EndorserGrpc.newBlockingStub(managedChannel);
         futureStub = EndorserGrpc.newFutureStub(managedChannel);
+        discoveryFutureStub = DiscoveryGrpc.newFutureStub(managedChannel);
     }
 
     synchronized void shutdown(boolean force) {
@@ -57,7 +59,8 @@ class EndorserClient {
         ManagedChannel lchannel = managedChannel;
         // let all referenced resource finalize
         managedChannel = null;
-        blockingStub = null;
+        discoveryFutureStub = null;
+
         futureStub = null;
 
         if (lchannel == null) {
@@ -86,6 +89,12 @@ class EndorserClient {
         return futureStub.processProposal(proposal);
     }
 
+    public ListenableFuture<Protocol.Response> sendDiscoveryRequestAsync(Protocol.SignedRequest signedRequest) throws PeerException {
+        if (shutdown) {
+            throw new PeerException("Shutdown");
+        }
+        return discoveryFutureStub.discover(signedRequest);
+    }
 
     boolean isChannelActive() {
         ManagedChannel lchannel = managedChannel;
