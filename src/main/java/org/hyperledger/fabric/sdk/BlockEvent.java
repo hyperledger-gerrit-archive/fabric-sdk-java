@@ -95,9 +95,19 @@ public class BlockEvent extends BlockInfo {
     }
 
     TransactionEvent getTransactionEvent(int index) throws InvalidProtocolBufferException {
+        TransactionEvent ret = null;
 
-        return isFiltered() ? new TransactionEvent(getEnvelopeInfo(index).filteredTx) :
-                new TransactionEvent((TransactionEnvelopeInfo) getEnvelopeInfo(index));
+        if (isFiltered()) {
+            ret = new TransactionEvent(getEnvelopeInfo(index).filteredTx);
+        } else {
+
+            EnvelopeInfo envelopeInfo = getEnvelopeInfo(index);
+            if (envelopeInfo.getType() == EnvelopeType.TRANSACTION_ENVELOPE) {
+                ret = new TransactionEvent((TransactionEnvelopeInfo) getEnvelopeInfo(index));
+            }
+
+        }
+        return ret;
     }
 
     public class TransactionEvent extends TransactionEnvelopeInfo {
@@ -147,7 +157,7 @@ public class BlockEvent extends BlockInfo {
 
     List<TransactionEvent> getTransactionEventsList() {
 
-        ArrayList<TransactionEvent> ret = new ArrayList<TransactionEvent>(getEnvelopeCount());
+        ArrayList<TransactionEvent> ret = new ArrayList<TransactionEvent>(getTransactionCount());
         for (TransactionEvent transactionEvent : getTransactionEvents()) {
             ret.add(transactionEvent);
         }
@@ -167,7 +177,7 @@ public class BlockEvent extends BlockInfo {
         int ci = 0;
 
         TransactionEventIterator() {
-            max = getEnvelopeCount();
+            max = getTransactionCount();
 
         }
 
@@ -180,11 +190,21 @@ public class BlockEvent extends BlockInfo {
         @Override
         public TransactionEvent next() {
 
+            TransactionEvent ret = null;
+            // Filter for only transactions but today it's not really needed.
+            //  Blocks with transactions only has transactions or a single pdate.
             try {
-                return getTransactionEvent(ci++);
+                do {
+
+                    ret = getTransactionEvent(ci++);
+
+                } while (ci < max && ret == null);
+
             } catch (InvalidProtocolBufferException e) {
                 throw new InvalidProtocolBufferRuntimeException(e);
             }
+
+            return ret;
 
         }
 
