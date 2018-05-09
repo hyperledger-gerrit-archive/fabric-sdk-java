@@ -295,7 +295,7 @@ public class TestConfig {
 
     }
 
-    private Properties getEndPointProperties(final String type, final String name) {
+    public Properties getEndPointProperties(final String type, final String name) {
 
         final String domainName = getDomainName(name);
 
@@ -306,9 +306,46 @@ public class TestConfig {
                     cert.getAbsolutePath()));
         }
 
+        File clientCert;
+        File clientKey;
+        if ("orderer".equals(type)) {
+            clientCert = Paths.get(getTestChannelPath(), "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.crt").toFile();
+
+            clientKey = Paths.get(getTestChannelPath(), "crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.key").toFile();
+        } else {
+            clientCert = Paths.get(getTestChannelPath(), "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.crt").toFile();
+            clientKey = Paths.get(getTestChannelPath(), "crypto-config/peerOrganizations/", domainName, "users/User1@" + domainName, "tls/client.key").toFile();
+        }
+
+        if (!clientCert.exists()) {
+            throw new RuntimeException(String.format("Missing  client cert file for: %s. Could not find at location: %s", name,
+                    clientCert.getAbsolutePath()));
+        }
+
+        if (!clientKey.exists()) {
+            throw new RuntimeException(String.format("Missing  client key file for: %s. Could not find at location: %s", name,
+                    clientKey.getAbsolutePath()));
+        }
+
+        /*
+        peerProperties.put("clientCertFile", "src/test/fixture/sdkintegration/e2e-2Orgs/v1.1/crypto-config/peerOrganizations/org1.example.com/users/User1@org1.example.com/tls/client.crt");
+
+            peerProperties.put("clientKeyFile", "src/test/fixture/sdkintegration/e2e-2Orgs/v1.1/crypto-config/peerOrganizations/org1.example.com/users/User1@org1.example.com/tls/client.key");
+
+
+
+
+            ordererProperties.put("clientCertFile", "src/test/fixture/sdkintegration/e2e-2Orgs/v1.1/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.crt");
+                ordererProperties.put("clientKeyFile", "src/test/fixture/sdkintegration/e2e-2Orgs/v1.1/crypto-config/ordererOrganizations/example.com/users/Admin@example.com/tls/client.key");
+
+
+
+         */
+
         Properties ret = new Properties();
         ret.setProperty("pemFile", cert.getAbsolutePath());
-        //      ret.setProperty("trustServerCertificate", "true"); //testing environment only NOT FOR PRODUCTION!
+        ret.setProperty("clientCertFile", clientCert.getAbsolutePath());
+        ret.setProperty("clientKeyFile", clientKey.getAbsolutePath());
         ret.setProperty("hostnameOverride", name);
         ret.setProperty("sslProvider", "openSSL");
         ret.setProperty("negotiationType", "TLS");
