@@ -1,4 +1,4 @@
-# Java SDK for Hyperledger Fabric 1.1
+# Java SDK for Hyperledger Fabric 1.2
 Welcome to Java SDK for Hyperledger project. The SDK helps facilitate Java applications to manage the lifecycle of
  Hyperledger channels  and user chaincode. The SDK also provides a means to execute
   user chaincode, query blocks
@@ -39,6 +39,33 @@ Please review the [v1.1 release notes](./docs/release_v1.1.0_notes.md) to famili
 
 `*************************************************`
 
+## 1.2.0-SNAPSHOT builds
+Work in progress 1.1.0 SNAPSHOT builds can be used by adding the following to your application's
+pom.xml
+```
+<repositories>
+        <repository>
+            <id>snapshots-repo</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+<dependencies>
+
+        <!-- https://mvnrepository.com/artifact/org.hyperledger.fabric-sdk-java/fabric-sdk-java -->
+        <dependency>
+            <groupId>org.hyperledger.fabric-sdk-java</groupId>
+            <artifactId>fabric-sdk-java</artifactId>
+            <version>1.2.0-SNAPSHOT</version>
+        </dependency>
+
+</dependencies>
 ```
 
 ## Latest builds of Fabric and Fabric-ca v1.1.0
