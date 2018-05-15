@@ -807,7 +807,6 @@ public class End2endIT {
             ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[] {8L, TimeUnit.SECONDS});
             ordererProperties.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls", new Object[] {true});
 
-
             orderers.add(client.newOrderer(orderName, sampleOrg.getOrdererLocation(orderName),
                     ordererProperties));
         }
@@ -832,7 +831,6 @@ public class End2endIT {
             if (peerProperties == null) {
                 peerProperties = new Properties();
             }
-
 
             //Example of setting specific options on grpc's NettyChannelBuilder
             peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
@@ -864,7 +862,6 @@ public class End2endIT {
 
             eventHubProperties.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[] {5L, TimeUnit.MINUTES});
             eventHubProperties.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[] {8L, TimeUnit.SECONDS});
-
 
             EventHub eventHub = client.newEventHub(eventHubName, sampleOrg.getEventHubLocation(eventHubName),
                     eventHubProperties);
@@ -957,6 +954,12 @@ public class End2endIT {
                             out("   Transaction action %d proposal response payload: %s", j,
                                     printableString(new String(transactionActionInfo.getProposalResponsePayload())));
 
+                            String chaincodeIDName = transactionActionInfo.getChaincodeIDName();
+                            String chaincodeIDVersion = transactionActionInfo.getChaincodeIDVersion();
+                            String chaincodeIDPath = transactionActionInfo.getChaincodeIDPath();
+                            out("   Transaction action %d proposal chaincodeIDName: %s, chaincodeIDVersion: %s,  chaincodeIDPath: %s ", j,
+                                    chaincodeIDName, chaincodeIDVersion, chaincodeIDPath);
+
                             // Check to see if we have our expected event.
                             if (blockNumber == 2) {
                                 ChaincodeEvent chaincodeEvent = transactionActionInfo.getEvent();
@@ -966,6 +969,9 @@ public class End2endIT {
                                 assertEquals(testTxID, chaincodeEvent.getTxId());
                                 assertEquals(CHAIN_CODE_NAME, chaincodeEvent.getChaincodeId());
                                 assertEquals(EXPECTED_EVENT_NAME, chaincodeEvent.getEventName());
+                                assertEquals(CHAIN_CODE_NAME, chaincodeIDName);
+                                assertEquals("github.com/example_cc", chaincodeIDPath);
+                                assertEquals("1", chaincodeIDVersion);
 
                             }
 
