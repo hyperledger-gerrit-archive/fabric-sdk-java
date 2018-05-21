@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -127,6 +128,8 @@ public class UpdateChannelIT {
             // Getting foo channels current configuration bytes.
             final byte[] channelConfigurationBytes = fooChannel.getChannelConfigurationBytes();
 
+            FileUtils.writeByteArrayToFile(Paths.get("/tmp/originalBytes.bin").toFile(), channelConfigurationBytes);
+
             HttpClient httpclient = HttpClients.createDefault();
             HttpPost httppost = new HttpPost(CONFIGTXLATOR_LOCATION + "/protolator/decode/common.Config");
             httppost.setEntity(new ByteArrayEntity(channelConfigurationBytes));
@@ -138,6 +141,8 @@ public class UpdateChannelIT {
 
             String responseAsString = EntityUtils.toString(response.getEntity());
 
+            out("orginal json %s", responseAsString);
+
             //responseAsString is JSON but use just string operations for this test.
 
             if (!responseAsString.contains(ORIGINAL_BATCH_TIMEOUT)) {
@@ -148,6 +153,8 @@ public class UpdateChannelIT {
             //Now modify the batch timeout
             String updateString = responseAsString.replace(ORIGINAL_BATCH_TIMEOUT, UPDATED_BATCH_TIMEOUT);
 
+            out("updated json %s", updateString);
+
             httppost = new HttpPost(CONFIGTXLATOR_LOCATION + "/protolator/encode/common.Config");
             httppost.setEntity(new StringEntity(updateString));
 
@@ -156,6 +163,8 @@ public class UpdateChannelIT {
             out("Got %s status for encoding the new desired channel config bytes", statuscode);
             assertEquals(200, statuscode);
             byte[] newConfigBytes = EntityUtils.toByteArray(response.getEntity());
+
+            FileUtils.writeByteArrayToFile(Paths.get("/tmp/newConfigBytes.bin").toFile(), newConfigBytes);
 
             // Now send to configtxlator multipart form post with original config bytes, updated config bytes and channel name.
             httppost = new HttpPost(CONFIGTXLATOR_LOCATION + "/configtxlator/compute/update-from-configs");
@@ -174,6 +183,8 @@ public class UpdateChannelIT {
             assertEquals(200, statuscode);
 
             byte[] updateBytes = EntityUtils.toByteArray(response.getEntity());
+
+            FileUtils.writeByteArrayToFile(Paths.get("/tmp/updateBytes.bin").toFile(), updateBytes);
 
             UpdateChannelConfiguration updateChannelConfiguration = new UpdateChannelConfiguration(updateBytes);
 
