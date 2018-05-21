@@ -111,14 +111,6 @@ public class End2endAndBackAgainIT {
             .setVersion(CHAIN_CODE_VERSION_11)
             .setPath(CHAIN_CODE_PATH).build();
 
-//    @After
-//    public void clearConfig() {
-//        try {
-// //           configHelper.clearConfig();
-//        } catch (Exception e) {
-//        }
-//    }
-
     private static boolean checkInstalledChaincode(HFClient client, Peer peer, String ccName, String ccPath, String ccVersion) throws InvalidArgumentException, ProposalException {
 
         out("Checking installed chaincode: %s, at version: %s, on peer: %s", ccName, ccVersion, peer.getName());
