@@ -147,3 +147,4 @@ public class IdemixPseudonymSignature {
         return builder.build();
     }
 }
+

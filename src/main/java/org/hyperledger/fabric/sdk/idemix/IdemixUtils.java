@@ -266,3 +266,4 @@ public final class IdemixUtils {
         return modAdd(a, BIG.modneg(b, m), m);
     }
 }
+
