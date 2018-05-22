@@ -18,6 +18,7 @@ import java.util.Set;
 
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Utils;
+import org.hyperledger.fabric.sdk.identity.IdemixEnrollment;
 
 import static java.lang.String.format;
 
@@ -83,15 +84,13 @@ public interface User {
         if (enrollment == null) {
             throw new InvalidArgumentException(format("UserContext for user %s has no enrollment set.", userName));
         }
-
         if (Utils.isNullOrEmpty(userContext.getMspId())) {
             throw new InvalidArgumentException(format("UserContext for user %s  has user's MSPID missing.", userName));
         }
-
         if (Utils.isNullOrEmpty(enrollment.getCert())) {
             throw new InvalidArgumentException(format("UserContext for user %s enrollment missing user certificate.", userName));
         }
-        if (null == enrollment.getKey()) {
+        if (enrollment.getKey() == null) {
             throw new InvalidArgumentException(format("UserContext for user %s has Enrollment missing signing key", userName));
         }
 
