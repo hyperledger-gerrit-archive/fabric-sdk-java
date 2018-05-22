@@ -1668,13 +1668,19 @@ public class Channel implements Serializable {
         }
     }
 
-    private SignedProposal getSignedProposal(TransactionContext transactionContext, FabricProposal.Proposal proposal) throws CryptoException {
+    private SignedProposal getSignedProposal(TransactionContext transactionContext, FabricProposal.Proposal proposal) throws CryptoException, InvalidArgumentException {
 
-        return SignedProposal.newBuilder()
+        SignedProposal sp;
+        sp = SignedProposal.newBuilder()
                 .setProposalBytes(proposal.toByteString())
                 .setSignature(transactionContext.signByteString(proposal.toByteArray()))
                 .build();
 
+        if (sp.getSignature().isEmpty()) {
+            throw new IllegalStateException("sp.getSignature().isEmpty()");
+        }
+
+        return sp;
     }
 
     private void checkChannelState() throws InvalidArgumentException {
@@ -3400,11 +3406,11 @@ public class Channel implements Serializable {
 
     }
 
-    private Envelope createTransactionEnvelope(Payload transactionPayload, User user) throws CryptoException {
+    private Envelope createTransactionEnvelope(Payload transactionPayload, User user) throws CryptoException, InvalidArgumentException {
 
         return Envelope.newBuilder()
                 .setPayload(transactionPayload.toByteString())
-                .setSignature(ByteString.copyFrom(client.getCryptoSuite().sign(user.getEnrollment().getKey(), transactionPayload.toByteArray())))
+                .setSignature(ByteString.copyFrom(user.getSigningIdentity().sign(transactionPayload.toByteArray())))
                 .build();
 
     }
