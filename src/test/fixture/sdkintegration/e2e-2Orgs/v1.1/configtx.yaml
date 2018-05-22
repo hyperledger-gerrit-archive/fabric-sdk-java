@@ -76,7 +76,7 @@ Organizations:
         id: idemixMSP
 
         msptype: idemix
-        mspdir: crypto-config/peerorganizations/org3.example.com/msp
+        mspdir: crypto-config/peerorganizations/org3.example.com
 
         anchorpeers:
             # anchorpeers defines the location of peers which can be used
@@ -241,6 +241,7 @@ Profiles:
                 Organizations:
                     - *Org1
                     - *Org2
+                    - *Org3
 
     TwoOrgsChannel:
         Consortium: SampleConsortium
@@ -249,6 +250,7 @@ Profiles:
             Organizations:
                 - *Org1
                 - *Org2
+                - *Org3
 
 ################################################################################
 #
@@ -282,6 +284,43 @@ Profiles:
             Organizations:
                 - *Org1
                 - *Org2
+            Capabilities:
+                <<: *ApplicationCapabilities
+
+################################################################################
+#
+#   Profile for v1.2 capabilities
+#
+#   - Different configuration profiles may be encoded here to be specified
+#   as parameters to the configtxgen tool
+#
+################################################################################
+
+
+    TwoOrgsOrdererGenesis_v12:
+        Capabilities:
+            <<: *ChannelCapabilities
+        Orderer:
+            <<: *OrdererDefaults
+            Organizations:
+                - *OrdererOrg
+            Capabilities:
+                <<: *OrdererCapabilities
+        Consortiums:
+            SampleConsortium:
+                Organizations:
+                    - *Org1
+                    - *Org2
+                    - *Org3
+
+    TwoOrgsChannel_v12:
+        Consortium: SampleConsortium
+        Application:
+            <<: *ApplicationDefaults
+            Organizations:
+                - *Org1
+                - *Org2
+                - *Org3
             Capabilities:
                 <<: *ApplicationCapabilities
 

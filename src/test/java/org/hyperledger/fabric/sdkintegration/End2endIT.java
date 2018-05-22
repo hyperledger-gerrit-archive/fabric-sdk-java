@@ -46,6 +46,7 @@ import org.hyperledger.fabric.sdk.ChannelConfiguration;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
+import org.hyperledger.fabric.sdk.user.IdemixUser;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.InstantiateProposalRequest;
 import org.hyperledger.fabric.sdk.Orderer;
@@ -211,25 +212,25 @@ public class End2endIT {
 
         assertNull(client.getChannel(FOO_CHANNEL_NAME));
         out("\n");
-
-        sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
-        Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
-        assertTrue(barChannel.isInitialized());
-        /**
-         * sampleStore.saveChannel uses {@link Channel#serializeChannel()}
-         */
-        sampleStore.saveChannel(barChannel);
-        assertFalse(barChannel.isShutdown());
-        runChannel(client, barChannel, true, sampleOrg, 100); //run a newly constructed bar channel with different b value!
-        //let bar channel just shutdown so we have both scenarios.
-
-        out("\nTraverse the blocks for chain %s ", barChannel.getName());
-
-        blockWalker(client, barChannel);
-
-        assertFalse(barChannel.isShutdown());
-        assertTrue(barChannel.isInitialized());
-        out("That's all folks!");
+//
+//        sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
+//        Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
+//        assertTrue(barChannel.isInitialized());
+//        /**
+//         * sampleStore.saveChannel uses {@link Channel#serializeChannel()}
+//         */
+//        sampleStore.saveChannel(barChannel);
+//        assertFalse(barChannel.isShutdown());
+//        runChannel(client, barChannel, true, sampleOrg, 100); //run a newly constructed bar channel with different b value!
+//        //let bar channel just shutdown so we have both scenarios.
+//
+//        out("\nTraverse the blocks for chain %s ", barChannel.getName());
+//
+//        blockWalker(client, barChannel);
+//
+//        assertFalse(barChannel.isShutdown());
+//        assertTrue(barChannel.isInitialized());
+//        out("That's all folks!");
 
     }
 
@@ -300,7 +301,10 @@ public class End2endIT {
                 user.setEnrollment(ca.enroll(user.getName(), user.getEnrollmentSecret()));
                 user.setMspId(mspid);
             }
-            sampleOrg.addUser(user); //Remember user belongs to this Org
+
+            IdemixUser idemixUser = ca.getIdemixUser(user.getEnrollment(), user.getName(), "idemixMSP");
+            System.out.println("SK_ >>>>>>>> idemixUser.getName(): " + idemixUser.getName());
+            sampleOrg.addIdemixUser(idemixUser); //Remember user belongs to this Org
 
             final String sampleOrgName = sampleOrg.getName();
             final String sampleOrgDomainName = sampleOrg.getDomainName();
@@ -547,7 +551,8 @@ public class End2endIT {
                     successful.clear();
                     failed.clear();
 
-                    client.setUserContext(sampleOrg.getUser(TESTUSER_1_NAME));
+                    System.out.println(">>>> MADE IT HERE >>>>>>>>>> ");
+                    client.setUserContext(sampleOrg.getIdemixUser());
 
                     ///////////////
                     /// Send transaction proposal to all peers

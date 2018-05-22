@@ -18,11 +18,13 @@ package org.hyperledger.fabric.sdk.identity;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import java.nio.ByteBuffer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.milagro.amcl.FP256BN.BIG;
 import org.hyperledger.fabric.protos.idemix.Idemix;
 import org.hyperledger.fabric.protos.msp.Identities.SerializedIdentity;
+import org.hyperledger.fabric.protos.common.MspPrincipal;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.idemix.IdemixCredential;
@@ -133,9 +135,15 @@ public class IdemixSigningIdentity implements SigningIdentity {
         if (cred.getAttrs().length != 4) {
             throw new CryptoException("The number of attributes is wrong");
         }
-
         byte[] ouBytes = cred.getAttrs()[0];
+        byte[] ouProtoBytes = MspPrincipal.OrganizationUnit.newBuilder()
+                .setMspIdentifier(mspId)
+                .setOrganizationalUnitIdentifier(new String(ouBytes))
+                .build().toByteArray();
         byte[] roleBytes = cred.getAttrs()[1];
+        byte[] roleProtoBytes = MspPrincipal.MSPRole.newBuilder()
+                .setRoleValue(ByteBuffer.wrap(roleBytes).getInt())
+                .build().toByteArray();
         byte[] eIdBytes = cred.getAttrs()[2];
         byte[] rHBytes = cred.getAttrs()[3];
 
@@ -174,7 +182,7 @@ public class IdemixSigningIdentity implements SigningIdentity {
 
         logger.debug("Generating the Identity Object");
         // generate a fresh identity with new pseudonym
-        this.idemixIdentity = new IdemixIdentity(mspId, this.pseudonym.getNym(), ouBytes, roleBytes,
+        this.idemixIdentity = new IdemixIdentity(mspId, this.pseudonym.getNym(), ouProtoBytes, roleProtoBytes,
                 this.proof);
     }
 
