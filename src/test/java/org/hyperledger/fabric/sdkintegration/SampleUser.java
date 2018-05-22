@@ -23,12 +23,13 @@ import java.io.Serializable;
 import java.util.Set;
 
 import io.netty.util.internal.StringUtil;
+
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
-import org.hyperledger.fabric.sdk.identity.SigningIdentity;
-import org.hyperledger.fabric.sdk.identity.X509SigningIdentity;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.HFCAClient;
+
 
 public class SampleUser implements User, Serializable {
     private static final long serialVersionUID = 8077132186383604355L;
@@ -40,7 +41,10 @@ public class SampleUser implements User, Serializable {
     private String organization;
     private String enrollmentSecret;
     Enrollment enrollment = null; //need access in test env.
+    Enrollment x509 = null;
+    Enrollment idemix = null;
 
+private String origMSPID;
     private transient SampleStore keyValStore;
     private String keyValStoreName;
 
@@ -60,6 +64,47 @@ public class SampleUser implements User, Serializable {
             restoreState();
         }
 
+    }
+
+    public void perhapsSwitchToIdemix(HFCAClient ca) {
+        if (this.keyValStore.isIdemixEnabled()) {
+            try {
+                this.idemix = ca.idemixEnroll(this.enrollment, "idemixMSP");
+                this.origMSPID = this.mspId;
+                this.mspId = "idemixMSP";
+            } catch (Exception exc) {
+                throw new RuntimeException("Failed in perhapsSwitchToIdemix", exc);
+            }
+        }
+    }
+
+    public void switchToX509() {
+        if (this.x509 != null) {
+            this.idemix = this.enrollment;
+            this.enrollment = this.x509;
+        }
+        switchToOrigMSP();
+    }
+
+    public void switchToIdemix() {
+        if (this.keyValStore.isIdemixEnabled()) {
+            if (this.idemix != null) {
+                this.x509 = this.enrollment;
+                this.enrollment = this.idemix;
+            }
+            switchToIdemixMSP();
+        }
+    }
+
+    public void switchToOrigMSP() {
+        if (this.keyValStore.isIdemixEnabled() && this.origMSPID != null) {
+            this.mspId = this.origMSPID;
+        }
+    }
+
+    public void switchToIdemixMSP() {
+        this.origMSPID = this.mspId;
+        this.mspId = "idemixMSP";
     }
 
     static boolean isStored(String name, String org, SampleStore fs) {
@@ -116,6 +161,11 @@ public class SampleUser implements User, Serializable {
 
     @Override
     public Enrollment getEnrollment() {
+        if (this.keyValStore.isIdemixEnabled()) {
+            if (this.idemix != null) {
+                this.enrollment = this.idemix;
+            }
+        }
         return this.enrollment;
     }
 
