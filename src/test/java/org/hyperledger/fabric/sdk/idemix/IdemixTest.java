@@ -17,9 +17,12 @@
 package org.hyperledger.fabric.sdk.idemix;
 
 import org.apache.milagro.amcl.FP256BN.BIG;
+import org.apache.milagro.amcl.FP256BN.ECP;
+import org.apache.milagro.amcl.RAND;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.junit.Test;
 
+import static org.hyperledger.fabric.sdk.idemix.IdemixUtils.getRand;
 import static org.junit.Assert.assertTrue;
 
 public class IdemixTest {

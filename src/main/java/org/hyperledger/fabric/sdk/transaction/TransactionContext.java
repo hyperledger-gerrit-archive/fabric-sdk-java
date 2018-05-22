@@ -22,6 +22,7 @@ import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.Utils;
+import org.hyperledger.fabric.sdk.identity.SigningIdentity;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
 /**
@@ -43,6 +44,7 @@ public class TransactionContext {
     private boolean verify = true;
     //private List<String> attrs;
     private long proposalWaitTime = config.getProposalWaitTime();
+    private SigningIdentity signingIdentity;
 
     public TransactionContext(Channel channel, User user, CryptoSuite cryptoPrimitives) {
 
@@ -54,7 +56,11 @@ public class TransactionContext {
         //  this.txID = transactionID;
         this.cryptoPrimitives = cryptoPrimitives;
 
-        identity = ProtoUtils.createSerializedIdentity(getUser());
+        // Get the signing identity from the user
+        this.signingIdentity = user.getSigningIdentity();
+
+        // Serialize signingIdentity
+        identity = signingIdentity.createSerializedIdentity();
 
         ByteString no = getNonce();
 
@@ -166,7 +172,7 @@ public class TransactionContext {
     }
 
     byte[] sign(byte[] b) throws CryptoException {
-        return cryptoPrimitives.sign(getUser().getEnrollment().getKey(), b);
+        return signingIdentity.sign(b);
     }
 
     public ByteString signByteString(byte[] b) throws CryptoException {
@@ -214,7 +220,7 @@ public class TransactionContext {
 
         int i = -1;
         for (User user : users) {
-            ret[++i] = ByteString.copyFrom(cryptoPrimitives.sign(user.getEnrollment().getKey(), signbytes));
+            ret[++i] = ByteString.copyFrom(user.getSigningIdentity().sign(signbytes));
         }
         return ret;
     }
@@ -225,4 +231,7 @@ public class TransactionContext {
 
     }
 
+    public Identities.SerializedIdentity getSerializedIdentity() {
+        return identity;
+    }
 }  // end TransactionContext
