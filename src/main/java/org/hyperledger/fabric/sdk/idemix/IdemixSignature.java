@@ -400,3 +400,4 @@ public class IdemixSignature {
         return hiddenIndices;
     }
 }
+

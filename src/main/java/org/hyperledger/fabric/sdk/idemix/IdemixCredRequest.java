@@ -147,3 +147,4 @@ public class IdemixCredRequest {
         return Arrays.equals(IdemixUtils.bigToBytes(proofC), hproofdata);
     }
 }
+
