@@ -147,3 +147,4 @@ public class IdemixNymSignature {
         return builder.build();
     }
 }
+
