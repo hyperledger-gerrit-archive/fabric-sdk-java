@@ -8,6 +8,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.hyperledger.fabric.sdk.User;
+import org.hyperledger.fabric.sdk.user.IdemixUser;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 
 /*
@@ -45,6 +46,7 @@ public class SampleOrg {
 
     private SampleUser peerAdmin;
 
+    private IdemixUser idemixUser;
 
     private String domainName;
 
@@ -154,7 +156,6 @@ public class SampleOrg {
     public Collection<String> getEventHubLocations() {
         return Collections.unmodifiableCollection(eventHubLocations.values());
     }
-
 
     public void setCAProperties(Properties caProperties) {
         this.caProperties = caProperties;
