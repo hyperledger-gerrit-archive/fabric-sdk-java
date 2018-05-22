@@ -340,3 +340,4 @@ public class IdemixSignature {
         return builder.build();
     }
 }
+

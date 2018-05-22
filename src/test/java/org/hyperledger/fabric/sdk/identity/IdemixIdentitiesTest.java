@@ -495,3 +495,4 @@ public class IdemixIdentitiesTest {
         return ipk;
     }
 }
+
