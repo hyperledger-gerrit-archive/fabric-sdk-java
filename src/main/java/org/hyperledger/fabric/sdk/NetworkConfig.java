@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.lang.reflect.InvocationTargetException;
 import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,8 +53,12 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.hyperledger.fabric.sdk.Channel.PeerOptions;
 import org.hyperledger.fabric.sdk.Peer.PeerRole;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.NetworkConfigurationException;
+import org.hyperledger.fabric.sdk.identity.SigningIdentity;
+import org.hyperledger.fabric.sdk.identity.X509SigningIdentity;
+import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.yaml.snakeyaml.Yaml;
 
 import static java.lang.String.format;
@@ -845,18 +850,26 @@ public class NetworkConfig {
 
             final PrivateKey privateKeyFinal = privateKey;
 
-            org.peerAdmin = new UserInfo(mspId, "PeerAdmin_" + mspId + "_" + orgName, null);
-            org.peerAdmin.setEnrollment(new Enrollment() {
-                @Override
-                public PrivateKey getKey() {
-                    return privateKeyFinal;
-                }
+            try {
+                org.peerAdmin = new UserInfo(CryptoSuite.Factory.getCryptoSuite(), mspId, "PeerAdmin_" + mspId + "_" + orgName, null);
+            } catch (Exception e) {
+                throw new NetworkConfigurationException(e.getMessage(), e);
+            }
+            try {
+                org.peerAdmin.setEnrollment(new Enrollment() {
+                    @Override
+                    public PrivateKey getKey() {
+                        return privateKeyFinal;
+                    }
 
-                @Override
-                public String getCert() {
-                    return signedCert;
-                }
-            });
+                    @Override
+                    public String getCert() {
+                        return signedCert;
+                    }
+                });
+            } catch (InvalidArgumentException e) {
+                throw new NetworkConfigurationException(e.getMessage(), e);
+            }
 
         }
 
@@ -926,7 +939,11 @@ public class NetworkConfig {
             for (JsonObject reg : registrars) {
                 enrollId = getJsonValueAsString(reg.get("enrollId"));
                 enrollSecret = getJsonValueAsString(reg.get("enrollSecret"));
-                regUsers.add(new UserInfo(org.mspId, enrollId, enrollSecret));
+                try {
+                    regUsers.add(new UserInfo(CryptoSuite.Factory.getCryptoSuite(), org.mspId, enrollId, enrollSecret));
+                } catch (Exception e) {
+                    throw new NetworkConfigurationException(e.getMessage(), e);
+                }
             }
         }
 
@@ -1126,6 +1143,8 @@ public class NetworkConfig {
         private String account;
         private String affiliation;
         private Enrollment enrollment;
+        private CryptoSuite suite;
+        private SigningIdentity identity;
 
         public void setEnrollSecret(String enrollSecret) {
             this.enrollSecret = enrollSecret;
@@ -1151,14 +1170,16 @@ public class NetworkConfig {
             this.affiliation = affiliation;
         }
 
-        public void setEnrollment(Enrollment enrollment) {
+        public void setEnrollment(Enrollment enrollment) throws InvalidArgumentException {
             this.enrollment = enrollment;
+            this.identity = new X509SigningIdentity(this.suite, this);
         }
 
-        UserInfo(String mspid, String name, String enrollSecret) {
+        UserInfo(CryptoSuite suite, String mspid, String name, String enrollSecret) {
             this.name = name;
             this.enrollSecret = enrollSecret;
             this.mspid = mspid;
+            this.suite = suite;
         }
 
         public String getEnrollSecret() {
@@ -1194,6 +1215,13 @@ public class NetworkConfig {
             return mspid;
         }
 
+        @Override
+        public SigningIdentity getSigningIdentity() {
+            if (identity == null) {
+                throw new IllegalStateException("Enrollment not set.");
+            }
+            return identity;
+        }
     }
 
     /**
