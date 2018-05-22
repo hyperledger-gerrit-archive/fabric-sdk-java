@@ -28,6 +28,7 @@ import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
 import org.hyperledger.fabric.sdk.identity.SigningIdentity;
 import org.hyperledger.fabric.sdk.identity.X509SigningIdentity;
+import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
 public class SampleUser implements User, Serializable {
@@ -60,6 +61,17 @@ public class SampleUser implements User, Serializable {
             restoreState();
         }
 
+    }
+
+    public void perhapsSwitchToIdemix(HFCAClient ca) {
+        if (this.keyValStore.isIdemixEnabled()) {
+            try {
+                this.enrollment = ca.idemixEnroll(this.enrollment, "idemixMSP");
+                this.mspId = "idemixMSP";
+            } catch (Exception exc) {
+                throw new RuntimeException("Failed in perhapsSwitchToIdemix", exc);
+            }
+        }
     }
 
     static boolean isStored(String name, String org, SampleStore fs) {

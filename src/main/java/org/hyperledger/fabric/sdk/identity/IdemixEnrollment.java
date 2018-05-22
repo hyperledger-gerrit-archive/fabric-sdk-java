@@ -10,7 +10,9 @@ import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.idemix.IdemixCredential;
 import org.hyperledger.fabric.sdk.idemix.IdemixIssuerPublicKey;
 
-public class IdemixEnrollment implements Enrollment {
+import javax.security.auth.DestroyFailedException;
+
+public class IdemixEnrollment implements Enrollment, PrivateKey {
 
 
     protected IdemixIssuerPublicKey ipk;
@@ -21,9 +23,9 @@ public class IdemixEnrollment implements Enrollment {
     protected CredentialRevocationInformation cri;
     protected String ou;
     protected boolean role;
-
     private KeyPair key;
     private String cert;
+    private boolean destroyed = false;
 
     public IdemixEnrollment(IdemixIssuerPublicKey ipk, PublicKey revocationPk, String mspId, BIG sk, IdemixCredential cred, CredentialRevocationInformation cri, String ou, boolean role) {
         this.ipk = ipk;
@@ -37,11 +39,36 @@ public class IdemixEnrollment implements Enrollment {
     }
 
     public PrivateKey getKey() {
-        return null;
+        return this;
     }
 
     public String getCert() {
-        return null;
+        return "idemix";
     }
 
+    @Override
+    public String getAlgorithm() {
+        return "idemix";
+    }
+
+    @Override
+    public String getFormat() {
+        return "idemix";
+    }
+
+    @Override
+    public byte[] getEncoded() {
+        return new byte[0];
+    }
+
+    @Override
+    public void destroy() throws DestroyFailedException {
+        if (destroyed) throw new DestroyFailedException("IdemixEnrollment was already destroyed");
+        destroyed = true;
+    }
+
+    @Override
+    public boolean isDestroyed() {
+        return destroyed;
+    }
 }
