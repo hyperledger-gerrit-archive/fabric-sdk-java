@@ -707,6 +707,13 @@ public class CryptoPrimitives implements CryptoSuite {
      * @throws CryptoException
      */
     private byte[] ecdsaSignToBytes(ECPrivateKey privateKey, byte[] data) throws CryptoException {
+        if (data == null) {
+            throw new CryptoException("data is null");
+        }
+        if (data.length == 0) {
+            throw new CryptoException("data.length == 0");
+        }
+
         try {
             X9ECParameters params = ECNamedCurveTable.getByName(curveName);
             BigInteger curveN = params.getN();

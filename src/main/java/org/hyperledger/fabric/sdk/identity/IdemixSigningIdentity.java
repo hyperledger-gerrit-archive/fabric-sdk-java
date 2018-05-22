@@ -91,7 +91,7 @@ public class IdemixSigningIdentity implements SigningIdentity {
             throws CryptoException, InvalidArgumentException {
 
         // input checks
-        if ((ipk == null) || (revocationPk == null) || (mspId == null)  || (ou == null) || (mspId.isEmpty()) || (ou.isEmpty()) || (sk == null) || (cred == null) || (cri == null)
+        if ((ipk == null) || (revocationPk == null) || (mspId == null) || (ou == null) || (mspId.isEmpty()) || (ou.isEmpty()) || (sk == null) || (cred == null) || (cri == null)
                 || (pseudonym == null && proof != null)) {
             throw new InvalidArgumentException("Input must not be null");
         }
