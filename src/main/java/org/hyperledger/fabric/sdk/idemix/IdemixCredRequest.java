@@ -16,7 +16,14 @@
 
 package org.hyperledger.fabric.sdk.idemix;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.Base64;
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
+import javax.json.JsonWriter;
 
 import com.google.protobuf.ByteString;
 import org.apache.milagro.amcl.FP256BN.BIG;
@@ -28,12 +35,11 @@ import org.hyperledger.fabric.protos.idemix.Idemix;
  * in which the user requests a credential from the issuer.
  */
 public class IdemixCredRequest {
+    private static final String CREDREQUEST_LABEL = "credRequest";
     private final ECP nym;
     private final BIG issuerNonce;
     private final BIG proofC;
     private final BIG proofS;
-
-    private static final String CREDREQUEST_LABEL = "credRequest";
 
 
     /**
@@ -109,6 +115,37 @@ public class IdemixCredRequest {
                 .build();
     }
 
+    // Convert the enrollment request to a JSON string
+    public String toJson() {
+        StringWriter stringWriter = new StringWriter();
+        JsonWriter jsonWriter = Json.createWriter(new PrintWriter(stringWriter));
+        jsonWriter.writeObject(toJsonObject());
+        jsonWriter.close();
+        return stringWriter.toString();
+    }
+
+    // Convert the enrollment request to a JSON object
+    public JsonObject toJsonObject() {
+        JsonObjectBuilder factory = Json.createObjectBuilder();
+        JsonObjectBuilder factory2 = Json.createObjectBuilder();
+        if (nym != null) {
+            factory2.add("X", Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(nym.getX())));
+            factory2.add("Y", Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(nym.getY())));
+        }
+        factory.add("Nym", factory2.build());
+        if (issuerNonce != null) {
+            String b64encoded = Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(issuerNonce));
+            factory.add("IssuerNonce", b64encoded);
+        }
+        if (proofC != null) {
+            factory.add("ProofC", Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(proofC)));
+        }
+        if (proofS != null) {
+            factory.add("ProofS1", Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(proofS)));
+        }
+
+        return factory.build();
+    }
 
     /**
      * Cryptographically verify the IdemixCredRequest

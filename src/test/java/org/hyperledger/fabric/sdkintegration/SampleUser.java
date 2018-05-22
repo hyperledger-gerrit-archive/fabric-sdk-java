@@ -26,9 +26,9 @@ import io.netty.util.internal.StringUtil;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
-import org.hyperledger.fabric.sdk.identity.SigningIdentity;
-import org.hyperledger.fabric.sdk.identity.X509SigningIdentity;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.HFCAClient;
+
 
 public class SampleUser implements User, Serializable {
     private static final long serialVersionUID = 8077132186383604355L;
@@ -60,6 +60,17 @@ public class SampleUser implements User, Serializable {
             restoreState();
         }
 
+    }
+
+    public void perhapsSwitchToIdemix(HFCAClient ca) {
+        if (this.keyValStore.isIdemixEnabled()) {
+            try {
+                this.enrollment = ca.idemixEnroll(this.enrollment, "idemixMSP");
+                this.mspId = "idemixMSP";
+            } catch (Exception exc) {
+                throw new RuntimeException("Failed in perhapsSwitchToIdemix", exc);
+            }
+        }
     }
 
     static boolean isStored(String name, String org, SampleStore fs) {

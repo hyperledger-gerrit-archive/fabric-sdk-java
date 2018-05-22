@@ -16,6 +16,7 @@
 
 package org.hyperledger.fabric.sdk.identity;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.util.Arrays;
@@ -24,6 +25,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.milagro.amcl.FP256BN.BIG;
+import org.hyperledger.fabric.protos.common.MspPrincipal;
 import org.hyperledger.fabric.protos.idemix.Idemix;
 import org.hyperledger.fabric.protos.msp.Identities.SerializedIdentity;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
@@ -46,37 +48,28 @@ import org.hyperledger.fabric.sdk.idemix.IdemixUtils;
  */
 public class IdemixSigningIdentity implements SigningIdentity {
 
-    // public part of the signing identity (passed with the signature)
-    private IdemixIdentity idemixIdentity;
-
-    // public key of the Idemix CA (issuer)
-    private IdemixIssuerPublicKey ipk;
-
-    // user's secret
-    private BIG sk;
-
-    // idemix pseudonym (represents Idemix identity)
-    private IdemixPseudonym pseudonym;
-
-    // credental revocation information
-    private Idemix.CredentialRevocationInformation cri;
-
-    // proof that the identity is valid (proof of possession of a credential
-    // with respect to a pseudonym.
-    private IdemixSignature proof;
-
     // discloseFlags will be passed to the idemix signing and verification
     // routines.
     // It informs idemix to disclose both attributes (OU and Role) when signing.
     private static final boolean[] disclosedFlags = new boolean[]{true, true, false, false};
-
     // empty message to sign in the validate identity proof
     private static final byte[] msgEmpty = {};
-
     // the revocation handle is always the third attribute
     private static final int rhIndex = 3;
-
     private static final Log logger = LogFactory.getLog(IdemixSigningIdentity.class);
+    // public part of the signing identity (passed with the signature)
+    private IdemixIdentity idemixIdentity;
+    // public key of the Idemix CA (issuer)
+    private IdemixIssuerPublicKey ipk;
+    // user's secret
+    private BIG sk;
+    // idemix pseudonym (represents Idemix identity)
+    private IdemixPseudonym pseudonym;
+    // credental revocation information
+    private Idemix.CredentialRevocationInformation cri;
+    // proof that the identity is valid (proof of possession of a credential
+    // with respect to a pseudonym.
+    private IdemixSignature proof;
 
     public IdemixSigningIdentity(IdemixEnrollment enrollment) throws CryptoException, InvalidArgumentException {
         this(enrollment.ipk, enrollment.revocationPk, enrollment.mspId, enrollment.sk, enrollment.cred,
@@ -124,9 +117,15 @@ public class IdemixSigningIdentity implements SigningIdentity {
         if (cred.getAttrs().length != 4) {
             throw new CryptoException("The number of attributes is wrong");
         }
-
         byte[] ouBytes = cred.getAttrs()[0];
+        byte[] ouProtoBytes = MspPrincipal.OrganizationUnit.newBuilder()
+                .setMspIdentifier(mspId)
+                .setOrganizationalUnitIdentifier(new String(ouBytes))
+                .build().toByteArray();
         byte[] roleBytes = cred.getAttrs()[1];
+        byte[] roleProtoBytes = MspPrincipal.MSPRole.newBuilder()
+                .setRoleValue(ByteBuffer.wrap(roleBytes).getInt())
+                .build().toByteArray();
         byte[] eIdBytes = cred.getAttrs()[2];
         byte[] rHBytes = cred.getAttrs()[3];
 
@@ -159,11 +158,6 @@ public class IdemixSigningIdentity implements SigningIdentity {
         // generate a fresh proof of possession of a credential
         // with respect to a freshly generated pseudonym
         this.proof = new IdemixSignature(cred, this.sk, this.pseudonym, this.ipk, IdemixSigningIdentity.disclosedFlags, IdemixSigningIdentity.msgEmpty, rhIndex, cri);
-        logger.debug("Verifying the  proof");
-        // verify the proof
-        if (!this.proof.verify(IdemixSigningIdentity.disclosedFlags, this.ipk, IdemixSigningIdentity.msgEmpty, attributes, rhIndex, revocationPk, (int) cri.getEpoch())) {
-            throw new CryptoException("Generated proof of identity is not valid");
-        }
 
         logger.debug("Generating the Identity Object");
         // generate a fresh identity with new pseudonym
@@ -208,4 +202,5 @@ public class IdemixSigningIdentity implements SigningIdentity {
     public IdemixSignature getProof() {
         return this.proof;
     }
+
 }

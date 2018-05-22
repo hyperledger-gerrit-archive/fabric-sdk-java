@@ -30,8 +30,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.xml.bind.DatatypeConverter;
+
+import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
@@ -65,8 +67,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import static java.lang.String.format;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hyperledger.fabric.sdk.testutils.TestUtils.resetConfig;
 import static org.hyperledger.fabric.sdk.testutils.TestUtils.setField;
 import static org.hyperledger.fabric_ca.sdk.HFCAClient.DEFAULT_PROFILE_NAME;
@@ -1158,6 +1158,13 @@ public class HFCAClientIT {
         clientWithName.setCryptoSuite(cryptoSuite);
 
         clientWithName.enroll(admin.getName(), TEST_ADMIN_PW);
+    }
+
+    // Tests getting an Idemix credential using an x509 enrollment credential
+    @Test
+    public void testGetIdemixCred() throws Exception {
+        Enrollment enrollment = client.enroll("admin", "adminpw");
+        client.idemixEnroll(enrollment, "testMspID");
     }
 
     // revoke2: revoke(User revoker, String revokee, String reason)
