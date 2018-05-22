@@ -40,6 +40,7 @@ import org.bouncycastle.asn1.x509.TBSCertList;
 import org.bouncycastle.cert.X509CRLHolder;
 import org.bouncycastle.openssl.PEMParser;
 import org.hyperledger.fabric.sdk.Enrollment;
+import org.hyperledger.fabric.sdk.user.IdemixUser;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric.sdkintegration.SampleStore;
@@ -1158,6 +1159,13 @@ public class HFCAClientIT {
         clientWithName.setCryptoSuite(cryptoSuite);
 
         clientWithName.enroll(admin.getName(), TEST_ADMIN_PW);
+    }
+
+    // Tests getting an Idemix credential using an x509 enrollment credential
+    @Test
+    public void testGetIdemixCred() throws Exception {
+        Enrollment enrollment = client.enroll("admin", "adminpw");
+        client.getIdemixSigningIdentity(enrollment, "admin", "testMspID");
     }
 
     // revoke2: revoke(User revoker, String revokee, String reason)
