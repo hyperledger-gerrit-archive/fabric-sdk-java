@@ -47,3 +47,4 @@ public interface SigningIdentity extends Identity {
     boolean verifySignature(byte[] msg, byte[] sig) throws CryptoException, InvalidArgumentException;
 
 }
+
