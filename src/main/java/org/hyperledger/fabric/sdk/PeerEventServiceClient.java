@@ -367,7 +367,7 @@ class PeerEventServiceClient {
 
                     clientTLSCertificateDigest);
             connectEnvelope(envelope);
-        } catch (CryptoException e) {
+        } catch (Exception e) {
             throw new TransactionException(e);
         }
 
