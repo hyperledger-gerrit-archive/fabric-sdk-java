@@ -237,3 +237,4 @@ public final class IdemixUtils {
         return Idemix.ECP.newBuilder().setX(ByteString.copyFrom(valueX)).setY(ByteString.copyFrom(valueY)).build();
     }
 }
+
