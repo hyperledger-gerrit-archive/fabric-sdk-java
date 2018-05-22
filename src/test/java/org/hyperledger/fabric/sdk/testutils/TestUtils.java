@@ -30,14 +30,18 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
+import com.google.protobuf.ByteString;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
+import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.helper.Config;
+import org.hyperledger.fabric.sdk.identity.SigningIdentity;
 import org.junit.Assert;
 
 import static java.lang.String.format;
@@ -211,6 +215,10 @@ public class TestUtils {
         return new MockEnrollment(new MockPrivateKey(), cert);
     }
 
+    public static MockSigningIdentity getMockSigningIdentity(String cert, String mspId) {
+        return new MockSigningIdentity(cert, mspId);
+    }
+
     public static MockEnrollment getMockEnrollment(PrivateKey key, String cert) {
         return new MockEnrollment(key, cert);
     }
@@ -345,6 +353,7 @@ public class TestUtils {
         private String name;
         private String mspId;
         private Enrollment enrollment;
+        private SigningIdentity signingIdentity;
 
         public String getEnrollmentSecret() {
             return enrollmentSecret;
@@ -356,6 +365,7 @@ public class TestUtils {
             this.name = name;
             this.mspId = mspId;
             this.enrollment = getMockEnrollment(MOCK_CERT);
+            this.signingIdentity = getMockSigningIdentity(MOCK_CERT, mspId);
         }
 
         public void setEnrollment(Enrollment e) {
@@ -392,8 +402,41 @@ public class TestUtils {
             return mspId;
         }
 
+        @Override
+        public SigningIdentity getSigningIdentity() {
+            return signingIdentity;
+        }
+
         public void setEnrollmentSecret(String enrollmentSecret) {
             this.enrollmentSecret = enrollmentSecret;
+        }
+
+    }
+
+    public static class MockSigningIdentity implements SigningIdentity {
+        private String cert;
+        private String mspId;
+
+        public MockSigningIdentity(String cert, String mspId) {
+            this.cert = cert;
+            this.mspId = mspId;
+        }
+
+        @Override
+        public byte[] sign(byte[] msg) throws CryptoException {
+            return new byte[0];
+        }
+
+        @Override
+        public boolean verifySignature(byte[] msg, byte[] sig) throws CryptoException {
+            return false;
+        }
+
+        @Override
+        public Identities.SerializedIdentity createSerializedIdentity() {
+            return Identities.SerializedIdentity.newBuilder()
+                    .setIdBytes(ByteString.copyFromUtf8(cert))
+                    .setMspid(mspId).build();
         }
     }
 
