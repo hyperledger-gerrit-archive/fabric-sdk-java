@@ -1177,8 +1177,6 @@ public class HFCAClientIT {
         client.idemixEnroll(user.getEnrollment(),  "idemixMsp");
     }
 
-
-
     // revoke2: revoke(User revoker, String revokee, String reason)
     @Test
     public void testRevoke2UnknownUser() throws Exception {

@@ -28,6 +28,7 @@ message ECP2 {
 	bytes xb = 2;
 	bytes ya = 3;
 	bytes yb = 4;
+}
 
 // IssuerPublicKey specifies an issuer public key that consists of
 // attribute_names - a list of the attribute names of a credential issued by the issuer
@@ -64,6 +65,7 @@ message Credential {
 	bytes e = 3;
 	bytes s = 4;
 	repeated bytes attrs = 5;
+}
 
 // CredRequest specifies a credential request object that consists of
 // nym - a pseudonym, which is a commitment to the user secret
@@ -101,6 +103,7 @@ message Signature {
 	bytes revocation_pk_sig = 15;
 	int64 epoch = 16;
 	NonRevocationProof non_revocation_proof = 17;
+}
 
 // NonRevocationProof contains proof that the credential is not revoked
 message NonRevocationProof {

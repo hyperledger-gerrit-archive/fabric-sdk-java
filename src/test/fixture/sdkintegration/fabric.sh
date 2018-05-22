@@ -40,7 +40,7 @@ function up(){
     docker-compose up --force-recreate ca0 ca1 peer1.org1.example.com peer1.org2.example.com ccenv
   else
     docker-compose up --force-recreate
-fi
+  fi
 
 }
 
@@ -59,7 +59,6 @@ function start (){
 
 for opt in "$@"
 do
-
     case "$opt" in
         up)
             up
@@ -81,10 +80,8 @@ do
             clean
             up
             ;;
-
         *)
             echo $"Usage: $0 {up|down|start|stop|clean|restart}"
             exit 1
-
-esac
+    esac
 done

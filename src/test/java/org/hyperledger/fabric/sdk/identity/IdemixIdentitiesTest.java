@@ -307,7 +307,7 @@ public class IdemixIdentitiesTest {
         }
         if (idemixProto != null) {
             new ECP(BIG.fromBytes(idemixProto.getNymX().toByteArray()), BIG.fromBytes(idemixProto.getNymY().toByteArray()));
-            idemixProto.getOU().toByteArray();
+            idemixProto.getOu().toByteArray();
             idemixProto.getRole().toByteArray();
             try {
                 new IdemixSignature(Idemix.Signature.parseFrom(idemixProto.getProof().toByteArray()));
