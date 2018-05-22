@@ -24,65 +24,66 @@ import static org.junit.Assert.assertTrue;
 
 public class IdemixTest {
 
-    @Test
-    public void testIdemix() throws CryptoException {
-        // Choose attribute names and create an issuer key pair
-        String[] attributeNames = {"Attribute1", "Attribute2"};
-        IdemixIssuerKey key = new IdemixIssuerKey(attributeNames);
-        // check that the issuer public key is valid
-        assertTrue(key.getIpk().check());
+        @Test
+        public void testIdemix() throws CryptoException {
+                // Choose attribute names and create an issuer key pair
+                String[] attributeNames = {"Attribute1", "Attribute2"};
+                IdemixIssuerKey key = new IdemixIssuerKey(attributeNames);
+                // check that the issuer public key is valid
+                assertTrue(key.getIpk().check());
 
-        // Test serialization of issuer public key
-        assertTrue(new IdemixIssuerPublicKey(key.getIpk().toProto()).check());
+                // Test serialization of issuer public key
+                assertTrue(new IdemixIssuerPublicKey(key.getIpk().toProto()).check());
 
-        // Choose a user secret key and request a credential
-        BIG sk = new BIG(IdemixUtils.randModOrder());
-        BIG issuerNonce = new BIG(IdemixUtils.randModOrder());
-        IdemixCredRequest m = new IdemixCredRequest(sk, issuerNonce, key.getIpk());
-        assertTrue(m.check(key.getIpk()));
+                // Choose a user secret key and request a credential
+                BIG sk = new BIG(IdemixUtils.randModOrder());
+                BIG issuerNonce = new BIG(IdemixUtils.randModOrder());
+                IdemixCredRequest m = new IdemixCredRequest(sk, issuerNonce, key.getIpk());
+                assertTrue(m.check(key.getIpk()));
 
-        // Test serialization of cred request
-        assertTrue(new IdemixCredRequest(m.toProto()).check(key.getIpk()));
+                // Test serialization of cred request
+                assertTrue(new IdemixCredRequest(m.toProto()).check(key.getIpk()));
 
-        // Issue a credential
-        BIG[] attrs = new BIG[attributeNames.length];
-        for (int i = 0; i < attributeNames.length; i++) {
-            attrs[i] = new BIG(i);
+                // Issue a credential
+                BIG[] attrs = new BIG[attributeNames.length];
+                for (int i = 0; i < attributeNames.length; i++) {
+                        attrs[i] = new BIG(i);
+                }
+                IdemixCredential c = new IdemixCredential(key, m, attrs);
+
+                // user completes the credential and checks validity
+                //c.complete(randCred);
+                assertTrue(c.ver(sk, key.getIpk()));
+
+                // Test serialization of IdemixCredential
+                assertTrue(new IdemixCredential(c.toProto()).ver(sk, key.getIpk()));
+
+                // Create a new unlinkable pseudonym
+                IdemixPseudonym pseudonym = new IdemixPseudonym(sk, key.getIpk());
+
+                // Generate new signature, disclosing no attributes
+                boolean[] disclosure = {false, false};
+                byte[] msg = {1, 2, 3, 4};
+                IdemixSignature sig = new IdemixSignature(c, sk, pseudonym, key.getIpk(), disclosure, msg);
+                // check that the signature is valid
+                assertTrue(sig.ver(disclosure, key.getIpk(), msg, attrs));
+
+                // Test serialization of IdemixSignature
+                assertTrue(new IdemixSignature(sig.toProto()).ver(disclosure, key.getIpk(), msg, attrs));
+
+                // Generate new signature, disclosing both attributes
+                disclosure = new boolean[]{true, true};
+                sig = new IdemixSignature(c, sk, pseudonym, key.getIpk(), disclosure, msg);
+                // check that the signature is valid
+                assertTrue(sig.ver(disclosure, key.getIpk(), msg, attrs));
+
+                // Sign a message with respect to a pseudonym
+                IdemixNymSignature nymsig = new IdemixNymSignature(sk, pseudonym, key.getIpk(), msg);
+                // check that the pseudonym signature is valid
+                assertTrue(nymsig.ver(pseudonym.getNym(), key.getIpk(), msg));
+
+                // Test serialization of IdemixNymSignature
+                assertTrue(new IdemixNymSignature(nymsig.toProto()).ver(pseudonym.getNym(), key.getIpk(), msg));
         }
-        IdemixCredential c = new IdemixCredential(key, m, attrs);
-
-        // user completes the credential and checks validity
-        //c.complete(randCred);
-        assertTrue(c.ver(sk, key.getIpk()));
-
-        // Test serialization of IdemixCredential
-        assertTrue(new IdemixCredential(c.toProto()).ver(sk, key.getIpk()));
-
-        // Create a new unlinkable pseudonym
-        IdemixPseudonym pseudonym = new IdemixPseudonym(sk, key.getIpk());
-
-        // Generate new signature, disclosing no attributes
-        boolean[] disclosure = {false, false};
-        byte[] msg = {1, 2, 3, 4};
-        IdemixSignature sig = new IdemixSignature(c, sk, pseudonym, key.getIpk(), disclosure, msg);
-        // check that the signature is valid
-        assertTrue(sig.ver(disclosure, key.getIpk(), msg, attrs));
-
-        // Test serialization of IdemixSignature
-        assertTrue(new IdemixSignature(sig.toProto()).ver(disclosure, key.getIpk(), msg, attrs));
-
-        // Generate new signature, disclosing both attributes
-        disclosure = new boolean[]{true, true};
-        sig = new IdemixSignature(c, sk, pseudonym, key.getIpk(), disclosure, msg);
-        // check that the signature is valid
-        assertTrue(sig.ver(disclosure, key.getIpk(), msg, attrs));
-
-        // Sign a message with respect to a pseudonym
-        IdemixNymSignature nymsig = new IdemixNymSignature(sk, pseudonym, key.getIpk(), msg);
-        // check that the pseudonym signature is valid
-        assertTrue(nymsig.ver(pseudonym.getNym(), key.getIpk(), msg));
-
-        // Test serialization of IdemixNymSignature
-        assertTrue(new IdemixNymSignature(nymsig.toProto()).ver(pseudonym.getNym(), key.getIpk(), msg));
-    }
 }
+

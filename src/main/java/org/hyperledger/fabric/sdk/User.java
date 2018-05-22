@@ -16,6 +16,7 @@ package org.hyperledger.fabric.sdk;
 
 import java.util.Set;
 
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.identity.SigningIdentity;
@@ -71,11 +72,12 @@ public interface User {
     String getMspId();
 
     /**
-     * Returns the signing identity of this user.
+     * Returns a signing identity of this user. Depending on the underlying implementation,
+     * the signing identity can be a fresh one or always the same.
      *
-     * @return the signing identity of this user.
+     * @return a signing identity of this user.
      */
-    SigningIdentity getSigningIdentity();
+    SigningIdentity getSigningIdentity() throws CryptoException;
 
     static void userContextCheck(User userContext) throws InvalidArgumentException {
 
@@ -87,21 +89,21 @@ public interface User {
             throw new InvalidArgumentException("UserContext user's name missing.");
         }
 
-        Enrollment enrollment = userContext.getEnrollment();
-        if (enrollment == null) {
-            throw new InvalidArgumentException(format("UserContext for user %s has no enrollment set.", userName));
-        }
+//        Enrollment enrollment = userContext.getEnrollment();
+//        if (enrollment == null) {
+//            throw new InvalidArgumentException(format("UserContext for user %s has no enrollment set.", userName));
+//        }
 
         if (Utils.isNullOrEmpty(userContext.getMspId())) {
             throw new InvalidArgumentException(format("UserContext for user %s  has user's MSPID missing.", userName));
         }
 
-        if (Utils.isNullOrEmpty(enrollment.getCert())) {
-            throw new InvalidArgumentException(format("UserContext for user %s enrollment missing user certificate.", userName));
-        }
-        if (null == enrollment.getKey()) {
-            throw new InvalidArgumentException(format("UserContext for user %s has Enrollment missing signing key", userName));
-        }
+//        if (Utils.isNullOrEmpty(enrollment.getCert())) {
+//            throw new InvalidArgumentException(format("UserContext for user %s enrollment missing user certificate.", userName));
+//        }
+//        if (null == enrollment.getKey()) {
+//            throw new InvalidArgumentException(format("UserContext for user %s has Enrollment missing signing key", userName));
+//        }
 
     }
 

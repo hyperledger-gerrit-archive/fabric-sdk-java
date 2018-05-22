@@ -118,12 +118,16 @@ public class IdemixIdentity implements Identity {
     public Identities.SerializedIdentity createSerializedIdentity() {
         Identities.SerializedIdemixIdentity serializedIdemixIdentity = Identities.SerializedIdemixIdentity.newBuilder()
                 .setProof(ByteString.copyFrom(this.associationProof.toProto().toByteArray()))
-                .setRole(ByteString.copyFrom(this.role)).setOU(ByteString.copyFrom(this.ou))
+                .setRole(ByteString.copyFrom(this.role))
+                .setOU(ByteString.copyFrom(this.ou))
                 .setNymY(ByteString.copyFrom(IdemixUtils.bigToBytes(this.nym.getY())))
                 .setNymX(ByteString.copyFrom(IdemixUtils.bigToBytes(this.nym.getX()))).build();
+
+
         return Identities.SerializedIdentity.newBuilder()
                 .setIdBytes(ByteString.copyFrom(serializedIdemixIdentity.toByteArray())).setMspid(this.mspId).build();
 
     }
 
 }
+
