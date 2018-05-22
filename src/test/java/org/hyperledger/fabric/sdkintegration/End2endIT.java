@@ -46,6 +46,7 @@ import org.hyperledger.fabric.sdk.ChannelConfiguration;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
+import org.hyperledger.fabric.sdk.user.IdemixUser;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.InstantiateProposalRequest;
 import org.hyperledger.fabric.sdk.Orderer;
@@ -193,6 +194,8 @@ public class End2endIT {
         ////////////////////////////
         // Setup client
 
+        sampleStore.setIdemixEnabled(false);
+
         //Create instance of client.
         HFClient client = HFClient.createNewInstance();
 
@@ -211,6 +214,8 @@ public class End2endIT {
 
         assertNull(client.getChannel(FOO_CHANNEL_NAME));
         out("\n");
+
+        sampleStore.setIdemixEnabled(true);
 
         sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
         Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
@@ -288,7 +293,6 @@ public class End2endIT {
                 admin.setEnrollment(ca.enroll(admin.getName(), "adminpw"));
                 admin.setMspId(mspid);
             }
-
             sampleOrg.setAdmin(admin); // The admin of this org --
 
             SampleUser user = sampleStore.getMember(TESTUSER_1_NAME, sampleOrg.getName());
@@ -300,20 +304,33 @@ public class End2endIT {
                 user.setEnrollment(ca.enroll(user.getName(), user.getEnrollmentSecret()));
                 user.setMspId(mspid);
             }
-            sampleOrg.addUser(user); //Remember user belongs to this Org
+            sampleOrg.addUser(user);
+            user.perhapsSwitchToIdemix(ca);
 
             final String sampleOrgName = sampleOrg.getName();
             final String sampleOrgDomainName = sampleOrg.getDomainName();
 
             // src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/keystore/
+            if (!sampleStore.isIdemixEnabled()) {
+                SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
+                        Util.findFileSk(Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/",
+                                sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
+                        Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
+                                format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
+                sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can create channels, join peers and install chaincode
+            } else {
+                SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName);
+                if (!peerOrgAdmin.isRegistered()) {  // users need to be registered AND enrolled
+                    RegistrationRequest rr = new RegistrationRequest(peerOrgAdmin.getName(), ".");
+                    peerOrgAdmin.setEnrollmentSecret(ca.register(rr, admin));
+                }
+                peerOrgAdmin.setEnrollment(ca.enroll(peerOrgAdmin.getName(), peerOrgAdmin.getEnrollmentSecret()));
+                peerOrgAdmin.setMspId(mspid);
+                sampleOrg.addUser(peerOrgAdmin);
+                peerOrgAdmin.perhapsSwitchToIdemix(ca);
+            }
 
-            SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
-                    Util.findFileSk(Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/",
-                            sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
-                    Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
-                            format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
-
-            sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can create channels, join peers and install chaincode
+            admin.perhapsSwitchToIdemix(ca);
 
         }
 
