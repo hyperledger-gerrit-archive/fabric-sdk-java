@@ -119,7 +119,6 @@ public class IdemixCredRequest {
                 .build();
     }
 
-
     /**
      * Cryptographically verify the IdemixCredRequest
      *

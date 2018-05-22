@@ -84,7 +84,7 @@ public class IdemixIdentity implements Identity {
             this.pseudonym = new ECP(BIG.fromBytes(idemixProto.getNymX().toByteArray()),
                     BIG.fromBytes(idemixProto.getNymY().toByteArray()));
 
-            MspPrincipal.OrganizationUnit ou = MspPrincipal.OrganizationUnit.parseFrom(idemixProto.getOU());
+            MspPrincipal.OrganizationUnit ou = MspPrincipal.OrganizationUnit.parseFrom(idemixProto.getOu());
             MspPrincipal.MSPRole role = MspPrincipal.MSPRole.parseFrom(idemixProto.getRole());
 
             this.ou = ou.getOrganizationalUnitIdentifier();
@@ -144,7 +144,7 @@ public class IdemixIdentity implements Identity {
 
         Identities.SerializedIdemixIdentity serializedIdemixIdentity = Identities.SerializedIdemixIdentity.newBuilder()
                 .setProof(ByteString.copyFrom(this.associationProof.toProto().toByteArray()))
-                .setOU(ByteString.copyFrom(ou.toByteArray()))
+                .setOu(ByteString.copyFrom(ou.toByteArray()))
                 .setRole(ByteString.copyFrom(role.toByteArray()))
                 .setNymY(ByteString.copyFrom(IdemixUtils.bigToBytes(this.pseudonym.getY())))
                 .setNymX(ByteString.copyFrom(IdemixUtils.bigToBytes(this.pseudonym.getX())))

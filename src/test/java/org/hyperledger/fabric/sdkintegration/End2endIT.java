@@ -65,6 +65,7 @@ import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
+import org.hyperledger.fabric_ca.sdk.Attribute;
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 import org.hyperledger.fabric_ca.sdk.HFCAInfo;
@@ -184,7 +185,6 @@ public class End2endIT {
             sampleStoreFile.delete();
         }
         sampleStore = new SampleStore(sampleStoreFile, CryptoSuite.Factory.getCryptoSuite());
-
         enrollUsersSetup(sampleStore); //This enrolls users with fabric ca and setups sample store to get users later.
         runFabricTest(sampleStore); //Runs Fabric tests with constructing channels, joining peers, exercising chaincode
 
@@ -197,40 +197,41 @@ public class End2endIT {
 
         //Create instance of client.
         HFClient client = HFClient.createNewInstance();
-
         client.setCryptoSuite(CryptoSuite.Factory.getCryptoSuite());
+
+        SampleOrg sampleOrg;
+
+        out("***** BEGIN x509 tests *****");
+        sampleStore.setIdemixEnabled(false);
 
         ////////////////////////////
         //Construct and run the channels
-        SampleOrg sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg1");
-        Channel fooChannel = constructChannel(FOO_CHANNEL_NAME, client, sampleOrg);
-        sampleStore.saveChannel(fooChannel);
-        runChannel(client, fooChannel, true, sampleOrg, 0);
-
-        assertFalse(fooChannel.isShutdown());
-        fooChannel.shutdown(true); // Force foo channel to shutdown clean up resources.
-        assertTrue(fooChannel.isShutdown());
-
-        assertNull(client.getChannel(FOO_CHANNEL_NAME));
-        out("\n");
-
         sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
         Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
         assertTrue(barChannel.isInitialized());
-        /**
-         * sampleStore.saveChannel uses {@link Channel#serializeChannel()}
-         */
         sampleStore.saveChannel(barChannel);
         assertFalse(barChannel.isShutdown());
         runChannel(client, barChannel, true, sampleOrg, 100); //run a newly constructed bar channel with different b value!
         //let bar channel just shutdown so we have both scenarios.
-
         out("\nTraverse the blocks for chain %s ", barChannel.getName());
-
         blockWalker(client, barChannel);
-
         assertFalse(barChannel.isShutdown());
         assertTrue(barChannel.isInitialized());
+
+        out("***** BEGIN idemix tests *****");
+        sampleStore.setIdemixEnabled(true);
+        enrollUsersSetup(sampleStore);  // call this again to switch enrollments from ecerts to idemix credentials
+
+        sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg1");
+        Channel fooChannel = constructChannel(FOO_CHANNEL_NAME, client, sampleOrg);
+        sampleStore.saveChannel(fooChannel);
+        runChannel(client, fooChannel, true, sampleOrg, 0);
+        assertFalse(fooChannel.isShutdown());
+        fooChannel.shutdown(true); // Force foo channel to shutdown clean up resources.
+        assertTrue(fooChannel.isShutdown());
+        assertNull(client.getChannel(FOO_CHANNEL_NAME));
+
+
         out("That's all folks!");
 
     }
@@ -290,7 +291,6 @@ public class End2endIT {
                 admin.setEnrollment(ca.enroll(admin.getName(), "adminpw"));
                 admin.setMspId(mspid);
             }
-
             sampleOrg.setAdmin(admin); // The admin of this org --
 
             SampleUser user = sampleStore.getMember(TESTUSER_1_NAME, sampleOrg.getName());
@@ -302,20 +302,66 @@ public class End2endIT {
                 user.setEnrollment(ca.enroll(user.getName(), user.getEnrollmentSecret()));
                 user.setMspId(mspid);
             }
-            sampleOrg.addUser(user); //Remember user belongs to this Org
+            sampleOrg.addUser(user);
+            System.out.println("Enrolling " + user.getName() + " with idemix");
+            user.perhapsSwitchToIdemix(ca);
 
             final String sampleOrgName = sampleOrg.getName();
             final String sampleOrgDomainName = sampleOrg.getDomainName();
 
-            // src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/keystore/
+//            // src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/keystore/
+//            if (!sampleStore.isIdemixEnabled()) {
+//                SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
+//                        Util.findFileSk(Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/",
+//                                sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
+//                        Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
+//                                format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
+//                sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can create channels, join peers and install chaincode
+//            } else {
+//                SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName);
+//                if (!peerOrgAdmin.isRegistered()) {  // users need to be registered AND enrolled
+//                    RegistrationRequest rr = new RegistrationRequest(peerOrgAdmin.getName(), "org1.department1");
+//                    Attribute attr = new Attribute("isAdmin", "true");
+//                    rr.addAttribute(attr);
+//                    peerOrgAdmin.setEnrollmentSecret(ca.register(rr, admin));
+//                }
+//                peerOrgAdmin.setEnrollment(ca.enroll(peerOrgAdmin.getName(), peerOrgAdmin.getEnrollmentSecret()));
+//                peerOrgAdmin.setMspId(mspid);
+//
+//                sampleOrg.setPeerAdmin(peerOrgAdmin);
+//                System.out.println("Enrolling peerOrgAdmin with idemix");
+//                peerOrgAdmin.perhapsSwitchToIdemix(ca);
+//
+//                peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
+//                        Util.findFileSk(Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/",
+//                                sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
+//                        Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
+//                                format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
+//                sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can create channels, join peers and install chaincode
+//            }
 
-            SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
-                    Util.findFileSk(Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/",
-                            sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
-                    Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
-                            format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
+                SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName);
+                if (!peerOrgAdmin.isRegistered()) {  // users need to be registered AND enrolled
+                    RegistrationRequest rr = new RegistrationRequest(peerOrgAdmin.getName(), "org1.department1");
+                    Attribute attr = new Attribute("isAdmin", "true");
+                    rr.addAttribute(attr);
+                    peerOrgAdmin.setEnrollmentSecret(ca.register(rr, admin));
+                }
+                peerOrgAdmin.setEnrollment(ca.enroll(peerOrgAdmin.getName(), peerOrgAdmin.getEnrollmentSecret()));
+                peerOrgAdmin.setMspId(mspid);
 
-            sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can create channels, join peers and install chaincode
+                System.out.println("Enrolling peerOrgAdmin with idemix");
+                peerOrgAdmin.perhapsSwitchToIdemix(ca);
+
+                peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
+                        Util.findFileSk(Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/",
+                                sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
+                        Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
+                                format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
+                sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can create channels, join peers and install chaincode
+
+            System.out.println("Enrolling 'admin' with idemix");
+            admin.perhapsSwitchToIdemix(ca);
 
         }
 
@@ -795,7 +841,9 @@ public class End2endIT {
         boolean doPeerEventing = !testConfig.isRunningAgainstFabric10() && BAR_CHANNEL_NAME.equals(name);
 //        boolean doPeerEventing = !testConfig.isRunningAgainstFabric10() && FOO_CHANNEL_NAME.equals(name);
         //Only peer Admin org
-        client.setUserContext(sampleOrg.getPeerAdmin());
+        SampleUser peerAdmin = sampleOrg.getPeerAdmin();
+        peerAdmin.switchToX509();
+        client.setUserContext(peerAdmin);
 
         Collection<Orderer> orderers = new LinkedList<>();
 
@@ -818,10 +866,11 @@ public class End2endIT {
         Orderer anOrderer = orderers.iterator().next();
         orderers.remove(anOrderer);
 
-        ChannelConfiguration channelConfiguration = new ChannelConfiguration(new File(TEST_FIXTURES_PATH + "/sdkintegration/e2e-2Orgs/" + TestConfig.FAB_CONFIG_GEN_VERS + "/" + name + ".tx"));
+        String path = TEST_FIXTURES_PATH + "/sdkintegration/e2e-2Orgs/" + TestConfig.FAB_CONFIG_GEN_VERS + "/" + name + ".tx";
+        ChannelConfiguration channelConfiguration = new ChannelConfiguration(new File(path));
 
         //Create channel that has only one signer that is this orgs peer admin. If channel creation policy needed more signature they would need to be added too.
-        Channel newChannel = client.newChannel(name, anOrderer, channelConfiguration, client.getChannelConfigurationSignature(channelConfiguration, sampleOrg.getPeerAdmin()));
+        Channel newChannel = client.newChannel(name, anOrderer, channelConfiguration, client.getChannelConfigurationSignature(channelConfiguration, peerAdmin));
 
         out("Created channel %s", name);
 

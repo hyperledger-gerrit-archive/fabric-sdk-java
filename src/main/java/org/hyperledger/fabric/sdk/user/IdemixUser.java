@@ -1,5 +1,6 @@
 package org.hyperledger.fabric.sdk.user;
 
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Set;
 
