@@ -106,7 +106,7 @@ public class IdemixSigningIdentity implements SigningIdentity {
      * @throws InvalidArgumentException
      */
     public IdemixSigningIdentity(IdemixIssuerPublicKey ipk, String mspId, BIG sk, IdemixCredential cred,
-            IdemixPseudonym pseudonym, IdemixSignature proof) throws CryptoException, InvalidArgumentException {
+                                 IdemixPseudonym pseudonym, IdemixSignature proof) throws CryptoException, InvalidArgumentException {
         // input checks
         if ((ipk == null) || (mspId == null) || (mspId.isEmpty()) || (sk == null) || (cred == null)
                 || (pseudonym == null && proof != null) || (proof == null && pseudonym != null)) {
