@@ -969,6 +969,7 @@ public class Channel implements Serializable {
         try {
             loadCACertificates();  // put all MSP certs into cryptoSuite if this fails here we'll try again later.
         } catch (Exception e) {
+            e.printStackTrace();
             logger.warn(format("Channel %s could not load peer CA certificates from any peers.", name));
         }
 
@@ -1029,6 +1030,10 @@ public class Channel implements Serializable {
 
         List<byte[]> certList;
         for (MSP msp : msps.values()) {
+            // TOOD: Fix me, don't need to do this for idemix
+            if (msp.getID().startsWith("idemix")) {
+                continue;
+            }
             logger.debug("loading certificates for MSP : " + msp.getID());
             certList = Arrays.asList(msp.getRootCerts());
             if (certList.size() > 0) {
