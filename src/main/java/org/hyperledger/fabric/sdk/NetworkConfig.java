@@ -1080,6 +1080,8 @@ public class NetworkConfig {
         private Enrollment enrollment;
         private CryptoSuite suite;
 
+        private CryptoSuite cryptoSuite;
+
         public void setEnrollSecret(String enrollSecret) {
             this.enrollSecret = enrollSecret;
         }
@@ -1112,6 +1114,13 @@ public class NetworkConfig {
             this.name = name;
             this.enrollSecret = enrollSecret;
             this.mspid = mspid;
+        }
+
+        UserInfo(String mspid, String name, String enrollSecret, CryptoSuite cryptoSuite) {
+            this.name = name;
+            this.enrollSecret = enrollSecret;
+            this.mspid = mspid;
+            this.cryptoSuite = cryptoSuite;
         }
 
         public String getEnrollSecret() {
@@ -1150,6 +1159,8 @@ public class NetworkConfig {
         @Override
         public SigningIdentity getSigningIdentity() {
             return new X509SigningIdentity(suite, this);
+     //   public SigningIdentity getSigningIdentity() throws CryptoException {
+       //     return new X509SigningIdentity(cryptoSuite, this);
         }
     }
 
