@@ -329,11 +329,6 @@ public class TestUtils {
         private String name;
         private String mspId;
         private Enrollment enrollment;
-
-        public String getEnrollmentSecret() {
-            return enrollmentSecret;
-        }
-
         private String enrollmentSecret;
 
         private MockUser(String name, String mspId) {
@@ -344,6 +339,14 @@ public class TestUtils {
 
         public void setEnrollment(Enrollment e) {
             this.enrollment = e;
+        }
+
+        public String getEnrollmentSecret() {
+            return enrollmentSecret;
+        }
+
+        public void setEnrollmentSecret(String enrollmentSecret) {
+            this.enrollmentSecret = enrollmentSecret;
         }
 
         @Override
@@ -374,10 +377,6 @@ public class TestUtils {
         @Override
         public String getMspId() {
             return mspId;
-        }
-
-        public void setEnrollmentSecret(String enrollmentSecret) {
-            this.enrollmentSecret = enrollmentSecret;
         }
 
     }

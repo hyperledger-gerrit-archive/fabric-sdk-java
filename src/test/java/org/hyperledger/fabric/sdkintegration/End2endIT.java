@@ -46,6 +46,7 @@ import org.hyperledger.fabric.sdk.ChannelConfiguration;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.EventHub;
 import org.hyperledger.fabric.sdk.HFClient;
+import org.hyperledger.fabric.sdk.user.IdemixUser;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.InstantiateProposalRequest;
 import org.hyperledger.fabric.sdk.Orderer;
@@ -189,6 +190,20 @@ public class End2endIT {
     }
 
     public void runFabricTest(final SampleStore sampleStore) throws Exception {
+        /*
+        System.out.println("***** BEGIN X509 tests *****");
+        sampleStore.setIdemixEnabled(false);
+        runFabricTest2(sampleStore);
+        System.out.println("***** END X509 tests *****");
+        */
+        System.out.println("***** BEGIN idemix tests *****");
+        sampleStore.setIdemixEnabled(true);
+        enrollUsersSetup(sampleStore);
+        runFabricTest2(sampleStore);
+        System.out.println("***** END idemix tests *****");
+    }
+
+    public void runFabricTest2(final SampleStore sampleStore) throws Exception {
 
         ////////////////////////////
         // Setup client
@@ -211,25 +226,25 @@ public class End2endIT {
 
         assertNull(client.getChannel(FOO_CHANNEL_NAME));
         out("\n");
-
-        sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
-        Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
-        assertTrue(barChannel.isInitialized());
-        /**
-         * sampleStore.saveChannel uses {@link Channel#serializeChannel()}
-         */
-        sampleStore.saveChannel(barChannel);
-        assertFalse(barChannel.isShutdown());
-        runChannel(client, barChannel, true, sampleOrg, 100); //run a newly constructed bar channel with different b value!
-        //let bar channel just shutdown so we have both scenarios.
-
-        out("\nTraverse the blocks for chain %s ", barChannel.getName());
-
-        blockWalker(client, barChannel);
-
-        assertFalse(barChannel.isShutdown());
-        assertTrue(barChannel.isInitialized());
-        out("That's all folks!");
+//
+//        sampleOrg = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
+//        Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg);
+//        assertTrue(barChannel.isInitialized());
+//        /**
+//         * sampleStore.saveChannel uses {@link Channel#serializeChannel()}
+//         */
+//        sampleStore.saveChannel(barChannel);
+//        assertFalse(barChannel.isShutdown());
+//        runChannel(client, barChannel, true, sampleOrg, 100); //run a newly constructed bar channel with different b value!
+//        //let bar channel just shutdown so we have both scenarios.
+//
+//        out("\nTraverse the blocks for chain %s ", barChannel.getName());
+//
+//        blockWalker(client, barChannel);
+//
+//        assertFalse(barChannel.isShutdown());
+//        assertTrue(barChannel.isInitialized());
+//        out("That's all folks!");
 
     }
 
@@ -288,7 +303,6 @@ public class End2endIT {
                 admin.setEnrollment(ca.enroll(admin.getName(), "adminpw"));
                 admin.setMspId(mspid);
             }
-
             sampleOrg.setAdmin(admin); // The admin of this org --
 
             SampleUser user = sampleStore.getMember(TESTUSER_1_NAME, sampleOrg.getName());
@@ -300,20 +314,33 @@ public class End2endIT {
                 user.setEnrollment(ca.enroll(user.getName(), user.getEnrollmentSecret()));
                 user.setMspId(mspid);
             }
-            sampleOrg.addUser(user); //Remember user belongs to this Org
+            sampleOrg.addUser(user);
+            user.perhapsSwitchToIdemix(ca);
 
             final String sampleOrgName = sampleOrg.getName();
             final String sampleOrgDomainName = sampleOrg.getDomainName();
 
             // src/test/fixture/sdkintegration/e2e-2Orgs/channel/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/keystore/
+            if (!sampleStore.isIdemixEnabled()) {
+                SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
+                        Util.findFileSk(Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/",
+                                sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
+                        Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
+                                format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
+                sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can create channels, join peers and install chaincode
+            } else {
+                SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName);
+                if (!peerOrgAdmin.isRegistered()) {  // users need to be registered AND enrolled
+                    RegistrationRequest rr = new RegistrationRequest(peerOrgAdmin.getName(), ".");
+                    peerOrgAdmin.setEnrollmentSecret(ca.register(rr, admin));
+                }
+                peerOrgAdmin.setEnrollment(ca.enroll(peerOrgAdmin.getName(), peerOrgAdmin.getEnrollmentSecret()));
+                peerOrgAdmin.setMspId(mspid);
+                sampleOrg.addUser(peerOrgAdmin);
+                peerOrgAdmin.perhapsSwitchToIdemix(ca);
+            }
 
-            SampleUser peerOrgAdmin = sampleStore.getMember(sampleOrgName + "Admin", sampleOrgName, sampleOrg.getMSPID(),
-                    Util.findFileSk(Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/",
-                            sampleOrgDomainName, format("/users/Admin@%s/msp/keystore", sampleOrgDomainName)).toFile()),
-                    Paths.get(testConfig.getTestChannelPath(), "crypto-config/peerOrganizations/", sampleOrgDomainName,
-                            format("/users/Admin@%s/msp/signcerts/Admin@%s-cert.pem", sampleOrgDomainName, sampleOrgDomainName)).toFile());
-
-            sampleOrg.setPeerAdmin(peerOrgAdmin); //A special user that can create channels, join peers and install chaincode
+            admin.perhapsSwitchToIdemix(ca);
 
         }
 

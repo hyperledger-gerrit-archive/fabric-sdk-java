@@ -1,5 +1,6 @@
 package org.hyperledger.fabric.sdk.user;
 
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Set;
 
@@ -52,9 +53,7 @@ public class IdemixUser implements User {
     }
 
     @Override
-    public String getAffiliation() {
-        return null;
-    }
+    public String getAffiliation() { return null; }
 
     @Override
     public Enrollment getEnrollment() {
