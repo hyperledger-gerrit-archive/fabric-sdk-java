@@ -45,6 +45,7 @@ import org.hyperledger.fabric.sdk.Channel;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
 /**
  * A local file-based key value store.
@@ -53,10 +54,12 @@ public class SampleStore {
 
     private String file;
     private Log logger = LogFactory.getLog(SampleStore.class);
+    private CryptoSuite cryptoSuite;
 
-    public SampleStore(File file) {
+    public SampleStore(File file, CryptoSuite cryptoSuite) {
 
         this.file = file.getAbsolutePath();
+        this.cryptoSuite = cryptoSuite;
     }
 
     /**
@@ -134,7 +137,7 @@ public class SampleStore {
         }
 
         // Create the SampleUser and try to restore it's state from the key value store (if found).
-        sampleUser = new SampleUser(name, org, this);
+        sampleUser = new SampleUser(name, org, this, cryptoSuite);
 
         return sampleUser;
 
@@ -183,7 +186,7 @@ public class SampleStore {
             }
 
             // Create the SampleUser and try to restore it's state from the key value store (if found).
-            sampleUser = new SampleUser(name, org, this);
+            sampleUser = new SampleUser(name, org, this, cryptoSuite);
             sampleUser.setMspId(mspId);
 
             String certificate = new String(IOUtils.toByteArray(new FileInputStream(certificateFile)), "UTF-8");
