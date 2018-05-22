@@ -48,7 +48,7 @@ public class TransactionContext {
     private long proposalWaitTime = config.getProposalWaitTime();
     private SigningIdentity signingIdentity;
 
-    public TransactionContext(Channel channel, User user, CryptoSuite cryptoPrimitives) {
+    public TransactionContext(Channel channel, User user, CryptoSuite cryptoPrimitives) throws InvalidArgumentException {
 
         this.user = user;
         this.channel = channel;
@@ -59,7 +59,11 @@ public class TransactionContext {
         this.cryptoPrimitives = cryptoPrimitives;
 
         // Get the signing identity from the user
-        this.signingIdentity = IdentityFactory.getSigningIdentity(cryptoPrimitives, user);
+        try {
+            this.signingIdentity = user.getSigningIdentity();
+        } catch (CryptoException e) {
+            throw new InvalidArgumentException(e);
+        }
 
         // Serialize signingIdentity
         this.identity = signingIdentity.createSerializedIdentity();
@@ -229,7 +233,11 @@ public class TransactionContext {
 
     public TransactionContext retryTransactionSameContext() {
 
-        return new TransactionContext(channel, user, cryptoPrimitives);
+        try {
+            return new TransactionContext(channel, user, cryptoPrimitives);
+        } catch (InvalidArgumentException e) {
+            throw new RuntimeException(e);
+        }
 
     }
 

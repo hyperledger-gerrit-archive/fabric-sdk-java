@@ -141,3 +141,4 @@ public class IdemixPseudonymSignature {
                 .setNonce(ByteString.copyFrom(IdemixUtils.bigToBytes(nonce))).build();
     }
 }
+

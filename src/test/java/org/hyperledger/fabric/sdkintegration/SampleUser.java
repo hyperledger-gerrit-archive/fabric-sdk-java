@@ -26,6 +26,7 @@ import io.netty.util.internal.StringUtil;
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.identity.SigningIdentity;
 import org.hyperledger.fabric.sdk.identity.X509SigningIdentity;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
@@ -215,5 +216,10 @@ public class SampleUser implements User, Serializable {
         this.mspId = mspID;
         saveState();
 
+    }
+
+    @Override
+    public SigningIdentity getSigningIdentity() throws CryptoException {
+        return new X509SigningIdentity(cryptoSuite, this);
     }
 }

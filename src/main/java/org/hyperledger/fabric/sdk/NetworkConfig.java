@@ -1200,6 +1200,10 @@ public class NetworkConfig {
             return mspid;
         }
 
+        @Override
+        public SigningIdentity getSigningIdentity() {
+            return new X509SigningIdentity(suite, this);
+        }
     }
 
     /**

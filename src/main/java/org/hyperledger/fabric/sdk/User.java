@@ -16,6 +16,7 @@ package org.hyperledger.fabric.sdk;
 
 import java.util.Set;
 
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.identity.SigningIdentity;
@@ -69,6 +70,14 @@ public interface User {
      * @return MSP Id.
      */
     String getMspId();
+
+    /**
+     * Returns a signing identity of this user. Depending on the underlying implementation,
+     * the signing identity can be a fresh one or always the same.
+     *
+     * @return a signing identity of this user.
+     */
+    SigningIdentity getSigningIdentity() throws CryptoException;
 
     static void userContextCheck(User userContext) throws InvalidArgumentException {
 

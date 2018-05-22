@@ -165,3 +165,4 @@ public class IdemixIdentity implements Identity {
     }
 
 }
+
