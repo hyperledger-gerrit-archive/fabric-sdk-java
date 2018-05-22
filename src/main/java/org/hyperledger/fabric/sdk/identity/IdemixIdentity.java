@@ -18,7 +18,6 @@ package org.hyperledger.fabric.sdk.identity;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.milagro.amcl.FP256BN.BIG;

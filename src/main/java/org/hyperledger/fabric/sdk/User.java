@@ -18,6 +18,7 @@ import java.util.Set;
 
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Utils;
+import org.hyperledger.fabric.sdk.identity.SigningIdentity;
 
 import static java.lang.String.format;
 
@@ -68,6 +69,13 @@ public interface User {
      * @return MSP Id.
      */
     String getMspId();
+
+    /**
+     * Returns the signing identity of this user.
+     *
+     * @return the signing identity of this user.
+     */
+    SigningIdentity getSigningIdentity();
 
     static void userContextCheck(User userContext) throws InvalidArgumentException {
 
