@@ -8,6 +8,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.hyperledger.fabric.sdk.User;
+import org.hyperledger.fabric.sdk.user.IdemixUser;
 import org.hyperledger.fabric_ca.sdk.HFCAClient;
 
 /*
@@ -45,6 +46,7 @@ public class SampleOrg {
 
     private SampleUser peerAdmin;
 
+    private IdemixUser idemixUser;
 
     private String domainName;
 
@@ -141,6 +143,15 @@ public class SampleOrg {
 
     public void addUser(SampleUser user) {
         userMap.put(user.getName(), user);
+    }
+
+    public void addIdemixUser(IdemixUser user) {
+        System.out.println("SK_ >>>>>>> HERE I AM");
+        this.idemixUser = user;
+    }
+
+    public User getIdemixUser() {
+        return this.idemixUser;
     }
 
     public User getUser(String name) {
