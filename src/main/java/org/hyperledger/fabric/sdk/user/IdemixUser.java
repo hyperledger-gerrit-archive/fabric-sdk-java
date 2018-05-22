@@ -20,6 +20,10 @@ public class IdemixUser implements User {
     protected IdemixCredential cred;
     protected BIG sk;
 
+    private String name;
+    private String affiliation;
+    private String roles;
+
     public IdemixUser(String mspId, IdemixIssuerPublicKey ipk, IdemixCredential cred, BIG sk) {
         this.mspId = mspId;
         this.ipk = ipk;
@@ -28,9 +32,19 @@ public class IdemixUser implements User {
         this.sk = sk;
     }
 
+    public IdemixUser(String name, String mspId, IdemixIssuerPublicKey ipk, IdemixCredential cred, BIG sk) {
+        this.mspId = mspId;
+        this.ipk = ipk;
+
+        this.cred = cred;
+        this.sk = sk;
+
+        this.name = name;
+    }
+
     @Override
     public String getName() {
-        return null;
+        return this.name;
     }
 
     @Override
@@ -45,7 +59,7 @@ public class IdemixUser implements User {
 
     @Override
     public String getAffiliation() {
-        return null;
+        return this.affiliation;
     }
 
     @Override

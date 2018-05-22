@@ -25,12 +25,22 @@ public class HFCAInfo {
     private final String caName;
     private final String caChain;
     private final String version;
+    private final String issuerPublicKey;
 
     // Contains server/ca information
     HFCAInfo(String caName, String caChain, String version) {
         this.caName = caName;
         this.caChain = caChain;
         this.version = version;
+        this.issuerPublicKey = "";
+    }
+
+    // Contains server/ca information
+    HFCAInfo(String caName, String caChain, String version, String issuerPublicKey) {
+        this.caName = caName;
+        this.caChain = caChain;
+        this.version = version;
+        this.issuerPublicKey = issuerPublicKey;
     }
 
     /**
@@ -63,4 +73,6 @@ public class HFCAInfo {
     public String getVersion() {
         return version;
     }
+
+    public String getIssuerPublicKey() { return issuerPublicKey; }
 }

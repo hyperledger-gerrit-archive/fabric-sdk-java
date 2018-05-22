@@ -354,12 +354,11 @@ public class TestUtils {
         private String mspId;
         private Enrollment enrollment;
         private SigningIdentity signingIdentity;
+        private String enrollmentSecret;
 
         public String getEnrollmentSecret() {
             return enrollmentSecret;
         }
-
-        private String enrollmentSecret;
 
         private MockUser(String name, String mspId) {
             this.name = name;
@@ -402,15 +401,14 @@ public class TestUtils {
             return mspId;
         }
 
-        @Override
-        public SigningIdentity getSigningIdentity() {
-            return signingIdentity;
-        }
-
         public void setEnrollmentSecret(String enrollmentSecret) {
             this.enrollmentSecret = enrollmentSecret;
         }
 
+        @Override
+        public SigningIdentity getSigningIdentity() {
+            return signingIdentity;
+        }
     }
 
     public static class MockSigningIdentity implements SigningIdentity {

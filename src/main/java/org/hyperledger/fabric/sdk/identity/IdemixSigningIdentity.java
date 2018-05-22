@@ -135,6 +135,7 @@ public class IdemixSigningIdentity implements SigningIdentity {
         }
 
         byte[] ouBytes = cred.getAttrs()[0];
+        System.out.println("OU >>>>>>> " + ouBytes.length);
         byte[] roleBytes = cred.getAttrs()[1];
         byte[] eIdBytes = cred.getAttrs()[2];
         byte[] rHBytes = cred.getAttrs()[3];
