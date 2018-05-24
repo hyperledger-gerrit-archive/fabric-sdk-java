@@ -16,10 +16,16 @@
 
 package org.hyperledger.fabric.sdk.idemix;
 
+import java.security.KeyPair;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.milagro.amcl.FP256BN.BIG;
+import org.apache.milagro.amcl.FP256BN.ECP;
+import org.hyperledger.fabric.protos.idemix.Idemix;
+import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.junit.Test;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class IdemixTest {
@@ -27,13 +33,13 @@ public class IdemixTest {
     @Test
     public void testIdemix() throws InterruptedException {
         // Select attribute names and generate a Idemix Setup
-        String[] attributeNames = {"Attribute1", "Attribute2"};
+        String[] attributeNames = {"Attr1", "Attr2", "Attr3", "Attr4", "Attr5"};
 
         IdemixSetup setup = new IdemixSetup(attributeNames, 1);
         setup.runThreads();
 
-        IdemixSetup setup2 = new IdemixSetup(attributeNames, 2);
-        setup2.runThreads();
+        // IdemixSetup setup2 = new IdemixSetup(attributeNames, 2);
+        // setup2.runThreads();
     }
 
     private class IdemixSetup {
@@ -44,6 +50,8 @@ public class IdemixTest {
         private IdemixCredRequest idemixCredRequest;
         private IdemixCredential idemixCredential;
         private BIG[] attrs;
+        private WeakBB.KeyPair wbbKeyPair;
+        private KeyPair revocationKeyPair;
         private int threads;
 
         private IdemixSetup(String[] attributeNames, int threads) {
@@ -69,6 +77,11 @@ public class IdemixTest {
             }
             this.idemixCredential = new IdemixCredential(this.key, this.idemixCredRequest, this.attrs); //certificate
 
+            this.wbbKeyPair = WeakBB.weakBBKeyGen();
+
+            // Generate a revocation key pair
+            this.revocationKeyPair = RevocationAuthority.generateLongTermRevocationKey();
+
             // Check all the generated data
             checkSetup();
         }
@@ -82,6 +95,8 @@ public class IdemixTest {
             assertTrue(this.idemixCredRequest.check(this.key.getIpk()));
             // Test serialization of cred request
             assertTrue(new IdemixCredRequest(this.idemixCredRequest.toProto()).check(key.getIpk()));
+            // Test revocation key pair
+            assertNotNull(this.revocationKeyPair);
         }
 
         private void runThreads() throws InterruptedException {
@@ -105,7 +120,8 @@ public class IdemixTest {
         private BIG sk;
         private BIG[] attrs;
         private IdemixCredential credential;
-
+        private WeakBB.KeyPair wbbKeyPair;
+        private KeyPair revocationKeyPair;
         private Thread thr;
         private String name;
 
@@ -114,6 +130,8 @@ public class IdemixTest {
             this.sk = setup.sk;
             this.attrs = setup.attrs;
             this.credential = setup.idemixCredential;
+            this.wbbKeyPair = setup.wbbKeyPair;
+            this.revocationKeyPair = setup.revocationKeyPair;
             this.name = name;
         }
 
@@ -125,31 +143,60 @@ public class IdemixTest {
             }
         }
 
-        private void invoke() {
+        private void invoke() throws CryptoException {
+            // WeakBB test
+            // Random message to sign
+            BIG wbbMessage = IdemixUtils.randModOrder();
+            // Sign the message with keypair secret key
+            ECP wbbSignature = WeakBB.weakBBSign(this.wbbKeyPair.getSk(), wbbMessage);
+            // Check the signature with valid PK and valid message
+            assertTrue(WeakBB.weakBBVerify(this.wbbKeyPair.getPk(), wbbSignature, wbbMessage));
+            // Try to check a random message
+            assertFalse(WeakBB.weakBBVerify(this.wbbKeyPair.getPk(), wbbSignature, IdemixUtils.randModOrder()));
+
             // user completes the credential and checks validity
             assertTrue(this.credential.verify(this.sk, this.key.getIpk()));
 
             // Test serialization of IdemixCredential
             assertTrue(new IdemixCredential(this.credential.toProto()).verify(this.sk, this.key.getIpk()));
 
+            // Create CRI that contains no revocation mechanism
+            int epoch = 0;
+            BIG[] rhIndex = {new BIG(0)};
+            Idemix.CredentialRevocationInformation cri = RevocationAuthority.createCRI(this.revocationKeyPair.getPrivate(), rhIndex, epoch, RevocationAlgorithm.ALG_NO_REVOCATION);
+
             // Create a new unlinkable pseudonym
             IdemixPseudonym pseudonym = new IdemixPseudonym(this.sk, this.key.getIpk()); //tcert
 
-            // Generate new signature, disclosing no attributes
-            boolean[] disclosure = {false, false};
-            byte[] msg = {1, 2, 3, 4};
-            IdemixSignature sig = new IdemixSignature(this.credential, this.sk, pseudonym, this.key.getIpk(), disclosure, msg);
+            // Test signing no disclosure
+            boolean[] disclosure = {false, false, false, false, false};
+            byte[] msg = {1, 2, 3, 4, 5};
+            IdemixSignature signature = new IdemixSignature(this.credential, this.sk, pseudonym, this.key.getIpk(), disclosure, msg, 0, cri);
+            assertNotNull(signature);
+
             // check that the signature is valid
-            assertTrue(sig.verify(disclosure, this.key.getIpk(), msg, this.attrs));
+            assertTrue(signature.verify(disclosure, this.key.getIpk(), msg, this.attrs, 0, this.revocationKeyPair.getPublic(), epoch));
 
             // Test serialization of IdemixSignature
-            assertTrue(new IdemixSignature(sig.toProto()).verify(disclosure, this.key.getIpk(), msg, this.attrs));
+            assertTrue(new IdemixSignature(signature.toProto()).verify(disclosure, key.getIpk(), msg, attrs, 0, revocationKeyPair.getPublic(), epoch));
 
-            // Generate new signature, disclosing both attributes
-            disclosure = new boolean[] {true, true};
-            sig = new IdemixSignature(this.credential, this.sk, pseudonym, this.key.getIpk(), disclosure, msg);
+            // Test signing selective disclosure
+            boolean[] disclosure2 = {false, true, true, true, false};
+            signature = new IdemixSignature(this.credential, this.sk, pseudonym, this.key.getIpk(), disclosure2, msg, 0, cri);
+            assertNotNull(signature);
+
             // check that the signature is valid
-            assertTrue(sig.verify(disclosure, this.key.getIpk(), msg, this.attrs));
+            assertTrue(signature.verify(disclosure2, this.key.getIpk(), msg, this.attrs, 0, this.revocationKeyPair.getPublic(), epoch));
+
+            // Test signature verification with different disclosure
+            assertFalse(signature.verify(disclosure, this.key.getIpk(), msg, this.attrs, 0, this.revocationKeyPair.getPublic(), epoch));
+
+            // test signature verification with different issuer public key
+            assertFalse(signature.verify(disclosure2, new IdemixIssuerKey(new String[]{"Attr1, Attr2, Attr3, Attr4, Attr5"}).getIpk(), msg, this.attrs, 0, this.revocationKeyPair.getPublic(), epoch));
+
+            // test signature verification with different message
+            byte[] msg2 = {1, 1, 1};
+            assertFalse(signature.verify(disclosure2, this.key.getIpk(), msg2, this.attrs, 0, this.revocationKeyPair.getPublic(), epoch));
 
             // Sign a message with respect to a pseudonym
             IdemixPseudonymSignature nymsig = new IdemixPseudonymSignature(this.sk, pseudonym, this.key.getIpk(), msg);
@@ -164,7 +211,11 @@ public class IdemixTest {
         public void run() {
             // Ten times per thread
             for (int i = 10; i > 0; --i) {
-                invoke();
+                try {
+                    invoke();
+                } catch (CryptoException e) {
+                    e.printStackTrace();
+                }
             }
             final Thread thread = Thread.currentThread();
 
