@@ -1160,6 +1160,25 @@ public class HFCAClientIT {
         clientWithName.enroll(admin.getName(), TEST_ADMIN_PW);
     }
 
+    // Tests getting an Idemix credential using an x509 enrollment credential
+    @Test
+    public void testGetIdemixCred() throws Exception {
+        if (testConfig.isRunningAgainstFabric10()) {
+            return; // needs v1.1
+        }
+
+        SampleUser user = getTestUser(TEST_ADMIN_ORG);
+        RegistrationRequest rr = new RegistrationRequest(user.getName(), TEST_USER1_AFFILIATION);
+        String password = "password";
+        rr.setSecret(password);
+        user.setEnrollmentSecret(client.register(rr, admin));
+        user.setEnrollment(client.enroll(user.getName(), user.getEnrollmentSecret()));
+
+        client.idemixEnroll(user.getEnrollment(),  "idemixMsp");
+    }
+
+
+
     // revoke2: revoke(User revoker, String revokee, String reason)
     @Test
     public void testRevoke2UnknownUser() throws Exception {

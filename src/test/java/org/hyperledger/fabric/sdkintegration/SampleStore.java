@@ -57,6 +57,10 @@ public class SampleStore {
     private Log logger = LogFactory.getLog(SampleStore.class);
     private CryptoSuite cryptoSuite;
 
+    public SampleStore(File file) {
+        this.file = file.getAbsolutePath();
+    }
+
     public SampleStore(File file, CryptoSuite cryptoSuite) {
 
         this.file = file.getAbsolutePath();
