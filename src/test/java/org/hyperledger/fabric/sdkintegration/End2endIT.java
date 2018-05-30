@@ -562,6 +562,7 @@ public class End2endIT {
                     transactionProposalRequest.setFcn("move");
                     transactionProposalRequest.setProposalWaitTime(testConfig.getProposalWaitTime());
                     transactionProposalRequest.setArgs("a", "b", "100");
+                    transactionProposalRequest.setUserContext(sampleOrg.getIdemixUser());
 
                     Map<String, byte[]> tm2 = new HashMap<>();
                     tm2.put("HyperLedgerFabric", "TransactionProposalRequest:JavaSDK".getBytes(UTF_8)); //Just some extra junk in transient map

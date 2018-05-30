@@ -3248,7 +3248,7 @@ public class Channel implements Serializable {
                     .endorsements(ed)
                     .proposalResponsePayload(proposalResponsePayload).build();
 
-            Envelope transactionEnvelope = createTransactionEnvelope(transactionPayload, userContext);
+            Envelope transactionEnvelope = createTransactionEnvelope(proposalTransactionID, transactionPayload, userContext);
 
             NOfEvents nOfEvents = transactionOptions.nOfEvents;
 
@@ -3412,11 +3412,12 @@ public class Channel implements Serializable {
 
     }
 
-    private Envelope createTransactionEnvelope(Payload transactionPayload, User user) throws CryptoException, InvalidArgumentException {
-
+    private Envelope createTransactionEnvelope(String proposalTransactionID, Payload transactionPayload, User user) throws CryptoException, InvalidArgumentException {
         return Envelope.newBuilder()
                 .setPayload(transactionPayload.toByteString())
-                .setSignature(ByteString.copyFrom(IdentityFactory.getSigningIdentity(client.getCryptoSuite(), user).sign(transactionPayload.toByteArray())))
+                .setSignature(ByteString.copyFrom(
+                        IdentityFactory.getSigningIdentity(proposalTransactionID).sign(transactionPayload.toByteArray())
+                ))
                 .build();
 
     }

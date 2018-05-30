@@ -27,6 +27,9 @@ import org.hyperledger.fabric.sdk.identity.IdentityFactory;
 import org.hyperledger.fabric.sdk.identity.SigningIdentity;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Internal class, not an public API.
  * A transaction context emits events 'submitted', 'complete', and 'error'.
@@ -47,6 +50,8 @@ public class TransactionContext {
     //private List<String> attrs;
     private long proposalWaitTime = config.getProposalWaitTime();
     private SigningIdentity signingIdentity;
+
+
 
     public TransactionContext(Channel channel, User user, CryptoSuite cryptoPrimitives) {
 
@@ -73,6 +78,7 @@ public class TransactionContext {
         //    txID = Hex.encodeHexString(txh);
         txID = new String(Utils.toHexString(txh));
 
+        IdentityFactory.addSigningIdentity(txID, signingIdentity);
     }
 
     public CryptoSuite getCryptoPrimitives() {
