@@ -16,12 +16,22 @@
 
 package org.hyperledger.fabric.sdk.idemix;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.Base64;
+
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
+import javax.json.JsonWriter;
 
 import com.google.protobuf.ByteString;
 import org.apache.milagro.amcl.FP256BN.BIG;
 import org.apache.milagro.amcl.FP256BN.ECP;
 import org.hyperledger.fabric.protos.idemix.Idemix;
+
+
 
 /**
  * IdemixCredRequest represents the first message of the idemix issuance protocol,
@@ -151,5 +161,40 @@ public class IdemixCredRequest {
         byte[] hproofdata = IdemixUtils.bigToBytes(IdemixUtils.hashModOrder(proofData));
 
         return Arrays.equals(IdemixUtils.bigToBytes(proofC), hproofdata);
+    }
+
+    // Convert the enrollment request to a JSON string
+    public String toJson() {
+        StringWriter stringWriter = new StringWriter();
+        JsonWriter jsonWriter = Json.createWriter(new PrintWriter(stringWriter));
+        jsonWriter.writeObject(toJsonObject());
+        jsonWriter.close();
+        return stringWriter.toString();
+    }
+
+    // Convert the enrollment request to a JSON object
+    public JsonObject toJsonObject() {
+        JsonObjectBuilder factory = Json.createObjectBuilder();
+        if (nym != null) {
+            JsonObjectBuilder factory2 = Json.createObjectBuilder();
+            factory2.add("x", Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(nym.getX())));
+            factory2.add("y", Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(nym.getY())));
+            factory.add("nym", factory2.build());
+        }
+
+        if (issuerNonce != null) {
+            String b64encoded = Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(issuerNonce));
+            factory.add("issuer_nonce", b64encoded);
+        }
+
+        if (proofC != null) {
+            factory.add("proof_c", Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(proofC)));
+        }
+
+        if (proofS != null) {
+            factory.add("proof_s", Base64.getEncoder().encodeToString(IdemixUtils.bigToBytes(proofS)));
+        }
+
+        return factory.build();
     }
 }
