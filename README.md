@@ -11,7 +11,7 @@ Note, the SDK does ***not*** provide a means of persistence
   for the application defined channels and user artifacts on the client. This is left for the embedding application to best manage.
   Channels may be serialized via Java serialization in the context of a client.
   Channels deserialized are not in an initialized state.
-  Applications need to handle migration of serialzed files between versions.
+  Applications need to handle migration of serialized files between versions.
 
 The SDK also provides a client for Hyperledger's certificate authority.  The SDK is however not dependent on this
 particular implementation of a certificate authority. Other Certificate authority's maybe used by implementing the
@@ -20,6 +20,14 @@ SDK's `Enrollment` interface.
  This provides a summary of steps required to get you started with building and using the Java SDK.
  Please note that this is not the API documentation or a tutorial for the SDK, this will
   only help you familiarize to get started with the SDK if you are new in this domain.
+
+
+## Release notes
+
+|Release | Notes |
+|--------|:-----:|
+|1.2     | [v1.2 release notes](./docs/release_v1.2.0_notes.md)|
+|1.1     | [v1.1 release notes](./docs/release_v1.1.0_notes.md)|
 
 
 ## IMPORTANT: Version 1.2 IS WORK IN PROGRESS!
@@ -242,7 +250,7 @@ For v1.2 integration the commands use the v12 profiles in configtx.yaml.
 
  **Note:** The above describes how this was done. If you redo this there are private key files
  which are produced with unique names which won't match what's expected in the integration tests.
- One examle of this is the docker-compose.yaml (search for **_sk**)
+ One example of this is the docker-compose.yaml (search for **_sk**)
 
 
 ### GO Lang chaincode
