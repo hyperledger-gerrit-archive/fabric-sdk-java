@@ -22,6 +22,14 @@ SDK's `Enrollment` interface.
   only help you familiarize to get started with the SDK if you are new in this domain.
 
 
+## Release notes
+
+|Release | Notes |
+|--------|:-----:|
+|1.2     | [v1.2 release notes](./docs/release_v1.2.0_notes.md)|
+|1.1     | [v1.1 release notes](./docs/release_v1.1.0_notes.md)|
+
+
 ## IMPORTANT: Version 1.2 IS WORK IN PROGRESS!
 If you don't require features of Fabric or Fabric CA version 1.2 you probably should consider the v1.1.x version of the SDK.
 To get the actual v1.1.0 SDK:
