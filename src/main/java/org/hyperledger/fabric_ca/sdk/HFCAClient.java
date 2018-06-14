@@ -1055,6 +1055,14 @@ public class HFCAClient {
 
     }
 
+    /**
+     * @return HFCACertificateReqest object
+     * @throws InvalidArgumentException Invalid (null) argument specified
+     */
+    public HFCACertificateRequest newHFCACertificateRequest() throws InvalidArgumentException {
+        return new HFCACertificateRequest(this);
+    }
+
     private String toJson(Date date) {
         final TimeZone utc = TimeZone.getTimeZone("UTC");
 
@@ -1167,8 +1175,12 @@ public class HFCAClient {
     }
 
     JsonObject httpGet(String url, User registrar) throws Exception {
+        return httpGet(url, registrar, null);
+    }
+
+    JsonObject httpGet(String url, User registrar, Map<String, String> queryMap) throws Exception {
         String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "");
-        url = getURL(url);
+        url = getURL(url, queryMap);
         HttpGet httpGet = new HttpGet(url);
         httpGet.setConfig(getRequestConfig());
         logger.debug(format("httpGet %s, authHTTPCert: %s", url, authHTTPCert));
@@ -1438,13 +1450,7 @@ public class HFCAClient {
     }
 
     String getURL(String endpoint) throws URISyntaxException, MalformedURLException, InvalidArgumentException {
-        setUpSSL();
-        String url = this.url + endpoint;
-        URIBuilder uri = new URIBuilder(url);
-        if (caName != null) {
-            uri.addParameter("ca", caName);
-        }
-        return uri.build().toURL().toString();
+        return getURL(endpoint, null);
     }
 
     String getURL(String endpoint, Map<String, String> queryMap) throws URISyntaxException, MalformedURLException, InvalidArgumentException {
