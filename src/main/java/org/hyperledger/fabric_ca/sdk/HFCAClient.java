@@ -104,6 +104,7 @@ import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric_ca.sdk.exception.AffiliationException;
 import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
 import org.hyperledger.fabric_ca.sdk.exception.GenerateCRLException;
+import org.hyperledger.fabric_ca.sdk.exception.HFCACertificateException;
 import org.hyperledger.fabric_ca.sdk.exception.HTTPException;
 import org.hyperledger.fabric_ca.sdk.exception.IdentityException;
 import org.hyperledger.fabric_ca.sdk.exception.InfoException;
@@ -189,6 +190,7 @@ public class HFCAClient {
     private static final String HFCA_REVOKE = HFCA_CONTEXT_ROOT + "revoke";
     private static final String HFCA_INFO = HFCA_CONTEXT_ROOT + "cainfo";
     private static final String HFCA_GENCRL = HFCA_CONTEXT_ROOT + "gencrl";
+    private static final String HFCA_CERTIFICATE = HFCAClient.HFCA_CONTEXT_ROOT + "certificates";
 
     private final String url;
     private final boolean isSSL;
@@ -1055,6 +1057,54 @@ public class HFCAClient {
 
     }
 
+    /**
+     * @return HFCACertificateRequest object
+     */
+    public HFCACertificateRequest newHFCACertificateRequest() {
+        return new HFCACertificateRequest();
+    }
+
+    /**
+     * Gets all certificates that the registrar is allowed to see and based on filter parameters that
+     * are part of the certificate request.
+     *
+     * @param registrar The identity of the registrar (i.e. who is performing the registration).
+     * @param req The certificate request that contains filter parameters
+     * @return HFCACertificateResponse object
+     * @throws HFCACertificateException Failed to process get certificate request
+     */
+    public HFCACertificateResponse getHFCACertificates(User registrar, HFCACertificateRequest req) throws HFCACertificateException {
+        try {
+            logger.debug(format("certificate url: %s, registrar: %s", HFCA_CERTIFICATE, registrar.getName()));
+
+            JsonObject result = httpGet(HFCA_CERTIFICATE, registrar, req.getQueryParms());
+
+            int statusCode = result.getInt("statusCode");
+            Collection<HFCACertificate> certs = new ArrayList<HFCACertificate>();
+            if (statusCode < 400) {
+                JsonArray certificates = result.getJsonArray("certs");
+                if (certificates != null && !certificates.isEmpty()) {
+                    for (int i = 0; i < certificates.size(); i++) {
+                        String certPEM = certificates.getJsonObject(i).getString("PEM");
+                        certs.add(new HFCACertificate(certPEM));
+                    }
+                }
+                logger.debug(format("certificate url: %s, registrar: %s done.", HFCA_CERTIFICATE, registrar));
+            }
+            return new HFCACertificateResponse(statusCode, certs);
+        }  catch (HTTPException e) {
+            String msg = format("[Code: %d] - Error while getting certificates from url '%s': %s", e.getStatusCode(), HFCA_CERTIFICATE, e.getMessage());
+            HFCACertificateException certificateException = new HFCACertificateException(msg, e);
+            logger.error(msg);
+            throw certificateException;
+        } catch (Exception e) {
+            String msg = format("Error while getting certificates from url '%s': %s", HFCA_CERTIFICATE, e.getMessage());
+            HFCACertificateException certificateException = new HFCACertificateException(msg, e);
+            logger.error(msg);
+            throw certificateException;
+        }
+    }
+
     private String toJson(Date date) {
         final TimeZone utc = TimeZone.getTimeZone("UTC");
 
@@ -1167,8 +1217,12 @@ public class HFCAClient {
     }
 
     JsonObject httpGet(String url, User registrar) throws Exception {
+        return httpGet(url, registrar, null);
+    }
+
+    JsonObject httpGet(String url, User registrar, Map<String, String> queryMap) throws Exception {
         String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "");
-        url = getURL(url);
+        url = getURL(url, queryMap);
         HttpGet httpGet = new HttpGet(url);
         httpGet.setConfig(getRequestConfig());
         logger.debug(format("httpGet %s, authHTTPCert: %s", url, authHTTPCert));
@@ -1438,13 +1492,7 @@ public class HFCAClient {
     }
 
     String getURL(String endpoint) throws URISyntaxException, MalformedURLException, InvalidArgumentException {
-        setUpSSL();
-        String url = this.url + endpoint;
-        URIBuilder uri = new URIBuilder(url);
-        if (caName != null) {
-            uri.addParameter("ca", caName);
-        }
-        return uri.build().toURL().toString();
+        return getURL(endpoint, null);
     }
 
     String getURL(String endpoint, Map<String, String> queryMap) throws URISyntaxException, MalformedURLException, InvalidArgumentException {
@@ -1456,7 +1504,9 @@ public class HFCAClient {
         }
         if (queryMap != null) {
             for (Map.Entry<String, String> param : queryMap.entrySet()) {
-                uri.addParameter(param.getKey(), param.getValue());
+                if (!Utils.isNullOrEmpty(param.getValue())) {
+                    uri.addParameter(param.getKey(), param.getValue());
+                }
             }
         }
         return uri.build().toURL().toString();
