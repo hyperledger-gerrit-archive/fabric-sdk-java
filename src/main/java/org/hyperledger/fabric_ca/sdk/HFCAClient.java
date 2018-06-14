@@ -1055,6 +1055,15 @@ public class HFCAClient {
 
     }
 
+    /**
+     * @param name Name of the affiliation
+     * @return HFCAAffiliation object
+     * @throws InvalidArgumentException Invalid (null) argument specified
+     */
+    public HFCACertificate newHFCACertificate() throws InvalidArgumentException {
+        return new HFCACertificate(this);
+    }
+
     private String toJson(Date date) {
         final TimeZone utc = TimeZone.getTimeZone("UTC");
 
@@ -1169,6 +1178,27 @@ public class HFCAClient {
     JsonObject httpGet(String url, User registrar) throws Exception {
         String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "");
         url = getURL(url);
+        HttpGet httpGet = new HttpGet(url);
+        httpGet.setConfig(getRequestConfig());
+        logger.debug(format("httpGet %s, authHTTPCert: %s", url, authHTTPCert));
+
+        final HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+        if (registry != null) {
+            httpClientBuilder.setConnectionManager(new PoolingHttpClientConnectionManager(registry));
+        }
+        HttpClient client = httpClientBuilder.build();
+
+        final HttpClientContext context = HttpClientContext.create();
+        httpGet.addHeader("Authorization", authHTTPCert);
+
+        HttpResponse response = client.execute(httpGet, context);
+
+        return getResult(response, "", "GET");
+    }
+
+    JsonObject httpGet(String url, User registrar, Map<String, String> queryMap) throws Exception {
+        String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "");
+        url = getURL(url, queryMap);
         HttpGet httpGet = new HttpGet(url);
         httpGet.setConfig(getRequestConfig());
         logger.debug(format("httpGet %s, authHTTPCert: %s", url, authHTTPCert));
