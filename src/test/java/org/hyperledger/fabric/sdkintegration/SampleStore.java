@@ -56,16 +56,15 @@ public class SampleStore {
     private String file;
     private Log logger = LogFactory.getLog(SampleStore.class);
     private CryptoSuite cryptoSuite;
+    private boolean idemixEnabled = false;
 
     public SampleStore(File file) {
         this.file = file.getAbsolutePath();
     }
 
-    public SampleStore(File file, CryptoSuite cryptoSuite) {
-
-        this.file = file.getAbsolutePath();
-        this.cryptoSuite = cryptoSuite;
-    }
+//    public void setIdemixEnabled(boolean idemixEnabled) {
+//        this.idemixEnabled = idemixEnabled;
+//    }
 
     /**
      * Get the value associated with name.
