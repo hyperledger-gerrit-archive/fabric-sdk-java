@@ -16,6 +16,7 @@
 
 package org.hyperledger.fabric.sdk.idemix;
 
+import java.io.Serializable;
 import com.google.protobuf.ByteString;
 import org.apache.milagro.amcl.FP256BN.BIG;
 import org.apache.milagro.amcl.FP256BN.ECP;
@@ -28,7 +29,7 @@ import org.hyperledger.fabric.protos.idemix.Idemix;
  * which is a BBS+ signature (see "Constant-Size Dynamic k-TAA" by Man Ho Au, Willy Susilo, Yi Mu)
  * on the user's secret key and attribute values.
  */
-public class IdemixCredential {
+public class IdemixCredential implements Serializable {
 
     private final ECP A;
     private final ECP B;
