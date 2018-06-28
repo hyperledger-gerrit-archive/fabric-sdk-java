@@ -18,6 +18,7 @@ import java.util.Set;
 
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Utils;
+import org.hyperledger.fabric.sdk.identity.X509Enrollment;
 
 import static java.lang.String.format;
 
@@ -80,19 +81,21 @@ public interface User {
         }
 
         Enrollment enrollment = userContext.getEnrollment();
-        if (enrollment == null) {
-            throw new InvalidArgumentException(format("UserContext for user %s has no enrollment set.", userName));
+        if (enrollment instanceof X509Enrollment){
+            if (enrollment == null) {
+                throw new InvalidArgumentException(format("UserContext for user %s has no enrollment set.", userName));
+            }
+
+            if (Utils.isNullOrEmpty(enrollment.getCert())) {
+                throw new InvalidArgumentException(format("UserContext for user %s enrollment missing user certificate.", userName));
+            }
+            if (null == enrollment.getKey()) {
+                throw new InvalidArgumentException(format("UserContext for user %s has Enrollment missing signing key", userName));
+            }
         }
 
         if (Utils.isNullOrEmpty(userContext.getMspId())) {
             throw new InvalidArgumentException(format("UserContext for user %s  has user's MSPID missing.", userName));
-        }
-
-        if (Utils.isNullOrEmpty(enrollment.getCert())) {
-            throw new InvalidArgumentException(format("UserContext for user %s enrollment missing user certificate.", userName));
-        }
-        if (null == enrollment.getKey()) {
-            throw new InvalidArgumentException(format("UserContext for user %s has Enrollment missing signing key", userName));
         }
 
     }
