@@ -128,7 +128,7 @@ public class HFCAClientIT {
         if (sampleStoreFile.exists()) { // For testing start fresh
             sampleStoreFile.delete();
         }
-        sampleStore = new SampleStore(sampleStoreFile, crypto);
+        sampleStore = new SampleStore(sampleStoreFile);
         sampleStoreFile.deleteOnExit();
 
         client = HFCAClient.createNewInstance(
@@ -1287,7 +1287,7 @@ public class HFCAClientIT {
         if (sampleStoreFile.exists()) { // For testing start fresh
             sampleStoreFile.delete();
         }
-        sampleStore = new SampleStore(sampleStoreFile, crypto);
+        sampleStore = new SampleStore(sampleStoreFile);
         sampleStoreFile.deleteOnExit();
 
         SampleUser user2 = getEnrolledUser(TEST_ADMIN_ORG);
