@@ -23,12 +23,16 @@ import java.io.Serializable;
 import java.util.Set;
 
 import io.netty.util.internal.StringUtil;
+
 import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.User;
-import org.hyperledger.fabric.sdk.identity.SigningIdentity;
-import org.hyperledger.fabric.sdk.identity.X509SigningIdentity;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
+import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
+import org.hyperledger.fabric_ca.sdk.HFCAClient;
+import org.hyperledger.fabric_ca.sdk.exception.EnrollmentException;
+import org.hyperledger.fabric_ca.sdk.exception.InvalidArgumentException;
+
 
 public class SampleUser implements User, Serializable {
     private static final long serialVersionUID = 8077132186383604355L;
@@ -40,6 +44,7 @@ public class SampleUser implements User, Serializable {
     private String organization;
     private String enrollmentSecret;
     Enrollment enrollment = null; //need access in test env.
+    Enrollment idemix = null;
 
     private transient SampleStore keyValStore;
     private String keyValStoreName;
@@ -60,6 +65,10 @@ public class SampleUser implements User, Serializable {
             restoreState();
         }
 
+    }
+
+    public void getIdemixCred(HFCAClient ca) throws EnrollmentException, InvalidArgumentException {
+        this.idemix = ca.idemixEnroll(this.enrollment, "idemixMSP");
     }
 
     static boolean isStored(String name, String org, SampleStore fs) {
@@ -116,6 +125,11 @@ public class SampleUser implements User, Serializable {
 
     @Override
     public Enrollment getEnrollment() {
+        if (this.keyValStore.isIdemixEnabled()) {
+            if (this.idemix != null) {
+                return this.idemix;
+            }
+        }
         return this.enrollment;
     }
 
