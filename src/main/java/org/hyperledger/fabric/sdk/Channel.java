@@ -166,7 +166,7 @@ public class Channel implements Serializable {
     private transient LinkedHashMap<String, ChaincodeEventListenerEntry> chainCodeListeners = new LinkedHashMap<>();
     transient HFClient client;
     private Set<String> discoveryEndpoints = Collections.synchronizedSet(new HashSet<>());
-
+    private Map<String, Integer> mspTypes = new HashMap<>();
     /**
      * Runs processing events from event hubs.
      */
@@ -1597,6 +1597,10 @@ public class Channel implements Serializable {
 
         List<byte[]> certList;
         for (MSP msp : msps.values()) {
+            // If MSP type is Idemix, skip this
+            if (mspTypes.get(msp.getID()) == 1) {
+                continue;
+            }
             logger.debug("loading certificates for MSP : " + msp.getID());
             certList = Arrays.asList(msp.getRootCerts());
             if (certList.size() > 0) {
@@ -1781,6 +1785,7 @@ public class Channel implements Serializable {
             if (!msps.containsKey(name)) {
 
                 MspConfig.MSPConfig mspConfig = MspConfig.MSPConfig.parseFrom(mspv.getValue());
+                mspTypes.put(name, new Integer(mspConfig.getType()));
 
                 MspConfig.FabricMSPConfig fabricMSPConfig = MspConfig.FabricMSPConfig.parseFrom(mspConfig.getConfig());
 
@@ -3564,8 +3569,7 @@ public class Channel implements Serializable {
                 }
             }
 
-            ProposalResponse proposalResponse = new ProposalResponse(transactionContext.getTxID(),
-                    transactionContext.getChannelID(), status, message);
+            ProposalResponse proposalResponse = new ProposalResponse(transactionContext, status, message);
             proposalResponse.setProposalResponse(fabricResponse);
             proposalResponse.setProposal(signedProposal);
             proposalResponse.setPeer(peerFuturePair.peer);
@@ -4073,14 +4077,32 @@ public class Channel implements Serializable {
             FabricProposal.Proposal proposal = null;
             ByteString proposalResponsePayload = null;
             String proposalTransactionID = null;
+            TransactionContext transactionContext = null;
 
             for (ProposalResponse sdkProposalResponse : proposalResponses) {
                 ed.add(sdkProposalResponse.getProposalResponse().getEndorsement());
                 if (proposal == null) {
                     proposal = sdkProposalResponse.getProposal();
                     proposalTransactionID = sdkProposalResponse.getTransactionID();
+                    if (proposalTransactionID == null) {
+                        throw new InvalidArgumentException("Proposals with missing transaction ID");
+                    }
                     proposalResponsePayload = sdkProposalResponse.getProposalResponse().getPayload();
-
+                    if (proposalResponsePayload == null) {
+                        throw new InvalidArgumentException("Proposals with missing payload.");
+                    }
+                    transactionContext = sdkProposalResponse.getTransactionContext();
+                    if (transactionContext == null) {
+                        throw new InvalidArgumentException("Proposals with missing transaction context.");
+                    }
+                } else {
+                    final String transactionID = sdkProposalResponse.getTransactionID();
+                    if (transactionID == null) {
+                        throw new InvalidArgumentException("Proposals with missing transaction id.");
+                    }
+                    if (!proposalTransactionID.equals(transactionID)) {
+                        throw new InvalidArgumentException(format("Proposals with different transaction IDs %s,  and %s", proposalTransactionID, transactionID));
+                    }
                 }
             }
 
@@ -4091,7 +4113,7 @@ public class Channel implements Serializable {
                     .endorsements(ed)
                     .proposalResponsePayload(proposalResponsePayload).build();
 
-            Envelope transactionEnvelope = createTransactionEnvelope(transactionPayload, userContext);
+            Envelope transactionEnvelope = createTransactionEnvelope(transactionPayload, transactionContext);
 
             NOfEvents nOfEvents = transactionOptions.nOfEvents;
 
@@ -4255,11 +4277,11 @@ public class Channel implements Serializable {
 
     }
 
-    private Envelope createTransactionEnvelope(Payload transactionPayload, User user) throws CryptoException, InvalidArgumentException {
+    private Envelope createTransactionEnvelope(Payload transactionPayload, TransactionContext transactionContext) throws CryptoException, InvalidArgumentException {
 
         return Envelope.newBuilder()
                 .setPayload(transactionPayload.toByteString())
-                .setSignature(ByteString.copyFrom(IdentityFactory.getSigningIdentity(client.getCryptoSuite(), user).sign(transactionPayload.toByteArray())))
+                .setSignature(ByteString.copyFrom(transactionContext.sign(transactionPayload.toByteArray())))
                 .build();
 
     }
