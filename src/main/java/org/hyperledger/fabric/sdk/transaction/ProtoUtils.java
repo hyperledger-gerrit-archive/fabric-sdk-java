@@ -193,27 +193,29 @@ public final class ProtoUtils {
         if (isDebugLevel) {
 
             String cert = user.getEnrollment().getCert();
-            // logger.debug(format(" User: %s Certificate:\n%s", user.getName(), cert));
+            logger.debug(format(" User: %s Certificate:\n%s", user.getName(), cert));
 
-            if (null == suite) {
+            if (cert != "idemix") {
+                if (null == suite) {
 
-                try {
-                    suite = CryptoSuite.Factory.getCryptoSuite();
-                } catch (Exception e) {
-                    //best try.
-                }
-
-            }
-            if (null != suite && suite instanceof CryptoPrimitives) {
-
-                CryptoPrimitives cp = (CryptoPrimitives) suite;
-                byte[] der = cp.certificateToDER(cert);
-                if (null != der && der.length > 0) {
-
-                    cert = toHexString(suite.hash(der));
+                    try {
+                        suite = CryptoSuite.Factory.getCryptoSuite();
+                    } catch (Exception e) {
+                        //best try.
+                    }
 
                 }
+                if (null != suite && suite instanceof CryptoPrimitives) {
 
+                    CryptoPrimitives cp = (CryptoPrimitives) suite;
+                    byte[] der = cp.certificateToDER(cert);
+                    if (null != der && der.length > 0) {
+
+                        cert = toHexString(suite.hash(der));
+
+                    }
+
+                }
             }
 
             logger.debug(format("SignatureHeader: nonce: %s, User:%s, MSPID: %s, idBytes: %s",

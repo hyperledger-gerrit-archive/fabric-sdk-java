@@ -24,8 +24,9 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses (
         {
                 End2endIT.class,
-                End2endAndBackAgainIT.class,
-                HFCAClientIT.class
+                End2endIdemixIT.class
+//                End2endAndBackAgainIT.class,
+//                HFCAClientIT.class
         })
 public class IntegrationSuiteV1 {
 
