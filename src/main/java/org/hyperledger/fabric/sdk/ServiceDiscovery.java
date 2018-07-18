@@ -579,13 +579,17 @@ class ServiceDiscovery {
         }
 
         int ignoreList(Collection<String> names) {
-            layouts.removeIf(sdLayout -> !sdLayout.ignoreList(names));
+            if (!names.isEmpty()) {
+                layouts.removeIf(sdLayout -> !sdLayout.ignoreList(names));
+            }
             return layouts.size();
         }
 
         void endorsedList(Collection<String> names) {
-            for (SDLayout sdLayout : layouts) {
-                sdLayout.endorsedList(names);
+            if (!names.isEmpty()) {
+                for (SDLayout sdLayout : layouts) {
+                    sdLayout.endorsedList(names);
+                }
             }
         }
 

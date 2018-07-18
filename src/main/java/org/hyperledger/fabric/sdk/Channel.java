@@ -345,7 +345,8 @@ public class Channel implements Serializable {
         channelEventQue = new ChannelEventQue();
         blockListeners = new LinkedHashMap<>();
         peerEndpointMap = Collections.synchronizedMap(new HashMap<>());
-        sdPeerAddition = DEFAULT_PEER_ADDITION;
+
+        setSDPeerAddition(new SDOPeerDefaultAddition(getServiceDiscoveryProperties()));
         // sdOrdererAddition = DEFAULT_ORDERER_ADDITION;
         endorsementSelector = ServiceDiscovery.DEFAULT_ENDORSEMENT_SELECTION;
         chainCodeListeners = new LinkedHashMap<>();
@@ -959,6 +960,15 @@ public class Channel implements Serializable {
         eventHub.setChannel(this);
         eventHub.setEventQue(channelEventQue);
         eventHubs.add(eventHub);
+
+        if (isInitialized()) {
+            try {
+                eventHub.connect(getTransactionContext());
+            } catch (EventHubException e) {
+                throw new InvalidArgumentException(e);
+            }
+
+        }
         return this;
 
     }
@@ -1060,7 +1070,7 @@ public class Channel implements Serializable {
         }
 
         try {
-            loadCACertificates();  // put all MSP certs into cryptoSuite if this fails here we'll try again later.
+            loadCACertificates(false);  // put all MSP certs into cryptoSuite if this fails here we'll try again later.
         } catch (Exception e) {
             logger.warn(format("Channel %s could not load peer CA certificates from any peers.", name));
         }
@@ -1320,28 +1330,6 @@ public class Channel implements Serializable {
 
     transient SDPeerAddition sdPeerAddition = null;
 
-    static final SDPeerAddition DEFAULT_PEER_ADDITION = sdPeerAdditionInfo -> {
-
-        String protocol = "grpcs";
-        Properties properties = new Properties();
-
-        final Collection<Peer> speers = sdPeerAdditionInfo.getChannel().getPeers(EnumSet.of(PeerRole.SERVICE_DISCOVERY));
-        if (null != speers && !speers.isEmpty()) {
-            final Peer pick = speers.iterator().next();
-            protocol = pick.getProtocol();
-            properties.putAll(pick.getProperties());
-
-        }
-
-        Peer peer = sdPeerAdditionInfo.getClient().newPeer(sdPeerAdditionInfo.getEndpoint(),
-                protocol + "://" + sdPeerAdditionInfo.getEndpoint(),
-                properties);
-        sdPeerAdditionInfo.getChannel().addPeer(peer);
-
-        return peer;
-
-    };
-
     /**
      * Set service discovery peer addition override.
      *
@@ -1422,7 +1410,7 @@ public class Channel implements Serializable {
 
     private transient SDOrdererAddition sdOrdererAddition = null;
 
-    private transient Properties serviceDiscoveryProperties = new Properties();
+    private Properties serviceDiscoveryProperties = new Properties();
 
     private static class SDOrdererDefaultAddition implements SDOrdererAddition {
         private final Properties config;
@@ -1581,21 +1569,21 @@ public class Channel implements Serializable {
      * @throws InvalidArgumentException
      * @throws CryptoException
      */
-    protected synchronized void loadCACertificates() throws InvalidArgumentException, CryptoException, TransactionException {
+    protected synchronized void loadCACertificates(boolean force) throws InvalidArgumentException, CryptoException, TransactionException {
 
-        if (msps != null && !msps.isEmpty()) {
+        if (!force && msps != null && !msps.isEmpty()) {
             return;
         }
         logger.debug(format("Channel %s loadCACertificates", name));
 
-        parseConfigBlock();
+        Map<String, MSP> lmsp = parseConfigBlock(force);
 
-        if (msps == null || msps.isEmpty()) {
+        if (lmsp == null || lmsp.isEmpty()) {
             throw new InvalidArgumentException("Unable to load CA certificates. Channel " + name + " does not have any MSPs.");
         }
 
         List<byte[]> certList;
-        for (MSP msp : msps.values()) {
+        for (MSP msp : lmsp.values()) {
             logger.debug("loading certificates for MSP : " + msp.getID());
             certList = Arrays.asList(msp.getRootCerts());
             if (certList.size() > 0) {
@@ -1741,13 +1729,12 @@ public class Channel implements Serializable {
         return client.getExecutorService();
     }
 
-    protected void parseConfigBlock() throws TransactionException {
+    protected Map<String, MSP> parseConfigBlock(boolean force) throws TransactionException {
 
         Map<String, MSP> lmsps = msps;
 
-        if (lmsps != null && !lmsps.isEmpty()) {
-            return;
-
+        if (!force && lmsps != null && !lmsps.isEmpty()) {
+            return lmsps;
         }
 
         try {
@@ -1765,6 +1752,7 @@ public class Channel implements Serializable {
             Map<String, MSP> newMSPS = traverseConfigGroupsMSP("", channelGroup, new HashMap<>(20));
 
             msps = Collections.unmodifiableMap(newMSPS);
+            return Collections.unmodifiableMap(newMSPS);
 
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
@@ -3209,7 +3197,7 @@ public class Channel implements Serializable {
                         properties.put("pemBytes", bytes);
                         epeer.setProperties(properties);
 
-                    } else {
+                    } else if (null == epeer) {
                         epeer = sdPeerAddition.addPeer(new SDPeerAdditionInfo() {
 
                             @Override
@@ -3291,7 +3279,8 @@ public class Channel implements Serializable {
                     }
                 }
 
-            } while (done && ++attempts < 5);
+            } while (!done && ++attempts < 5);
+            logger.trace(format("Endorsements not achieved chaincode: %s, done: %b, attempts: %d", chaincodeName, done, attempts));
             if (inspectResults) {
                 return allTried.values();
             } else {
@@ -3476,7 +3465,7 @@ public class Channel implements Serializable {
 
         if (transactionContext.getVerify()) {
             try {
-                loadCACertificates();
+                loadCACertificates(false);
             } catch (Exception e) {
                 throw new ProposalException(e);
             }
@@ -4423,14 +4412,45 @@ public class Channel implements Serializable {
 
         return registerBlockListener(blockEvent -> {
 
+            logger.debug(format("is peer %b, is filtered: %b", blockEvent.getPeer() != null, blockEvent.isFiltered()));
+
+            final Iterable<TransactionEvent> transactionEvents = blockEvent.getTransactionEvents();
+
+            if (transactionEvents == null || !transactionEvents.iterator().hasNext()) {
+
+                // no transactions today we can assume it was a config or update block.
+
+                if (isLaterBlock(blockEvent.getBlockNumber())) {
+                    ServiceDiscovery lserviceDiscovery = serviceDiscovery;
+                    if (null != lserviceDiscovery) {
+
+                        client.getExecutorService().execute(() -> {
+                            lserviceDiscovery.fullNetworkDiscovery(true);
+
+                        });
+                    }
+
+                } else {
+                    client.getExecutorService().execute(() -> {
+                        try {
+
+                            loadCACertificates(true);
+                        } catch (Exception e) {
+                            logger.warn(format("Channel %s failed to load certificates for an update", name), e);
+                        }
+
+                    });
+
+                }
+
+                return;
+            }
+
             if (txListeners.isEmpty()) {
                 return;
             }
 
-            boolean hadNoTransactions = true;
-
             for (TransactionEvent transactionEvent : blockEvent.getTransactionEvents()) {
-                hadNoTransactions = false;
 
                 logger.debug(format("Channel %s got event for transaction %s ", name, transactionEvent.getTransactionID()));
 
@@ -4452,17 +4472,6 @@ public class Channel implements Serializable {
 
                     } catch (Throwable e) {
                         logger.error(e); // Don't let one register stop rest.
-                    }
-                }
-            }
-            if (hadNoTransactions) {  // no transactions today we can assume it was a config or update block.
-                ServiceDiscovery lserviceDiscovery = serviceDiscovery;
-                if (null != lserviceDiscovery) {
-                    if (isLaterBlock(blockEvent.getBlockNumber())) {
-                        client.getExecutorService().execute(() -> {
-                            lserviceDiscovery.fullNetworkDiscovery(true);
-                        });
-
                     }
                 }
             }
