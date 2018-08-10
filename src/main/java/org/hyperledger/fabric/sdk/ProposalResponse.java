@@ -27,6 +27,9 @@ import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.DiagnosticFileDumper;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
+import static java.lang.String.format;
+import static org.hyperledger.fabric.sdk.helper.Utils.toHexString;
+
 public class ProposalResponse extends ChaincodeResponse {
 
     private static final Log logger = LogFactory.getLog(ProposalResponse.class);
@@ -96,17 +99,24 @@ public class ProposalResponse extends ChaincodeResponse {
      * @return true/false depending on result of signature verification
      */
     public boolean verify(CryptoSuite crypto) {
+        logger.trace(format("%s verifying transaction: %s endorsement.", peer, getTransactionID()));
 
         if (isVerified()) { // check if this proposalResponse was already verified   by client code
-            return isVerified();
+            logger.trace(format("%s transaction: %s was already verified returned true", peer, getTransactionID()));
+            return true;
         }
 
         if (isInvalid()) {
             this.isVerified = false;
+            logger.debug(format("%s for transaction %s returned invalid. Setting verify to false", peer, getTransactionID()));
+            return false;
         }
 
         FabricProposalResponse.Endorsement endorsement = this.proposalResponse.getEndorsement();
         ByteString sig = endorsement.getSignature();
+        byte[] endorserCertifcate = null;
+        byte[] signature = null;
+        byte[] data = null;
 
         try {
             Identities.SerializedIdentity endorser = Identities.SerializedIdentity
@@ -130,13 +140,38 @@ public class ProposalResponse extends ChaincodeResponse {
 
             }
 
-            this.isVerified = crypto.verify(endorser.getIdBytes().toByteArray(), config.getSignatureAlgorithm(),
-                    sig.toByteArray(), plainText.toByteArray()
-            );
+            if (sig == null || sig.isEmpty()) { // we shouldn't get here ...
+                logger.warn(format("%s %s returned signature is empty verify set to false.", peer, getTransactionID()));
+                this.isVerified = false;
+            } else {
+
+                endorserCertifcate = endorser.getIdBytes().toByteArray();
+                signature = sig.toByteArray();
+                data = plainText.toByteArray();
+
+                this.isVerified = crypto.verify(endorserCertifcate, config.getSignatureAlgorithm(),
+                        signature, data);
+                if (!this.isVerified) {
+                    logger.warn(format("%s transaction: %s verify: Failed to verify. Endorsers certificate: %s, " +
+                                    "signature: %s, signing algorithm: %s, signed data: %s.",
+                            peer, getTransactionID(), toHexString(endorserCertifcate), toHexString(signature),
+                            config.getSignatureAlgorithm(), toHexString(data)
+                    ));
+                }
+            }
+
         } catch (InvalidProtocolBufferException | CryptoException e) {
-            logger.error("verify: Cannot retrieve peer identity from ProposalResponse. Error is: " + e.getMessage(), e);
+            logger.error(format("%s transaction: %s verify: Failed to verify. Endorsers certificate: %s, " +
+                            "signature: %s, signing algorithm: %s, signed data: %s.",
+                    peer, getTransactionID(), toHexString(endorserCertifcate), toHexString(signature),
+                    config.getSignatureAlgorithm(), toHexString(data)
+            ), e);
+
+            logger.error(format("%s transaction: %s verify: Cannot retrieve peer identity from ProposalResponse. Error is: %s", peer, getTransactionID(), e.getMessage()), e);
             this.isVerified = false;
         }
+
+        logger.debug(format("%s finished verify for transaction %s returning %b", peer, getTransactionID(), this.isVerified));
 
         return this.isVerified;
     } // verify
@@ -150,7 +185,7 @@ public class ProposalResponse extends ChaincodeResponse {
         try {
             this.proposal = FabricProposal.Proposal.parseFrom(signedProposal.getProposalBytes());
         } catch (InvalidProtocolBufferException e) {
-            throw new ProposalException("Proposal exception", e);
+            throw new ProposalException(format("%s transaction: %s Proposal exception", peer, getTransactionID()), e);
 
         }
     }
