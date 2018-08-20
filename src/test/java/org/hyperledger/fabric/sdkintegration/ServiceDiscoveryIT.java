@@ -28,17 +28,18 @@ import java.util.concurrent.TimeUnit;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.ChaincodeID;
 import org.hyperledger.fabric.sdk.Channel;
-import org.hyperledger.fabric.sdk.EndorsementSelector;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.Peer.PeerRole;
 import org.hyperledger.fabric.sdk.ProposalResponse;
+import org.hyperledger.fabric.sdk.ServiceDiscovery;
 import org.hyperledger.fabric.sdk.TransactionProposalRequest;
 import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static java.lang.String.format;
@@ -57,6 +58,7 @@ public class ServiceDiscoveryIT {
     String CHAIN_CODE_NAME = "example_cc_go";
     TransactionRequest.Type CHAIN_CODE_LANG = TransactionRequest.Type.GO_LANG;
 
+    @Ignore  //Hostnames reported by service discovery won't work unless you edit hostfile
     @Test
     public void setup() throws Exception {
         //Persistence is not part of SDK. Sample file store is for demonstration purposes only!
@@ -131,7 +133,7 @@ public class ServiceDiscoveryIT {
         //Send proposal request discovering the what endorsers (peers) are needed.
         Collection<ProposalResponse> transactionPropResp =
                 foo.sendTransactionProposalToEndorsers(transactionProposalRequest,
-                        createDiscoveryOptions().setEndorsementSelector(EndorsementSelector.ENDORSEMENT_SELECTION_RANDOM)
+                        createDiscoveryOptions().setEndorsementSelector(ServiceDiscovery.EndorsementSelector.ENDORSEMENT_SELECTION_RANDOM)
                                 .setForceDiscovery(true));
         assertFalse(transactionPropResp.isEmpty());
 
