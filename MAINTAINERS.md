@@ -1,9 +1,10 @@
 ## Maintainers
 
 ### Active Maintainers
-| Name | GitHub | Gerrit | email |
+| Name          | GitHub       | Gerrit       | email |
 |---|---|---|---|
-| Rick Rineholt | cr22rc | rickr | cr22rc@gmail.com |
+| Rick Rineholt | cr22rc       | rickr        | cr22rc@gmail.com       |
+| Gari Singh    | gari.r.singh | gari.r.singh | gari.r.singh@gmail.com |
 
 
 ### Retired Maintainers
