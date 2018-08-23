@@ -18,6 +18,7 @@ import org.junit.runners.Suite;
                 UpdateChannelIT.class,
                 NetworkConfigIT.class,
                 End2endNodeIT.class,
+                End2endJavaIT.class,
                 End2endAndBackAgainNodeIT.class,
                 PrivateDataIT.class,
                 ServiceDiscoveryIT.class,
