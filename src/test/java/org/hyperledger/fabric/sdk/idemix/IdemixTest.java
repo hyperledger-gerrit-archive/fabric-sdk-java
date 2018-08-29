@@ -40,7 +40,7 @@ public class IdemixTest {
 
     @Test
     public void idemixTest() throws ExecutionException, InterruptedException {
-        int numberOfThreadTasks = 50;
+        int numberOfThreadTasks = 10;
         // N tasks runned in pools of X threads.
         int threadPool = 25;
         ExecutorService serviceSingleTask =  Executors.newFixedThreadPool(threadPool);
