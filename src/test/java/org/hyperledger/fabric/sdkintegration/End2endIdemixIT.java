@@ -54,6 +54,7 @@ public class End2endIdemixIT extends End2endIT {
     @Test
     public void setup() throws Exception {
         sampleStore = new SampleStore(sampleStoreFile);
+        idemixRunning = true;
         setupUsers(sampleStore);
         runFabricTest(sampleStore); // just run fabric tests.
     }
