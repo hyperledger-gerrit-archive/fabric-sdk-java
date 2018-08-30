@@ -213,10 +213,10 @@ public class IdemixSigningIdentity implements SigningIdentity {
             throw new CryptoException("Generated proof of identity is not valid");
         }
 
-        logger.trace("Generating the Identity Object");
+        //  logger.trace("Generating the Identity Object");
         // generate a fresh identity with new pseudonym
         this.idemixIdentity = new IdemixIdentity(mspId, this.ipk, this.pseudonym.getNym(), ou, role, this.proof);
-        logger.trace(this.idemixIdentity.toString());
+        //  logger.trace(this.idemixIdentity.toString());
     }
 
     @Override
