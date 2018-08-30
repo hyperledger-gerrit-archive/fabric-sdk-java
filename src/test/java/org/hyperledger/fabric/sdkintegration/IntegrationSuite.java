@@ -22,6 +22,7 @@ import org.junit.runners.Suite;
                 End2endIdemixIT.class,
                 PrivateDataIT.class,
                 ServiceDiscoveryIT.class,
+                End2endMTIT.class,
                 HFCAClientIT.class
         })
 public class IntegrationSuite {
