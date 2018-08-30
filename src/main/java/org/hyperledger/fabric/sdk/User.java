@@ -84,7 +84,7 @@ public interface User {
         if (enrollment == null) {
             throw new InvalidArgumentException(format("UserContext for user %s has no enrollment set.", userName));
         }
-        if (enrollment instanceof X509Enrollment){
+        if (enrollment instanceof X509Enrollment) {
             if (Utils.isNullOrEmpty(enrollment.getCert())) {
                 throw new InvalidArgumentException(format("UserContext for user %s enrollment missing user certificate.", userName));
             }

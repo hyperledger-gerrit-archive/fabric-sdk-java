@@ -29,6 +29,7 @@ import org.apache.milagro.amcl.FP256BN.ECP;
 import org.apache.milagro.amcl.RAND;
 import org.hyperledger.fabric.protos.idemix.Idemix;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
@@ -38,6 +39,7 @@ import static org.junit.Assert.fail;
 
 public class IdemixTest {
 
+    @Ignore
     @Test
     public void idemixTest() throws ExecutionException, InterruptedException {
         int numberOfThreadTasks = 50;
