@@ -207,11 +207,20 @@
             <version>1.23</version>
         </dependency>
 
+
         <!-- https://mvnrepository.com/artifact/org.miracl.milagro.amcl/milagro-crypto-java -->
+        <!--<dependency>-->
+        <!--<groupId>org.miracl.milagro.amcl</groupId>-->
+        <!--<artifactId>milagro-crypto-java</artifactId>-->
+        <!--<version>0.3.0</version>-->
+        <!--</dependency>-->
+
         <dependency>
             <groupId>org.miracl.milagro.amcl</groupId>
             <artifactId>milagro-crypto-java</artifactId>
-            <version>0.3.0</version>
+            <version>1.21</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/src/test/resources/amcl.jar</systemPath>
         </dependency>
 
     </dependencies>
