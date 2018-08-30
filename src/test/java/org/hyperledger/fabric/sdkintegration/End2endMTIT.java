@@ -100,6 +100,16 @@ import static org.junit.Assert.fail;
  */
 public class End2endMTIT {
 
+    //Some controls...
+
+    private static final int WORKER_COUNT = 399; // threads running through the code. Can not pass 399!!!
+    private static final int USERS_PER_ORG = 1; // how many users per org is running through the code.
+    private static final int PERCENTAGE_IDEMIX_USERS = 100; //0= no IdemixUsers are used  100 = all idemixusers are used.
+    private static final int MINUTES_TO_RUN = 3; // Minutes to run code.
+
+    static final long START_TIME = System.currentTimeMillis();
+    static final long STOP_TIME = START_TIME + MINUTES_TO_RUN * 60 * 1000;
+
     private static final TestConfig testConfig = TestConfig.getConfig();
     private static final String TEST_ADMIN_NAME = "admin";
     private static final String TESTUSER_1_NAME = "user1";
@@ -222,7 +232,6 @@ public class End2endMTIT {
 
     }
 
-    private static final int WORKER_COUNT = 399;
     Random random = new Random();
 
     public void runFabricTest(final SampleStore sampleStore) throws Exception {
@@ -266,6 +275,10 @@ public class End2endMTIT {
                     Thread.sleep(random.nextInt(3000)); // stage them to be doing different tasks
                 } catch (InterruptedException e) {
                     e.printStackTrace();
+                }
+
+                if (System.currentTimeMillis() > STOP_TIME) {
+                    break;
                 }
 
             }
@@ -349,12 +362,31 @@ public class End2endMTIT {
             }
 
             for (int i = 0; i < 200000000; ++i) {
+                if (System.currentTimeMillis() > STOP_TIME) {
+                    break;
+                }
                 out("Worker %d doing run: %d", id, i);
                 int moveAmount = random.nextInt(9) + 1;
 
                 int whichChannel = random.nextInt(testPairs.length);
 
-                runChannel(client, testPairs[whichChannel].getChannel(), id, i, testPairs[whichChannel].getSampleOrg(), moveAmount, start[whichChannel]);
+                final AppUser appUser = allUsers.get(testPairs[whichChannel].getSampleOrg().getName() + "_user_" + random.nextInt(USERS_PER_ORG));
+
+                int idemixUserPercent = Integer.min(Integer.max(0, PERCENTAGE_IDEMIX_USERS), 100);
+                User user = appUser.getX509();
+                if (100 == idemixUserPercent) {
+                    user = appUser.getIdemix();
+
+                } else if (0 != idemixUserPercent) {
+                    int ri = random.nextInt(99); // close enough
+                    if (ri < PERCENTAGE_IDEMIX_USERS) {
+                        user = appUser.getIdemix();
+                    }
+                }
+
+                //   final User user = appUser.getX509();
+
+                runChannel(user, client, testPairs[whichChannel].getChannel(), id, i, testPairs[whichChannel].getSampleOrg(), moveAmount, start[whichChannel]);
 
                 start[whichChannel] += moveAmount;
             }
@@ -371,6 +403,27 @@ public class End2endMTIT {
 //                        collect(Collectors.<T>toList())
 //        );
 //    }
+
+    static class AppUser {
+        public User getX509() {
+            return x509;
+        }
+
+        public User getIdemix() {
+            return idemix;
+        }
+
+        final User x509;
+        final User idemix;
+
+        AppUser(User x509, User idemix) {
+            this.x509 = x509;
+            this.idemix = idemix;
+        }
+
+    }
+
+    Map<String, AppUser> allUsers = new HashMap<>();
 
     /**
      * Will register and enroll users persisting them to samplestore.
@@ -430,16 +483,33 @@ public class End2endMTIT {
 
             sampleOrg.setAdmin(admin); // The admin of this org --
 
-            SampleUser user = sampleStore.getMember(TESTUSER_1_NAME, sampleOrg.getName());
-            if (!user.isRegistered()) {  // users need to be registered AND enrolled
-                RegistrationRequest rr = new RegistrationRequest(user.getName(), "org1.department1");
-                user.setEnrollmentSecret(ca.register(rr, admin));
+            for (int i = USERS_PER_ORG - 1; i > -1; --i) {
+
+                String userkey = sampleOrg.getName() + "_user_" + i;
+                SampleUser user = sampleStore.getMember(userkey, sampleOrg.getName());
+                if (!user.isRegistered()) {  // users need to be registered AND enrolled
+                    RegistrationRequest rr = new RegistrationRequest(user.getName(), "org1.department1");
+                    user.setEnrollmentSecret(ca.register(rr, admin));
+                }
+                if (!user.isEnrolled()) {
+                    user.setEnrollment(ca.enroll(user.getName(), user.getEnrollmentSecret()));
+                    user.setMspId(mspid);
+                }
+
+                sampleOrg.addUser(user);
+
+                SampleUser useridmix = sampleStore.getMember(userkey, sampleOrg.getName());
+
+                String mspID = "idemixMSPID1";
+                if (sampleOrg.getName().contains("Org2")) {
+                    mspID = "idemixMSPID2";
+                }
+                useridmix.setIdemixEnrollment(ca.idemixEnroll(user.getEnrollment(), mspID));
+
+                allUsers.put(userkey, new AppUser(user, useridmix));
+
+                sampleOrg.addUser(useridmix); //Remember user belongs to this Org
             }
-            if (!user.isEnrolled()) {
-                user.setEnrollment(ca.enroll(user.getName(), user.getEnrollmentSecret()));
-                user.setMspId(mspid);
-            }
-            sampleOrg.addUser(user); //Remember user belongs to this Org
 
             final String sampleOrgName = sampleOrg.getName();
             final String sampleOrgDomainName = sampleOrg.getDomainName();
@@ -470,7 +540,7 @@ public class End2endMTIT {
     }
 
     //CHECKSTYLE.OFF: Method length is 320 lines (max allowed is 150).
-    void runChannel(HFClient client, Channel channel, final int workerId, final int runId, SampleOrg sampleOrg, final int delta, final int start) {
+    void runChannel(User user, HFClient client, Channel channel, final int workerId, final int runId, SampleOrg sampleOrg, final int delta, final int start) {
         int ret = -1;
 
         class ChaincodeEventCapture { //A test class to capture chaincode events
@@ -534,7 +604,7 @@ public class End2endMTIT {
             successful.clear();
             failed.clear();
 
-            final User user = sampleOrg.getUser(TESTUSER_1_NAME);
+            //    final User user = sampleOrg.getUser(TESTUSER_1_NAME);
 
             ///////////////
             /// Send transaction proposal to all peers
@@ -590,7 +660,7 @@ public class End2endMTIT {
             byte[] x = resp.getChaincodeActionResponsePayload(); // This is the data returned by the chaincode.
             String resultAsString = null;
             if (x != null) {
-                resultAsString = new String(x, "UTF-8");
+                resultAsString = new String(x, UTF_8);
             }
             assertEquals(":)", resultAsString);
 
@@ -839,12 +909,14 @@ public class End2endMTIT {
             peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
 
             Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
-            if (doPeerEventing && everyother) {
-                newChannel.joinPeer(peer, createPeerOptions()); //Default is all roles.
-            } else {
-                // Set peer to not be all roles but eventing.
-                newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
-            }
+//            if (doPeerEventing && everyother) {
+//                newChannel.joinPeer(peer, createPeerOptions()); //Default is all roles.
+//            } else {
+//                // Set peer to not be all roles but eventing.
+//                newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
+//            }
+            newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.LEDGER_QUERY, PeerRole.CHAINCODE_QUERY,
+                    PeerRole.EVENT_SOURCE, PeerRole.ENDORSING_PEER)));
             out("Peer %s joined channel %s", peerName, name);
             everyother = !everyother;
         }
