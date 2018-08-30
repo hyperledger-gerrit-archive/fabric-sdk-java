@@ -19,8 +19,6 @@ package org.hyperledger.fabric.sdk.idemix;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.List;
 
 import com.google.protobuf.ByteString;
 import org.apache.milagro.amcl.FP256BN.BIG;
@@ -63,7 +61,7 @@ public final class IdemixUtils {
      *
      * @return a random number generator
      */
-     static RAND getRand() {
+    public static RAND getRand() {
         // construct a secure seed
         int seedLength = IdemixUtils.FIELD_BYTES;
         SecureRandom random = new SecureRandom();
@@ -80,7 +78,7 @@ public final class IdemixUtils {
     /**
      * @return a random BIG in 0, ..., GROUP_ORDER-1
      */
-     static BIG randModOrder(RAND rng) {
+    public static BIG randModOrder(RAND rng) {
         BIG q = new BIG(ROM.CURVE_Order);
 
         // Takes random element in this Zq.
