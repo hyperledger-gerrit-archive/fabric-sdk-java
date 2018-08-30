@@ -13,16 +13,7 @@ import org.junit.runners.Suite;
 
 @Suite.SuiteClasses (
         {
-                End2endIT.class,
-                End2endAndBackAgainIT.class,
-                UpdateChannelIT.class,
-                NetworkConfigIT.class,
-                End2endNodeIT.class,
-                End2endAndBackAgainNodeIT.class,
-                End2endIdemixIT.class,
-                PrivateDataIT.class,
-                ServiceDiscoveryIT.class,
-                HFCAClientIT.class
+                End2endMTIT.class
         })
 public class IntegrationSuite {
 
