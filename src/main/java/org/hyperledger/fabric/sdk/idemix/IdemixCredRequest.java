@@ -18,7 +18,6 @@ package org.hyperledger.fabric.sdk.idemix;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 
@@ -55,7 +54,7 @@ public class IdemixCredRequest {
      * @param issuerNonce a nonce
      * @param ipk         the issuer public key
      */
-     IdemixCredRequest(BIG sk, BIG issuerNonce, IdemixIssuerPublicKey ipk) {
+    public IdemixCredRequest(BIG sk, BIG issuerNonce, IdemixIssuerPublicKey ipk) {
         if (sk == null) {
             throw new IllegalArgumentException("Cannot create idemix credrequest from null Secret Key input");
         }
