@@ -115,7 +115,7 @@ public class Config {
             /**
              * Timeout settings
              **/
-            defaultProperty(PROPOSAL_WAIT_TIME, "35000");
+            defaultProperty(PROPOSAL_WAIT_TIME, "50000");
             defaultProperty(CHANNEL_CONFIG_WAIT_TIME, "15000");
             defaultProperty(ORDERER_RETRY_WAIT_TIME, "200");
             defaultProperty(ORDERER_WAIT_TIME, "10000");
