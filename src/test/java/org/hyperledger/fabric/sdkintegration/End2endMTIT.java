@@ -99,6 +99,25 @@ import static org.junit.Assert.fail;
  * Test end to end with multiple threads
  */
 public class End2endMTIT {
+    /*
+     IMPORTANT HINTS:
+        Turn off all logging in Fabric/CA  it will use alot of diskspace!
+        Make sure to run docker-compose as a daaemon (-d)
+        Write local logs to disk probably needs to a be rotating log file!
+     */
+
+    //Some controls...
+
+    private static final int WORKER_COUNT = 100; // threads running through the code. Can not pass 399!!!
+    private static final int USERS_PER_ORG = 1; // how many users per org is running through the code.
+    private static final int PERCENTAGE_IDEMIX_USERS = 100; //0= no IdemixUsers are used  100 = all idemixusers are used.
+    private static final int MINUTES_TO_RUN = 8; // Minutes to run code.
+    private static final boolean RUN_MEMORY_ALLOCATOR = false; // If true, run a thread that periodically allocates/deallocates memory.
+
+    private final Vector<Throwable> badStuffHappens = new Vector<>(); // capture any exception's in the worker threads.
+
+    static final long START_TIME = System.currentTimeMillis();
+    static final long STOP_TIME = START_TIME + MINUTES_TO_RUN * 60 * 1000;
 
     private static final TestConfig testConfig = TestConfig.getConfig();
     private static final String TEST_ADMIN_NAME = "admin";
@@ -206,7 +225,7 @@ public class End2endMTIT {
     File sampleStoreFile = new File(System.getProperty("java.io.tmpdir") + "/HFCSampletest.properties");
 
     @Test
-    public void setup() throws Exception {
+    public void setup() throws Throwable {
         //Persistence is not part of SDK. Sample file store is for demonstration purposes only!
         //   MUST be replaced with more robust application implementation  (Database, LDAP)
 
@@ -215,17 +234,18 @@ public class End2endMTIT {
         }
         sampleStore = new SampleStore(sampleStoreFile);
 
-        memoryAllocator();
+        if (RUN_MEMORY_ALLOCATOR) {
+            memoryAllocator();
+        }
 
         enrollUsersSetup(sampleStore); //This enrolls users with fabric ca and setups sample store to get users later.
         runFabricTest(sampleStore); //Runs Fabric tests with constructing channels, joining peers, exercising chaincode
 
     }
 
-    private static final int WORKER_COUNT = 399;
     Random random = new Random();
 
-    public void runFabricTest(final SampleStore sampleStore) throws Exception {
+    public void runFabricTest(final SampleStore sampleStore) throws Throwable {
 
         ////////////////////////////
         // Setup client
@@ -246,6 +266,8 @@ public class End2endMTIT {
         SampleOrg sampleOrg2 = testConfig.getIntegrationTestsSampleOrg("peerOrg2");
         Channel barChannel = constructChannel(BAR_CHANNEL_NAME, client, sampleOrg2);
         futures.add(installInstantiate(barChannel, client, sampleOrg2));
+
+        final Vector<Throwable> thrown = new Vector<>();
 
         final CompletableFuture<Void> voidCompletableFuture = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
         voidCompletableFuture.thenApply(avoid -> {
@@ -268,6 +290,10 @@ public class End2endMTIT {
                     e.printStackTrace();
                 }
 
+                if (System.currentTimeMillis() > STOP_TIME || !badStuffHappens.isEmpty()) {
+                    break;
+                }
+
             }
 
             threads.forEach(t -> {
@@ -275,12 +301,26 @@ public class End2endMTIT {
                     t.join();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
+                    badStuffHappens.add(e);
                 }
+
             });
+
+            if (!badStuffHappens.isEmpty()) {
+                return voidCompletableFuture.completeExceptionally(badStuffHappens.get(0));
+
+            }
 
             return null;
 
         }).get();
+
+        if (!badStuffHappens.isEmpty()) {
+            badStuffHappens.get(0).printStackTrace();
+
+            fail(badStuffHappens.get(0).getMessage());
+            throw badStuffHappens.get(0);
+        }
 
 //        voidCompletableFuture.thenApply(() -> futures.stream()
 //                .map(CompletableFuture::join)
@@ -342,21 +382,52 @@ public class End2endMTIT {
 
         @Override
         public void run() {
-            start = new int[testPairs.length];
-            for (int i = 0; i < start.length; i++) {
-                start[i] = 200;
-
+            if (System.currentTimeMillis() > STOP_TIME || !badStuffHappens.isEmpty()) {
+                return;
             }
+            try {
+                start = new int[testPairs.length];
+                for (int i = 0; i < start.length; i++) {
+                    start[i] = 200;
 
-            for (int i = 0; i < 200000000; ++i) {
-                out("Worker %d doing run: %d", id, i);
-                int moveAmount = random.nextInt(9) + 1;
+                }
 
-                int whichChannel = random.nextInt(testPairs.length);
+                for (int i = 0; i < 200000000; ++i) {
+                    if (System.currentTimeMillis() > STOP_TIME || !badStuffHappens.isEmpty()) {
+                        break;
+                    }
 
-                runChannel(client, testPairs[whichChannel].getChannel(), id, i, testPairs[whichChannel].getSampleOrg(), moveAmount, start[whichChannel]);
+                    int moveAmount = random.nextInt(9) + 1;
 
-                start[whichChannel] += moveAmount;
+                    int whichChannel = random.nextInt(testPairs.length);
+
+                    final AppUser appUser = allUsers.get(testPairs[whichChannel].getSampleOrg().getName() + "_user_" + random.nextInt(USERS_PER_ORG));
+
+                    int idemixUserPercent = Integer.min(Integer.max(0, PERCENTAGE_IDEMIX_USERS), 100);
+                    User user = appUser.getX509();
+                    String whichUser = "UserTypeX509";
+                    if (100 == idemixUserPercent) {
+                        user = appUser.getIdemix();
+                        whichUser = "UserTypeIDEMIX";
+
+                    } else if (0 != idemixUserPercent) {
+                        int ri = random.nextInt(99); // close enough
+                        if (ri < idemixUserPercent) {
+                            user = appUser.getIdemix();
+                            whichUser = "UserTypeIDEMIX";
+                        }
+                    }
+
+                    out("Worker %d doing run: %d, as an:%s", id, i, whichUser);
+
+                    //   final User user = appUser.getX509();
+
+                    runChannel(user, client, testPairs[whichChannel].getChannel(), id, i, testPairs[whichChannel].getSampleOrg(), moveAmount, start[whichChannel]);
+
+                    start[whichChannel] += moveAmount;
+                }
+            } catch (Throwable e) {
+                badStuffHappens.add(e);
             }
 
         }
@@ -371,6 +442,27 @@ public class End2endMTIT {
 //                        collect(Collectors.<T>toList())
 //        );
 //    }
+
+    static class AppUser {
+        public User getX509() {
+            return x509;
+        }
+
+        public User getIdemix() {
+            return idemix;
+        }
+
+        final User x509;
+        final User idemix;
+
+        AppUser(User x509, User idemix) {
+            this.x509 = x509;
+            this.idemix = idemix;
+        }
+
+    }
+
+    Map<String, AppUser> allUsers = new HashMap<>();
 
     /**
      * Will register and enroll users persisting them to samplestore.
@@ -430,16 +522,33 @@ public class End2endMTIT {
 
             sampleOrg.setAdmin(admin); // The admin of this org --
 
-            SampleUser user = sampleStore.getMember(TESTUSER_1_NAME, sampleOrg.getName());
-            if (!user.isRegistered()) {  // users need to be registered AND enrolled
-                RegistrationRequest rr = new RegistrationRequest(user.getName(), "org1.department1");
-                user.setEnrollmentSecret(ca.register(rr, admin));
+            for (int i = USERS_PER_ORG - 1; i > -1; --i) {
+
+                String userkey = sampleOrg.getName() + "_user_" + i;
+                SampleUser user = sampleStore.getMember(userkey, sampleOrg.getName());
+                if (!user.isRegistered()) {  // users need to be registered AND enrolled
+                    RegistrationRequest rr = new RegistrationRequest(user.getName(), "org1.department1");
+                    user.setEnrollmentSecret(ca.register(rr, admin));
+                }
+                if (!user.isEnrolled()) {
+                    user.setEnrollment(ca.enroll(user.getName(), user.getEnrollmentSecret()));
+                    user.setMspId(mspid);
+                }
+
+                sampleOrg.addUser(user);
+
+                SampleUser useridmix = sampleStore.getMember(userkey, sampleOrg.getName());
+
+                String mspID = "idemixMSPID1";
+                if (sampleOrg.getName().contains("Org2")) {
+                    mspID = "idemixMSPID2";
+                }
+                useridmix.setIdemixEnrollment(ca.idemixEnroll(user.getEnrollment(), mspID));
+
+                allUsers.put(userkey, new AppUser(user, useridmix));
+
+                sampleOrg.addUser(useridmix); //Remember user belongs to this Org
             }
-            if (!user.isEnrolled()) {
-                user.setEnrollment(ca.enroll(user.getName(), user.getEnrollmentSecret()));
-                user.setMspId(mspid);
-            }
-            sampleOrg.addUser(user); //Remember user belongs to this Org
 
             final String sampleOrgName = sampleOrg.getName();
             final String sampleOrgDomainName = sampleOrg.getDomainName();
@@ -470,7 +579,7 @@ public class End2endMTIT {
     }
 
     //CHECKSTYLE.OFF: Method length is 320 lines (max allowed is 150).
-    void runChannel(HFClient client, Channel channel, final int workerId, final int runId, SampleOrg sampleOrg, final int delta, final int start) {
+    void runChannel(User user, HFClient client, Channel channel, final int workerId, final int runId, SampleOrg sampleOrg, final int delta, final int start) {
         int ret = -1;
 
         class ChaincodeEventCapture { //A test class to capture chaincode events
@@ -534,7 +643,7 @@ public class End2endMTIT {
             successful.clear();
             failed.clear();
 
-            final User user = sampleOrg.getUser(TESTUSER_1_NAME);
+            //    final User user = sampleOrg.getUser(TESTUSER_1_NAME);
 
             ///////////////
             /// Send transaction proposal to all peers
@@ -590,7 +699,7 @@ public class End2endMTIT {
             byte[] x = resp.getChaincodeActionResponsePayload(); // This is the data returned by the chaincode.
             String resultAsString = null;
             if (x != null) {
-                resultAsString = new String(x, "UTF-8");
+                resultAsString = new String(x, UTF_8);
             }
             assertEquals(":)", resultAsString);
 
@@ -839,12 +948,14 @@ public class End2endMTIT {
             peerProperties.put("grpc.NettyChannelBuilderOption.maxInboundMessageSize", 9000000);
 
             Peer peer = client.newPeer(peerName, peerLocation, peerProperties);
-            if (doPeerEventing && everyother) {
-                newChannel.joinPeer(peer, createPeerOptions()); //Default is all roles.
-            } else {
-                // Set peer to not be all roles but eventing.
-                newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
-            }
+//            if (doPeerEventing && everyother) {
+//                newChannel.joinPeer(peer, createPeerOptions()); //Default is all roles.
+//            } else {
+//                // Set peer to not be all roles but eventing.
+//                newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(PeerRole.NO_EVENT_SOURCE));
+//            }
+            newChannel.joinPeer(peer, createPeerOptions().setPeerRoles(EnumSet.of(PeerRole.LEDGER_QUERY, PeerRole.CHAINCODE_QUERY,
+                    PeerRole.EVENT_SOURCE, PeerRole.ENDORSING_PEER)));
             out("Peer %s joined channel %s", peerName, name);
             everyother = !everyother;
         }
@@ -1218,7 +1329,7 @@ public class End2endMTIT {
 
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Throwable {
 
         final End2endMTIT end2endMTIT = new End2endMTIT();
         end2endMTIT.checkConfig();
