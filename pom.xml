@@ -243,7 +243,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.19.1</version>
                 <configuration>
-                    <argLine>${surefireArgLine}</argLine>
+                    <forkCount>0</forkCount>
+                    <argLine>${surefireArgLine} -Xms512m -Xmx1024m -XX:MaxPermSize=512m</argLine>
                     <includes>
                         <include>**/*Test.java</include>
                     </includes>
