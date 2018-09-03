@@ -16,6 +16,9 @@ package org.hyperledger.fabric.sdk.transaction;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.sdk.Channel;
 import org.hyperledger.fabric.sdk.User;
@@ -23,6 +26,7 @@ import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.Utils;
+import org.hyperledger.fabric.sdk.identity.IdemixSigningIdentity;
 import org.hyperledger.fabric.sdk.identity.IdentityFactory;
 import org.hyperledger.fabric.sdk.identity.SigningIdentity;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
@@ -34,7 +38,7 @@ import org.hyperledger.fabric.sdk.security.CryptoSuite;
  */
 public class TransactionContext {
     private static final Config config = Config.getConfig();
-    //    private static final Log logger = LogFactory.getLog(TransactionContext.class);
+    private static final Log logger = LogFactory.getLog(TransactionContext.class);
     //TODO right now the server does not care need to figure out
     private final ByteString nonce = ByteString.copyFrom(Utils.generateNonce());
     private final CryptoSuite cryptoPrimitives;
@@ -224,9 +228,15 @@ public class TransactionContext {
         for (User user : users) {
             // Get the signing identity from the user
             SigningIdentity signingIdentity = IdentityFactory.getSigningIdentity(cryptoPrimitives, user);
-
-            // generate signature
-            ret[++i] = ByteString.copyFrom(signingIdentity.sign(signbytes));
+            if (signingIdentity instanceof IdemixSigningIdentity) {
+                logger.trace("Signing and checking");
+                byte[] signature = signingIdentity.sign(signbytes);
+                logger.trace("Signature created. Verify result: " + signingIdentity.verifySignature(signbytes, signature));
+                ret[++i] = ByteString.copyFrom(signature);
+            } else {
+                // generate signature
+                ret[++i] = ByteString.copyFrom(signingIdentity.sign(signbytes));
+            }
         }
         return ret;
     }
