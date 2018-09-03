@@ -11,6 +11,9 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.milagro.amcl.FP256BN.BIG;
 import org.hyperledger.fabric.protos.idemix.Idemix;
 import org.hyperledger.fabric.protos.msp.MspConfig;
@@ -19,6 +22,7 @@ import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.idemix.IdemixCredential;
 import org.hyperledger.fabric.sdk.idemix.IdemixIssuerPublicKey;
 import org.hyperledger.fabric.sdk.identity.IdemixEnrollment;
+import org.hyperledger.fabric.sdk.identity.IdemixSigningIdentity;
 
 public class IdemixUserStore {
 
@@ -31,6 +35,7 @@ public class IdemixUserStore {
     protected final String storePath;
     protected final String mspId;
     protected final IdemixIssuerPublicKey ipk;
+    private static final Log logger = LogFactory.getLog(IdemixSigningIdentity.class);
 
     public IdemixUserStore(String storePath, String mspId) throws CryptoException {
         this.storePath = storePath;
@@ -47,8 +52,8 @@ public class IdemixUserStore {
         PublicKey revocationPk = readIdemixRevocationPublicKey(this.mspId);
         BIG sk = BIG.fromBytes(signerConfig.getSk().toByteArray());
         IdemixCredential cred = new IdemixCredential(Idemix.Credential.parseFrom(signerConfig.getCred()));
+        logger.trace("Checking IdemixUser credential: " + cred.verify(sk, this.ipk) + " Path to it: " + Paths.get(this.mspId, USER_PATH + id).toString());
         Idemix.CredentialRevocationInformation cri = Idemix.CredentialRevocationInformation.parseFrom(signerConfig.getCredentialRevocationInformation());
-
         IdemixEnrollment enrollment = new IdemixEnrollment(this.ipk, revocationPk, this.mspId, sk, cred, cri, signerConfig.getOrganizationalUnitIdentifier(), signerConfig.getIsAdmin());
         return new IdemixUser(id, this.mspId, enrollment);
     }
