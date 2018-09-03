@@ -16,6 +16,7 @@ package org.hyperledger.fabric.sdk.transaction;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
+
 import org.hyperledger.fabric.protos.msp.Identities;
 import org.hyperledger.fabric.sdk.Channel;
 import org.hyperledger.fabric.sdk.User;
@@ -34,7 +35,7 @@ import org.hyperledger.fabric.sdk.security.CryptoSuite;
  */
 public class TransactionContext {
     private static final Config config = Config.getConfig();
-    //    private static final Log logger = LogFactory.getLog(TransactionContext.class);
+//    private static final Log logger = LogFactory.getLog(TransactionContext.class);
     //TODO right now the server does not care need to figure out
     private final ByteString nonce = ByteString.copyFrom(Utils.generateNonce());
     private final CryptoSuite cryptoPrimitives;
@@ -224,8 +225,7 @@ public class TransactionContext {
         for (User user : users) {
             // Get the signing identity from the user
             SigningIdentity signingIdentity = IdentityFactory.getSigningIdentity(cryptoPrimitives, user);
-
-            // generate signature
+            // Generate signature
             ret[++i] = ByteString.copyFrom(signingIdentity.sign(signbytes));
         }
         return ret;

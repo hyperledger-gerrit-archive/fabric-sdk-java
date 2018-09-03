@@ -225,6 +225,7 @@ public class IdemixSigningIdentity implements SigningIdentity {
         if (msg == null) {
             throw new InvalidArgumentException("Input must not be null");
         }
+
         return new IdemixPseudonymSignature(this.sk, this.pseudonym, this.ipk, msg).toProto().toByteArray();
     }
 

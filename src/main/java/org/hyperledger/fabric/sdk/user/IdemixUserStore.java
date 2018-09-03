@@ -11,6 +11,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+
 import org.apache.milagro.amcl.FP256BN.BIG;
 import org.hyperledger.fabric.protos.idemix.Idemix;
 import org.hyperledger.fabric.protos.msp.MspConfig;
@@ -47,6 +48,7 @@ public class IdemixUserStore {
         PublicKey revocationPk = readIdemixRevocationPublicKey(this.mspId);
         BIG sk = BIG.fromBytes(signerConfig.getSk().toByteArray());
         IdemixCredential cred = new IdemixCredential(Idemix.Credential.parseFrom(signerConfig.getCred()));
+
         Idemix.CredentialRevocationInformation cri = Idemix.CredentialRevocationInformation.parseFrom(signerConfig.getCredentialRevocationInformation());
 
         IdemixEnrollment enrollment = new IdemixEnrollment(this.ipk, revocationPk, this.mspId, sk, cred, cri, signerConfig.getOrganizationalUnitIdentifier(), signerConfig.getIsAdmin());
