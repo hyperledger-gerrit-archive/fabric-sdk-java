@@ -211,7 +211,9 @@ public class IdemixSigningIdentity implements SigningIdentity {
         logger.trace("Verifying the proof");
         // verify the proof
         if (!this.proof.verify(IdemixSigningIdentity.disclosedFlags, this.ipk, IdemixSigningIdentity.msgEmpty, attributes, rhIndex, revocationPk, (int) cri.getEpoch())) {
-            throw new CryptoException("Generated proof of identity is not valid");
+            CryptoException exception = new CryptoException("Generated proof of identity is not valid");
+            logger.error(exception);
+            throw exception;
         }
 
         logger.trace("Generating the Identity Object");
@@ -225,6 +227,8 @@ public class IdemixSigningIdentity implements SigningIdentity {
         if (msg == null) {
             throw new InvalidArgumentException("Input must not be null");
         }
+        logger.trace("Signing with pseudonym the msg");
+        logger.trace("Checking IPK before signing: " + this.ipk.check());
         return new IdemixPseudonymSignature(this.sk, this.pseudonym, this.ipk, msg).toProto().toByteArray();
     }
 
