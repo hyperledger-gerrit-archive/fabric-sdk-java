@@ -5,7 +5,6 @@
 */
 package org.hyperledger.fabric.sdkintegration;
 
-import org.hyperledger.fabric_ca.sdkintegration.HFCAClientIT;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -13,17 +12,7 @@ import org.junit.runners.Suite;
 
 @Suite.SuiteClasses (
         {
-                End2endIT.class,
-                End2endAndBackAgainIT.class,
-                UpdateChannelIT.class,
-                NetworkConfigIT.class,
-                End2endNodeIT.class,
-                End2endJavaIT.class,
-                End2endAndBackAgainNodeIT.class,
-                End2endIdemixIT.class,
-                PrivateDataIT.class,
-                ServiceDiscoveryIT.class,
-                HFCAClientIT.class
+                End2endMTIT.class
         })
 public class IntegrationSuite {
 
