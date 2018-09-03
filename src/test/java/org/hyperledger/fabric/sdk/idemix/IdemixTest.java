@@ -51,14 +51,14 @@ public class IdemixTest {
         IdemixSetup setup = new IdemixSetup(attributeNames);
 
         // One single task running in parallel in a pool of threads.
-        IdemixTask taskS = new IdemixTask(setup, 50);
+        IdemixTask taskS = new IdemixTask(setup, 10);
         Future<Boolean> result = serviceSingleTask.submit(taskS);
         assertTrue(result.get());
 
         // i tasks running at the same time in parallel in different thread pools.
         List<Future<Boolean>> results = new ArrayList<>();
         for (int i = numberOfThreadTasks; i > 0; i--) {
-            IdemixTask taskM = new IdemixTask(setup, 50);
+            IdemixTask taskM = new IdemixTask(setup, 10);
             results.add(serviceMultiTask.submit(taskM));
         }
         for (Future<Boolean> f: results) {

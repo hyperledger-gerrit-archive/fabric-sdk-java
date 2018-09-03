@@ -380,15 +380,10 @@ public class IdemixIdentitiesTest {
      * @throws InvalidArgumentException
      */
     public boolean testSigning(IdemixSigningIdentity signIdentity, byte[] msg, byte[] sigInput, boolean useInputSig) throws CryptoException, InvalidArgumentException {
-
         byte[] sig = signIdentity.sign(msg);
-        byte[] otherMsg = {1, 1, 1, 1};
-
         if (useInputSig) {
-            assertFalse(signIdentity.verifySignature(otherMsg, sigInput));
             return signIdentity.verifySignature(msg, sigInput);
         } else {
-            assertFalse(signIdentity.verifySignature(otherMsg, sig));
             return signIdentity.verifySignature(msg, sig);
         }
     }
