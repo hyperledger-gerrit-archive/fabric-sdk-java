@@ -22,16 +22,11 @@ SDK's `Enrollment` interface.
   only help you familiarize to get started with the SDK if you are new in this domain.
 
 
-## IMPORTANT: Version 1.3 IS WORK IN PROGRESS!
-If you don't require features of Fabric or Fabric CA version 1.3 you probably should consider the v1.2.x version of the SDK.
-To get the actual v1.2.0 SDK:  [v1.2.0](https://github.com/hyperledger/fabric-sdk-java/tree/33760188370ed4653cca93e727e509e774c5c8c1)
-If you are trying to use new features of Fabric you will probably have to build Fabric to get those features.
-
-
 ## Release notes
 
 |Release | Notes |
 |--------|:-----:|
+|1.3     | [v1.3 release notes](./docs/release_v1.3.0_notes.md)|
 |1.2     | [v1.2 release notes](./docs/release_v1.2.0_notes.md)|
 |1.1     | [v1.1 release notes](./docs/release_v1.1.0_notes.md)|
 
@@ -51,7 +46,7 @@ For Java applications use the latest published v1.3.x releases:
      <dependency>
          <groupId>org.hyperledger.fabric-sdk-java</groupId>
          <artifactId>fabric-sdk-java</artifactId>
-         <version>1.3.0-SNAPHOST/version>
+         <version>1.3.0/version>
      </dependency>
 
 ```
@@ -67,34 +62,6 @@ For Java applications use the latest published v1.3.x releases:
 
 `*************************************************`
 
-## 1.3.0-SNAPSHOT builds
-Work in progress 1.3.0 SNAPSHOT builds can be used by adding the following to your application's
-pom.xml
-```
-<repositories>
-        <repository>
-            <id>snapshots-repo</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
-<dependencies>
-
-        <!-- https://mvnrepository.com/artifact/org.hyperledger.fabric-sdk-java/fabric-sdk-java -->
-        <dependency>
-            <groupId>org.hyperledger.fabric-sdk-java</groupId>
-            <artifactId>fabric-sdk-java</artifactId>
-            <version>1.3.0-SNAPSHOT</version>
-        </dependency>
-
-</dependencies>
-```
 
 
 
@@ -277,6 +244,12 @@ These can sometimes silently kill a network connections and prevent them from au
 adding to Peers, EventHub's and Orderer's connection properties:
 `grpc.NettyChannelBuilderOption.keepAliveTime`, `grpc.NettyChannelBuilderOption.keepAliveTimeout`,
 `grpc.NettyChannelBuilderOption.keepAliveWithoutCalls`. Examples of this are in End2endIT.java
+
+**grpc messsage frame size exceeds maximum**
+
+The message being returned from the fabric server is too large for the default grpc frame size.
+On the Peer, Orderer, orEventHub add the property `grpc.NettyChannelBuilderOption.maxInboundMessageSize`
+See [End2endIT's constructChannel](https://github.com/hyperledger/fabric-sdk-java/blob/b649868113e969d851720c972f660114b64247bc/src/test/java/org/hyperledger/fabric/sdkintegration/End2endIT.java#L846)
 
 
 **identity or token do not match**
