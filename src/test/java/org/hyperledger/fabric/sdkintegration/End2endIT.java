@@ -410,8 +410,14 @@ public class End2endIT {
 
                     ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
                     installProposalRequest.setChaincodeSourceLocation(Paths.get(TEST_FIXTURES_PATH, CHAIN_CODE_FILEPATH).toFile());
+                    //This sets an index on the variable a in the chaincode // see http://hyperledger-fabric.readthedocs.io/en/master/couchdb_as_state_database.html#using-couchdb-from-chaincode
+                    // The file IndexA.json as part of the META-INF will be packaged with the source to create the index.
+                    installProposalRequest.setChaincodeMetaInfLocation(new File("src/test/fixture/meta-infs/end2endit"));
                 } else {
                     // On bar chain install from an input stream.
+
+                    // For inputstream if indicies are desired the application needs to make sure the META-INF is provided in the stream.
+                    // The SDK does not change anything in the stream.
 
                     if (CHAIN_CODE_LANG.equals(Type.GO_LANG)) {
 
