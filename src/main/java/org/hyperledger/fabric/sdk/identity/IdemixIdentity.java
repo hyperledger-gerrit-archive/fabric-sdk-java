@@ -55,7 +55,7 @@ public class IdemixIdentity implements Identity {
     private final String ou;
 
     // Role attribute
-    private final boolean role;
+    private final int role;
 
     // Proof of possession of Idemix credential
     // with respect to the pseudonym (nym)
@@ -89,7 +89,7 @@ public class IdemixIdentity implements Identity {
             MspPrincipal.MSPRole role = MspPrincipal.MSPRole.parseFrom(idemixProto.getRole());
 
             this.ou = ou.getOrganizationalUnitIdentifier();
-            this.role = role.getRole().getNumber() == 1;
+            this.role = IdemixRoles.getIdemixRoleFromMSPRole(role);
             this.ipkHash = ou.getCertifiersIdentifier().toByteArray();
 
             logger.trace("Deserializing Proof");
@@ -109,7 +109,7 @@ public class IdemixIdentity implements Identity {
      * @param role  is Role attribute
      * @param proof is Proof
      */
-    public IdemixIdentity(String mspId, IdemixIssuerPublicKey ipk, ECP nym, String ou, boolean role, IdemixSignature proof)
+    public IdemixIdentity(String mspId, IdemixIssuerPublicKey ipk, ECP nym, String ou, int role, IdemixSignature proof)
             throws InvalidArgumentException {
 
         if (mspId == null) {
@@ -161,7 +161,7 @@ public class IdemixIdentity implements Identity {
                 .build();
 
         MspPrincipal.MSPRole role = MspPrincipal.MSPRole.newBuilder()
-                .setRole(this.role ? MspPrincipal.MSPRole.MSPRoleType.ADMIN : MspPrincipal.MSPRole.MSPRoleType.MEMBER)
+                .setRole(IdemixRoles.getMSPRoleFromIdemixRole(this.role))
                 .setMspIdentifier(this.mspId)
                 .build();
 
@@ -183,7 +183,7 @@ public class IdemixIdentity implements Identity {
         return this.ou;
     }
 
-    public boolean getRoleValue() {
+    public int getRoleValue() {
         return this.role;
     }
 

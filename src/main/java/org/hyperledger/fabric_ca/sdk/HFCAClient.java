@@ -1171,7 +1171,7 @@ public class HFCAClient {
             if (Utils.isNullOrEmpty(ou)) {
                 throw new InvalidArgumentException("fabric-ca-server did not return a 'ou' attribute in the response from " + HFCA_IDEMIXCRED);
             }
-            boolean role = attrs.getBoolean("Role");
+            int role = attrs.getInt("Role");
 
             // Return the idemix enrollment
             return new IdemixEnrollment(ipk, rpk, mspID, sk, cred, cri, ou, role);

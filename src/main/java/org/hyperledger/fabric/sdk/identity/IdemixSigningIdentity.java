@@ -99,7 +99,7 @@ public class IdemixSigningIdentity implements SigningIdentity {
      * @throws CryptoException
      * @throws InvalidArgumentException
      */
-    public IdemixSigningIdentity(IdemixIssuerPublicKey ipk, PublicKey revocationPk, String mspId, BIG sk, IdemixCredential cred, Idemix.CredentialRevocationInformation cri, String ou, boolean role)
+    public IdemixSigningIdentity(IdemixIssuerPublicKey ipk, PublicKey revocationPk, String mspId, BIG sk, IdemixCredential cred, Idemix.CredentialRevocationInformation cri, String ou, int role)
             throws CryptoException, InvalidArgumentException {
 
         // input checks
@@ -174,14 +174,7 @@ public class IdemixSigningIdentity implements SigningIdentity {
             throw new CryptoException("Error: There are " + cred.getAttrs().length + " attributes and the expected are 4");
         }
         byte[] ouBytes = cred.getAttrs()[0];
-        byte[] ouProtoBytes = MspPrincipal.OrganizationUnit.newBuilder()
-                .setMspIdentifier(mspId)
-                .setOrganizationalUnitIdentifier(new String(ouBytes))
-                .build().toByteArray();
         byte[] roleBytes = cred.getAttrs()[1];
-        byte[] roleProtoBytes = MspPrincipal.MSPRole.newBuilder()
-                .setRoleValue(ByteBuffer.wrap(roleBytes).getInt())
-                .build().toByteArray();
         byte[] eIdBytes = cred.getAttrs()[2];
         byte[] rHBytes = cred.getAttrs()[3];
 
@@ -197,7 +190,7 @@ public class IdemixSigningIdentity implements SigningIdentity {
         }
 
         // check that the role matches the credential's attribute value
-        if (!Arrays.equals(IdemixUtils.bigToBytes(new BIG(role ? 1 : 0)), roleBytes)) {
+        if (!Arrays.equals(IdemixUtils.bigToBytes(new BIG(role)), roleBytes)) {
             throw new IllegalArgumentException("the role does not match the credential");
         }
 

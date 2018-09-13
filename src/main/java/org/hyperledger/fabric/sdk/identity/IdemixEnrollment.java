@@ -23,9 +23,9 @@ public class IdemixEnrollment implements Enrollment {
     protected final IdemixCredential cred;
     protected final CredentialRevocationInformation cri;
     protected final String ou;
-    protected final boolean role;
+    protected final int role;
 
-    public IdemixEnrollment(IdemixIssuerPublicKey ipk, PublicKey revocationPk, String mspId, BIG sk, IdemixCredential cred, CredentialRevocationInformation cri, String ou, boolean role) {
+    public IdemixEnrollment(IdemixIssuerPublicKey ipk, PublicKey revocationPk, String mspId, BIG sk, IdemixCredential cred, CredentialRevocationInformation cri, String ou, int role) {
         this.ipk = ipk;
         this.revocationPk = revocationPk;
         this.mspId = mspId;
@@ -72,7 +72,7 @@ public class IdemixEnrollment implements Enrollment {
         return this.ou;
     }
 
-    public boolean getRole() {
+    public int getRole() {
         return this.role;
     }
 }
