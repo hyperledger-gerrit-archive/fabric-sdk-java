@@ -19,8 +19,10 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
+	"github.com/hyperledger/fabric/core/chaincode/shim/ext/cid"
 	pb "github.com/hyperledger/fabric/protos/peer"
 )
 
@@ -81,6 +83,16 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	logger.Info("########### example_cc Invoke ###########")
 
 	function, args := stub.GetFunctionAndParameters()
+
+    // Getting attributes from an idemix credential
+	ou, _, _ := cid.GetAttributeValue(stub, "ou");
+	if ou != "" && !strings.HasSuffix(ou, "department1") {
+	    return shim.Error(fmt.Sprintf("Incorrect 'ou' returned, got '%s' expecting to end with 'department1'", ou))
+	}
+	role, _, _ := cid.GetAttributeValue(stub, "role");
+	if role != "" && role != "member" {
+	    return shim.Error(fmt.Sprintf("Incorrect 'role' returned, got '%s' expecting 'member'", role))
+	}
 
 	if function == "delete" {
 		// Deletes an entity from its state
