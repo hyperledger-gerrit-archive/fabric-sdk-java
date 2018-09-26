@@ -212,6 +212,10 @@ public class HFCAClient {
     private final boolean isSSL;
     private final Properties properties;
 
+    // Cache the version, so don't need to make get cainfo call everytime
+    private boolean gotCAVersion;
+    private String caVersion;
+
     /**
      * The Certificate Authority name.
      *
@@ -1336,12 +1340,12 @@ public class HFCAClient {
     }
 
     JsonObject httpPost(String url, String body, User registrar) throws Exception {
-        String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), body);
+        String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "POST", new URL(url).getFile(), body);
         return post(url, body, authHTTPCert);
     }
 
     JsonObject httpPost(String url, String body, Enrollment enrollment) throws Exception {
-        String authHTTPCert = getHTTPAuthCertificate(enrollment, body);
+        String authHTTPCert = getHTTPAuthCertificate(enrollment,  "POST", new URL(url).getFile(), body);
         return post(url, body, authHTTPCert);
     }
 
@@ -1371,8 +1375,8 @@ public class HFCAClient {
     }
 
     JsonObject httpGet(String url, User registrar, Map<String, String> queryMap) throws Exception {
-        String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "");
         String getURL = getURL(url, queryMap);
+        String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(),  "GET", new URL(getURL).getFile(),"");
         HttpGet httpGet = new HttpGet(getURL);
         httpGet.setConfig(getRequestConfig());
         logger.debug(format("httpGet %s, authHTTPCert: %s", url, authHTTPCert));
@@ -1392,7 +1396,7 @@ public class HFCAClient {
     }
 
     JsonObject httpPut(String url, String body, User registrar) throws Exception {
-        String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), body);
+        String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "PUT", new URL(url).getFile(), body);
         String putURL = addCAToURL(url);
         HttpPut httpPut = new HttpPut(putURL);
         httpPut.setConfig(getRequestConfig());
@@ -1414,7 +1418,7 @@ public class HFCAClient {
     }
 
     JsonObject httpDelete(String url, User registrar) throws Exception {
-        String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "");
+        String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "DELETE", new URL(url).getFile(),"");
         String deleteURL = addCAToURL(url);
         HttpDelete httpDelete = new HttpDelete(deleteURL);
         httpDelete.setConfig(getRequestConfig());
@@ -1520,11 +1524,24 @@ public class HFCAClient {
         return result;
     }
 
-    String getHTTPAuthCertificate(Enrollment enrollment, String body) throws Exception {
+    String getHTTPAuthCertificate(Enrollment enrollment, String method, String uri, String body) throws Exception {
         Base64.Encoder b64 = Base64.getEncoder();
         String cert = b64.encodeToString(enrollment.getCert().getBytes(UTF_8));
         body = b64.encodeToString(body.getBytes(UTF_8));
-        String signString = body + "." + cert;
+        uri = b64.encodeToString(uri.getBytes(UTF_8));
+        String signString;
+        // Cache the version, so don't need to make info call everytime the same client is used
+        if (!gotCAVersion) {
+            caVersion = info().getVersion();
+            gotCAVersion = true;
+        }
+
+        // If CA version is null, use old payload
+        if (caVersion == null) {
+            signString = body + "." + cert;
+        } else {
+            signString = method + "." + uri + "." + body + "." + cert;
+        }
         byte[] signature = cryptoSuite.sign(enrollment.getKey(), signString.getBytes(UTF_8));
         return cert + "." + b64.encodeToString(signature);
     }
