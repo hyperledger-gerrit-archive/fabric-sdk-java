@@ -183,9 +183,30 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 		if transientData, ok := transientMap["event"]; ok {
 			stub.SetEvent("event", transientData)
 		}
-		if transientData, ok := transientMap["result"]; ok {
+
+		rc := transientMap["rc"]
+
+        		transientData := transientMap["result"]
+
+        		if rc == nil {
 			return shim.Success(transientData)
 		}
+
+                vrc, err := strconv.Atoi(string(rc[:]))
+
+                if err != nil {
+                   return shim.Error(err.Error())
+                }
+
+
+                logger.Infof("Status = %d \n", vrc)
+
+        		if rc != nil {
+        		  return pb.Response{
+                  		Status:  int32(vrc),
+                  		Payload: transientData,
+                  }
+        		}
 	}
 	return shim.Success(nil)
 }
