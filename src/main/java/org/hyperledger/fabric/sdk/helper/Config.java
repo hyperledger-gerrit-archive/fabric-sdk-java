@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -93,6 +94,12 @@ public class Config {
 
     private static Config config;
     private static final Properties sdkProperties = new Properties();
+    private static final AtomicLong count = new AtomicLong(0);
+
+    //Provides a unique id for logging to identify a specific instance.
+    public String getNextID() {
+        return "" + count.incrementAndGet();
+    }
 
     private Config() {
         File loadFile;
@@ -166,7 +173,6 @@ public class Config {
 
             defaultProperty(SERVICE_DISCOVER_FREQ_SECONDS, "120");
             defaultProperty(SERVICE_DISCOVER_WAIT_TIME, "5000");
-
 
             final String inLogLevel = sdkProperties.getProperty(LOGGERLEVEL);
 

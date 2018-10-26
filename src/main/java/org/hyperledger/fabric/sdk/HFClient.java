@@ -39,6 +39,7 @@ import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.NetworkConfigurationException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionException;
+import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 
@@ -46,6 +47,7 @@ import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.User.userContextCheck;
 
 public class HFClient {
+    private static final Config config = Config.getConfig(); // never remove this! config needs to load first.
 
     private CryptoSuite cryptoSuite;
 
@@ -120,7 +122,7 @@ public class HFClient {
      * Configures a channel based on information loaded from a Network Config file.
      * Note that it is up to the caller to initialize the returned channel.
      *
-     * @param channelName The name of the channel to be configured
+     * @param channelName   The name of the channel to be configured
      * @param networkConfig The network configuration to use to configure the channel
      * @return The configured channel, or null if the channel is not defined in the configuration
      * @throws InvalidArgumentException
@@ -143,7 +145,6 @@ public class HFClient {
 
         return networkConfig.loadChannel(this, channelName);
     }
-
 
     /**
      * newChannel - already configured channel.
@@ -188,7 +189,7 @@ public class HFClient {
      */
 
     public Channel newChannel(String name, Orderer orderer, ChannelConfiguration channelConfiguration,
-            byte[]... channelConfigurationSignatures) throws TransactionException, InvalidArgumentException {
+                              byte[]... channelConfigurationSignatures) throws TransactionException, InvalidArgumentException {
 
         clientCheck();
         if (Utils.isNullOrEmpty(name)) {
@@ -620,7 +621,7 @@ public class HFClient {
      */
 
     public byte[] getUpdateChannelConfigurationSignature(UpdateChannelConfiguration updateChannelConfiguration,
-            User signer) throws InvalidArgumentException {
+                                                         User signer) throws InvalidArgumentException {
 
         clientCheck();
 
@@ -640,7 +641,7 @@ public class HFClient {
      */
 
     public Collection<ProposalResponse> sendInstallProposal(InstallProposalRequest installProposalRequest,
-            Collection<Peer> peers) throws ProposalException, InvalidArgumentException {
+                                                            Collection<Peer> peers) throws ProposalException, InvalidArgumentException {
 
         clientCheck();
 
@@ -650,7 +651,6 @@ public class HFClient {
         return systemChannel.sendInstallProposal(installProposalRequest, peers);
 
     }
-
 
     private void clientCheck() throws InvalidArgumentException {
 

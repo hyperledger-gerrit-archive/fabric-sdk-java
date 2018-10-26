@@ -39,7 +39,6 @@ import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import static java.lang.String.format;
@@ -58,7 +57,7 @@ public class ServiceDiscoveryIT {
     String CHAIN_CODE_NAME = "example_cc_go";
     TransactionRequest.Type CHAIN_CODE_LANG = TransactionRequest.Type.GO_LANG;
 
-    @Ignore  //Hostnames reported by service discovery won't work unless you edit hostfile
+    //  @Ignore  //Hostnames reported by service discovery won't work unless you edit hostfile
     @Test
     public void setup() throws Exception {
         //Persistence is not part of SDK. Sample file store is for demonstration purposes only!
