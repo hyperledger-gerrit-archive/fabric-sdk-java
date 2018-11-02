@@ -72,12 +72,21 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 	var X int          // Transaction value
 	var err error
 
-	if len(args) != 3 {
+	if len(args) != 0 {
+    		return shim.Error("Incorrect number of arguments. All attributes must be included in the transient map.")
+    }
+
+    transMap, err := stub.GetTransient()
+    	if err != nil {
+    		return shim.Error("Error getting transient: " + err.Error())
+    }
+
+    if len(transMap) !=3 {
 		return shim.Error("Incorrect number of arguments. Expecting 3, function followed by 2 names and 1 value")
 	}
 
-	A = args[0]
-	B = args[1]
+	A = string(transMap["args[0]"])
+	B = string(transMap["args[1]"])
 
 	// Get the state from the ledger
 	// TODO: will be nice to have a GetAllState call to ledger
@@ -100,7 +109,7 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 	Bval, _ = strconv.Atoi(string(Bvalbytes))
 
 	// Perform the execution
-	X, err = strconv.Atoi(args[2])
+	X, err = strconv.Atoi(string(transMap["args[2]"]))
 	if err != nil {
 		return shim.Error("Invalid transaction amount, expecting a integer value")
 	}
@@ -128,19 +137,27 @@ func (t *SimpleChaincode) set(stub shim.ChaincodeStubInterface, args []string) p
 	var Aval, Bval int // Asset holdings
 	var err error
 
-	if len(args) != 4 {
+	if len(args) != 0 {
+		return shim.Error("Incorrect number of arguments. All attributes must be included in the transient map.")
+	}
+
+	transMap, err := stub.GetTransient()
+		if err != nil {
+			return shim.Error("Error getting transient: " + err.Error())
+	}
+
+	if len(transMap) !=4 {
 		return shim.Error("Incorrect number of arguments. Expecting 4, function followed by 2 names and 2 values")
 	}
 
-	A = args[0]
-	Aval, err = strconv.Atoi(args[1])
+	A = string(transMap["args[0]"])
+	Aval, err = strconv.Atoi(string(transMap["args[1]"]))
     if err != nil {
         return shim.Error("Invalid A value amount, expecting a integer value")
     }
 
-	B = args[2]
-
-	Bval, err = strconv.Atoi(args[3])
+	B = string(transMap["args[2]"])
+	Bval, err = strconv.Atoi(string(transMap["args[3]"]))
     if err != nil {
        return shim.Error("Invalid B value amount, expecting a integer value")
     }
@@ -171,11 +188,20 @@ func (t *SimpleChaincode) query(stub shim.ChaincodeStubInterface, args []string)
 	var A string // Entities
 	var err error
 
-	if len(args) != 1 {
+	if len(args) != 0 {
+		return shim.Error("Incorrect number of arguments. All attributes must be included in the transient map.")
+	}
+
+	transMap, err := stub.GetTransient()
+		if err != nil {
+			return shim.Error("Error getting transient: " + err.Error())
+	}
+
+	if len(transMap) !=1 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the person to query")
 	}
 
-	A = args[0]
+	A = string(transMap["args[0]"])
 
 	logger.Infof("query for  %s\n", A)
 
