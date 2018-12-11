@@ -152,6 +152,8 @@ public final class IdemixUtils {
      * @return a new byte[] of data + toAppend
      */
     static byte[] append(byte[] data, byte[] toAppend) {
+        if (toAppend.length == 0)
+            return data;
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         try {
