@@ -48,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -195,6 +196,7 @@ public class Channel implements Serializable {
     private transient LinkedHashMap<String, LinkedList<TL>> txListeners = new LinkedHashMap<>();
     //Cleans up any transaction listeners that will probably never complete.
     private transient ScheduledFuture<?> sweeper = null;
+    private transient ScheduledExecutorService sweeperExecutorService;
     private transient String blh = null;
     private transient ServiceDiscovery serviceDiscovery;
 
@@ -5328,11 +5330,12 @@ public class Channel implements Serializable {
 
         if (sweeper == null) {
 
-            sweeper = Executors.newSingleThreadScheduledExecutor(r -> {
+            sweeperExecutorService = Executors.newSingleThreadScheduledExecutor(r -> {
                 Thread t = Executors.defaultThreadFactory().newThread(r);
                 t.setDaemon(true);
                 return t;
-            }).scheduleAtFixedRate(() -> {
+            });
+            sweeper = sweeperExecutorService.scheduleAtFixedRate(() -> {
                 try {
 
                     if (txListeners != null) {
@@ -5645,6 +5648,12 @@ public class Channel implements Serializable {
 
         if (null != lsweeper) {
             lsweeper.cancel(true);
+        }
+
+        ScheduledExecutorService lse = sweeperExecutorService;
+        sweeperExecutorService = null;
+        if (null != lse) {
+            lse.shutdownNow();
         }
     }
 
