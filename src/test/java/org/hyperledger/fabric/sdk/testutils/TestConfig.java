@@ -85,7 +85,7 @@ public class TestConfig {
     private final HashMap<String, SampleOrg> sampleOrgs = new HashMap<>();
 
     private static final String ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION
-            = System.getenv("ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION") == null ? "1.4.0" : System.getenv("ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION");
+            = System.getenv("ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION") == null ? "2.0.0" : System.getenv("ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION");
 
     int[] fabricVersion = new int[3];
 
@@ -101,7 +101,7 @@ public class TestConfig {
         fabricVersion[2] = Integer.parseInt(fvs[2].trim());
 
         FAB_CONFIG_GEN_VERS = "v" + fabricVersion[0] + "." + fabricVersion[1];
-        if (FAB_CONFIG_GEN_VERS.equalsIgnoreCase("v1.4")) {
+        if (FAB_CONFIG_GEN_VERS.equalsIgnoreCase("v1.4") || FAB_CONFIG_GEN_VERS.equalsIgnoreCase("v2.0")) { //TODO REMOVE WHEN WE GET A V2.0 GEN
             FAB_CONFIG_GEN_VERS = "v1.3";
         }
 
@@ -228,11 +228,14 @@ public class TestConfig {
 
         final int[] vers = parseVersion(version);
         for (int i = 0; i < 3; ++i) {
-            if (vers[i] > fabricVersion[i]) {
+            if (vers[i] < fabricVersion[i]) {
+                return true;
+            } else if (vers[i] > fabricVersion[i]) {
                 return false;
+
             }
         }
-        return true;
+        return vers[2] == fabricVersion[2];
     }
 
     public boolean isFabricVersionBefore(String version) {
@@ -506,6 +509,14 @@ public class TestConfig {
             return name.substring(dot + 1);
         }
 
+    }
+
+    public static void main(String[] ars) {
+
+        final TestConfig config = getConfig();
+        final boolean runningAgainstFabric10 = config.isRunningAgainstFabric10();
+
+        System.out.println(runningAgainstFabric10);
     }
 
 }
