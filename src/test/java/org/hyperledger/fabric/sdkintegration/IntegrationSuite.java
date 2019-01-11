@@ -20,7 +20,7 @@ import org.junit.runners.AllTests;
 public class IntegrationSuite {
 
     private static final String ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION
-            = System.getenv("ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION") == null ? "1.4.0" : System.getenv("ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION");
+            = System.getenv("ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION") == null ? "2.0.0" : System.getenv("ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION");
 
     static Integer[] fabricVersion = new Integer[3];
 
@@ -48,6 +48,7 @@ public class IntegrationSuite {
                 NetworkConfigIT.class, End2endNodeIT.class, End2endJavaIT.class, End2endAndBackAgainNodeIT.class,
                 End2endIdemixIT.class, PrivateDataIT.class, ServiceDiscoveryIT.class, HFCAClientIT.class));
         runmap.put("1.4", runmap.get("1.3"));
+        runmap.put("2.0", runmap.get("1.3"));
 
     }
 
