@@ -35,7 +35,24 @@ export ORG_HYPERLEDGER_FABRIC_SDKTEST_RUNIDEMIXMTTEST=true
 
 ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION=${ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION:-}
 
-if [ "$ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION" == "1.0.0" ]; then
+#HACK for now
+case "$ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION" in
+"1.0")
+export ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION="1.4.0"
+export $ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION="1.4"
+;;
+*)
+export ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION="2.0.0"
+export $ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION="2.0"
+;;
+esac
+
+
+
+
+
+case "$ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION" in
+"1.0")
 # Limit the test run for V1.0
 export ORG_HYPERLEDGER_FABRIC_SDKTEST_INTEGRATIONTESTS_CLIENT_AUTH_REQUIRED=false
 #Options starting fabric-ca in docker-compose.yaml which are not supported on v1.0
@@ -46,10 +63,20 @@ export IMAGE_TAG_FABRIC=:x86_64-1.0.0
 export IMAGE_TAG_FABRIC_CA=:x86_64-1.0.0
 # set which Fabric  generated configuations is used.
 export FAB_CONFIG_GEN_VERS="v1.0"
-else
-export ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION="1.4.0"
-
-# cleans out an existing imgages...
+    ;;
+"1.1" )
+   export IMAGE_TAG_FABRIC=:x86_64-1.1.1
+   export IMAGE_TAG_FABRIC_CA=:x86_64-1.1.1
+   export FAB_CONFIG_GEN_VERS="v1.1"
+   ;;
+"1.4" )
+   export IMAGE_TAG_FABRIC=:1.4
+   export IMAGE_TAG_FABRIC_CA=:1.4
+   export FAB_CONFIG_GEN_VERS="v1.3"
+   ;;
+*)
+#export FAB_CONFIG_GEN_VERS="v1.3"
+    # cleans out an existing imgages...
 #(docker images -qa | sort | uniq | xargs docker rmi -f) || true
 #(docker images -qa | sort | uniq | xargs docker rmi -f) || true
 #(docker images -qa | sort | uniq | xargs docker rmi -f) || true
@@ -58,7 +85,9 @@ export ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION="1.4.0"
 #unset to use what's in docker's .env file.
 unset IMAGE_TAG_FABRIC
 unset IMAGE_TAG_FABRIC_CA
-fi
+    ;;
+esac
+
 
 echo "environment:--------------------"
 env
