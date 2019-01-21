@@ -118,6 +118,7 @@ import org.hyperledger.fabric.sdk.transaction.GetConfigBlockBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleInstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 import org.hyperledger.fabric.sdk.transaction.QueryCollectionsConfigBuilder;
@@ -2540,6 +2541,45 @@ public class Channel implements Serializable {
 
     }
 
+    Collection<ProposalResponse> sendInstallProposal(byte[] cp, InstallProposalRequest installProposalRequest, Collection<Peer> peers)
+            throws ProposalException, InvalidArgumentException {
+
+        checkChannelState();
+        checkPeers(peers);
+        if (null == cp) {
+            throw new InvalidArgumentException("InstallProposalRequest is null");
+        }
+
+        try {
+            TransactionContext transactionContext = getTransactionContext(installProposalRequest.getUserContext());
+            transactionContext.verify(false);  // Install will have no signing cause it's not really targeted to a channel.
+            transactionContext.setProposalWaitTime(installProposalRequest.getProposalWaitTime());
+            LifecycleInstallProposalBuilder installProposalbuilder = LifecycleInstallProposalBuilder.newBuilder();
+            installProposalbuilder.setChaincodeBytes(cp);
+            installProposalbuilder.context(transactionContext);
+            installProposalbuilder.chaincodeName(installProposalRequest.getChaincodeName());
+            installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
+
+//            InstallProposalBuilder installProposalbuilder = InstallProposalBuilder.newBuilder();
+//            installProposalbuilder.context(transactionContext);
+//            installProposalbuilder.setChaincodeLanguage(installProposalRequest.getChaincodeLanguage());
+//            installProposalbuilder.chaincodeName(installProposalRequest.getChaincodeName());
+//            installProposalbuilder.chaincodePath(installProposalRequest.getChaincodePath());
+//            installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
+//            installProposalbuilder.setChaincodeSource(installProposalRequest.getChaincodeSourceLocation());
+//            installProposalbuilder.setChaincodeInputStream(installProposalRequest.getChaincodeInputStream());
+//            installProposalbuilder.setChaincodeMetaInfLocation(installProposalRequest.getChaincodeMetaInfLocation());
+
+            FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
+            SignedProposal signedProposal = getSignedProposal(transactionContext, deploymentProposal);
+
+            return sendProposalToPeers(peers, signedProposal, transactionContext);
+        } catch (Exception e) {
+            throw new ProposalException(e);
+        }
+
+    }
+
     /**
      * Send Upgrade proposal proposal to upgrade chaincode to a new version.
      *
@@ -4435,7 +4475,7 @@ public class Channel implements Serializable {
          * This maybe set to NOfEvents.nofNoEvents that will complete the future as soon as a successful submission
          * to an Orderer, but the completed Transaction event in that case will be null.
          *
-         * @param nOfEvents See @see {@link NOfEvents}
+         * @param nOfEvents @see {@link NOfEvents}
          * @return This TransactionOptions
          */
         public TransactionOptions nOfEvents(NOfEvents nOfEvents) {

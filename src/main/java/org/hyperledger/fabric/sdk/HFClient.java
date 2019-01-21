@@ -613,6 +613,17 @@ public class HFClient {
 
     }
 
+    public Collection<ProposalResponse> sendInstallProposal(byte[] cp, InstallProposalRequest installProposalRequest,
+                                                            Collection<Peer> peers) throws ProposalException, InvalidArgumentException {
+
+        clientCheck();
+
+        Channel systemChannel = Channel.newSystemChannel(this);
+
+        return systemChannel.sendInstallProposal(cp, installProposalRequest, peers);
+
+    }
+
     private void clientCheck() throws InvalidArgumentException {
 
         if (null == cryptoSuite) {

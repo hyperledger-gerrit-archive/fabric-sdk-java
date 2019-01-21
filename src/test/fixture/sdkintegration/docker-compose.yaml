@@ -121,7 +121,7 @@ services:
        - 7056:7056
     depends_on:
        - orderer.example.com
-       - peer0.org1.example.com
+  #       - peer0.org1.example.com
 
   peer0.org2.example.com:
     container_name: peer0.org2.example.com
