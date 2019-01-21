@@ -365,9 +365,19 @@ public class HFClient {
      * newInstallProposalRequest get new Install proposal request.
      *
      * @return InstallProposalRequest
+     * @deprecated
      */
     public InstallProposalRequest newInstallProposalRequest() {
         return new InstallProposalRequest(userContext);
+    }
+
+    /**
+     * newInstallProposalRequest get new Install proposal request.
+     *
+     * @return InstallProposalRequest
+     */
+    public LifecycleInstallRequest newLifecycleInstallRequest() {
+        return new LifecycleInstallRequest(userContext);
     }
 
     /**
@@ -610,6 +620,28 @@ public class HFClient {
         Channel systemChannel = Channel.newSystemChannel(this);
 
         return systemChannel.sendInstallProposal(installProposalRequest, peers);
+
+    }
+
+    /**
+     * Send install chaincode request proposal to peers.
+     *
+     * @param installProposalRequest
+     * @param peers                  Collection of peers to install on.
+     * @return responses from peers.
+     * @throws InvalidArgumentException
+     * @throws ProposalException
+     */
+
+    public Collection<LifecycleInstallProposalResponse> sendLifecycleInstallProposal(LifecycleInstallRequest installProposalRequest,
+                                                                                     Collection<Peer> peers) throws ProposalException, InvalidArgumentException {
+
+        clientCheck();
+
+        installProposalRequest.setSubmitted();
+        Channel systemChannel = Channel.newSystemChannel(this);
+
+        return systemChannel.sendLifecycleInstallProposal(installProposalRequest, peers);
 
     }
 
