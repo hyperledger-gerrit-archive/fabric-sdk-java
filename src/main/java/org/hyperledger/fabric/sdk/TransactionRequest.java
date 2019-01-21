@@ -16,6 +16,7 @@ package org.hyperledger.fabric.sdk;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
@@ -221,7 +222,34 @@ public class TransactionRequest {
     public enum Type {
         JAVA,
         GO_LANG,
-        NODE
+        NODE;
+
+        private static final Map<Type, String> cpv = new HashMap<>(4);
+        private static final Map<String, Type> cpvr = new HashMap<>(4);
+
+        static {
+            cpv.put(Type.JAVA, "java");
+            cpv.put(Type.GO_LANG, "golang");
+            cpv.put(Type.NODE, "node");
+
+            cpvr.put("java", Type.JAVA);
+            cpvr.put("golang", Type.GO_LANG);
+            cpvr.put("node", Type.NODE);
+        }
+
+        public String toPackageName() {
+            String ret = cpv.get(this);
+            if (null == ret) {
+                ret = "golang";
+            }
+            return ret;
+        }
+
+        public static Type fromPackageName(String name) {
+            Type ret = cpvr.get(name);
+            return ret;
+
+        }
     }
 
     public Type getChaincodeLanguage() {
