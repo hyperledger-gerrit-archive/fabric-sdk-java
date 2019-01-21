@@ -9,7 +9,8 @@ services:
       # https://docs.docker.com/compose/networking/
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=sdkintegration_default
 #     - CORE_LOGGING_LEVEL=ERROR
-      - FABRIC_LOGGING_SPEC=DEBUG
+      # - FABRIC_LOGGING_SPEC=DEBUG
+      - FABRIC_LOGGING_SPEC=DEBUGgossip=info
       - CORE_PEER_ENDORSER_ENABLED=true
       - CORE_PEER_GOSSIP_USELEADERELECTION=true
       - CORE_PEER_GOSSIP_ORGLEADER=false
@@ -28,5 +29,6 @@ services:
       # NOTE BOTH below should never be used in production.
       - CORE_PEER_AUTHENTICATION_TIMEWINDOW=3600s
       - CORE_PEER_EVENTS_TIMEWINDOW=3600s
+      - CORE_PEER_CHAINCODE_SYSTEM_+LIFECYCLE_ENABLE=true
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
     command: peer node start
