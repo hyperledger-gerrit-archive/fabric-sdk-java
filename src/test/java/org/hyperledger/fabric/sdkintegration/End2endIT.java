@@ -33,9 +33,11 @@ import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import com.google.protobuf.ByteString;
 import org.apache.commons.codec.binary.Hex;
 import org.bouncycastle.openssl.PEMWriter;
 import org.hyperledger.fabric.protos.ledger.rwset.kvrwset.KvRwset;
+import org.hyperledger.fabric.protos.peer.lifecycle.Lifecycle;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
 import org.hyperledger.fabric.sdk.BlockchainInfo;
@@ -48,6 +50,7 @@ import org.hyperledger.fabric.sdk.Enrollment;
 import org.hyperledger.fabric.sdk.HFClient;
 import org.hyperledger.fabric.sdk.InstallProposalRequest;
 import org.hyperledger.fabric.sdk.InstantiateProposalRequest;
+import org.hyperledger.fabric.sdk.LifecycleChaincodePackage;
 import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.Peer.PeerRole;
@@ -57,12 +60,14 @@ import org.hyperledger.fabric.sdk.SDKUtils;
 import org.hyperledger.fabric.sdk.TestConfigHelper;
 import org.hyperledger.fabric.sdk.TransactionInfo;
 import org.hyperledger.fabric.sdk.TransactionProposalRequest;
+import org.hyperledger.fabric.sdk.TransactionRequest;
 import org.hyperledger.fabric.sdk.TransactionRequest.Type;
 import org.hyperledger.fabric.sdk.TxReadWriteSetInfo;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
 import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.exception.TransactionEventException;
+import org.hyperledger.fabric.sdk.helper.Utils;
 import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestConfig;
 import org.hyperledger.fabric_ca.sdk.EnrollmentRequest;
@@ -439,8 +444,23 @@ public class End2endIT {
                     }
                 }
 
+//                SDKUtils.generatePlusLifeCycleChaincodeDataPackageFile(new File("rickdidthis.tgz"),
+//                        Paths.get(TEST_FIXTURES_PATH, CHAIN_CODE_FILEPATH).toFile(), CHAIN_CODE_LANG, new File("src/test/fixture/meta-infs/end2endit"), CHAIN_CODE_PATH);
+//
+//                byte[] cp = SDKUtils.generatePlusLifeCycleChaincodeDataPackageBytes(Paths.get(TEST_FIXTURES_PATH, CHAIN_CODE_FILEPATH).toFile(), CHAIN_CODE_LANG, new File("src/test/fixture/meta-infs/end2endit"), CHAIN_CODE_PATH);
+//
+
                 installProposalRequest.setChaincodeVersion(CHAIN_CODE_VERSION);
                 installProposalRequest.setChaincodeLanguage(CHAIN_CODE_LANG);
+
+                LifecycleChaincodePackage lifecycleChaincodePackage = LifecycleChaincodePackage.fromSource(Paths.get("src/test/fixture/sdkintegration/gocc/sample1"),
+                        TransactionRequest.Type.GO_LANG,
+                        "github.com/example_cc", Paths.get("src/test/fixture/meta-infs/end2endit"));
+
+                InstallProposalRequest installProposalRequestLC = client.newInstallProposalRequest();
+                installProposalRequestLC.setLifecycleChaincodePackage(lifecycleChaincodePackage);
+                installProposalRequestLC.setChaincodeName(CHAIN_CODE_NAME);
+                installProposalRequestLC.setChaincodeVersion(CHAIN_CODE_VERSION);
 
                 out("Sending install proposal");
 
@@ -452,7 +472,8 @@ public class End2endIT {
 
                 Collection<Peer> peers = channel.getPeers();
                 numInstallProposal = numInstallProposal + peers.size();
-                responses = client.sendInstallProposal(installProposalRequest, peers);
+                // responses = client.sendInstallProposal(installProposalRequest, peers);
+                responses = client.sendInstallProposal(installProposalRequestLC, peers);
 
                 for (ProposalResponse response : responses) {
                     if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
@@ -470,6 +491,19 @@ public class End2endIT {
                     ProposalResponse first = failed.iterator().next();
                     fail("Not enough endorsers for install :" + successful.size() + ".  " + first.getMessage());
                 }
+
+                ProposalResponse proposalResponse = responses.iterator().next();
+                ByteString payload = proposalResponse.getProposalResponse().getResponse().getPayload();
+                Lifecycle.InstallChaincodeResult installChaincodeResult = Lifecycle.InstallChaincodeResult.parseFrom(payload);
+
+                //   ByteString messageBytes = proposalResponse.getProposalResponse().getResponse().getMessageBytes();
+
+                //     out(Utils.toHexString(payload));
+                out("hash:\n");
+                out(Utils.toHexString(installChaincodeResult.getHash()));
+                out("\ndone");
+                out("\ndone");
+
             }
 
             //   client.setUserContext(sampleOrg.getUser(TEST_ADMIN_NAME));
@@ -885,7 +919,6 @@ public class End2endIT {
         for (Orderer orderer : orderers) { //add remaining orderers if any.
             newChannel.addOrderer(orderer);
         }
-
 
         newChannel.initialize();
 

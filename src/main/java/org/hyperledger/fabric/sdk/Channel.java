@@ -118,6 +118,7 @@ import org.hyperledger.fabric.sdk.transaction.GetConfigBlockBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleInstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 import org.hyperledger.fabric.sdk.transaction.QueryCollectionsConfigBuilder;
@@ -2515,6 +2516,10 @@ public class Channel implements Serializable {
         if (null == installProposalRequest) {
             throw new InvalidArgumentException("InstallProposalRequest is null");
         }
+        LifecycleChaincodePackage lifecycleChaincodePackage = installProposalRequest.getLifecycleChaincodePackage();
+        if (lifecycleChaincodePackage != null) {
+            return sendInstallProposal(lifecycleChaincodePackage, installProposalRequest, peers);
+        }
 
         try {
             TransactionContext transactionContext = getTransactionContext(installProposalRequest.getUserContext());
@@ -2529,6 +2534,41 @@ public class Channel implements Serializable {
             installProposalbuilder.setChaincodeSource(installProposalRequest.getChaincodeSourceLocation());
             installProposalbuilder.setChaincodeInputStream(installProposalRequest.getChaincodeInputStream());
             installProposalbuilder.setChaincodeMetaInfLocation(installProposalRequest.getChaincodeMetaInfLocation());
+
+            FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
+            SignedProposal signedProposal = getSignedProposal(transactionContext, deploymentProposal);
+
+            return sendProposalToPeers(peers, signedProposal, transactionContext);
+        } catch (Exception e) {
+            throw new ProposalException(e);
+        }
+
+    }
+
+    private Collection<ProposalResponse> sendInstallProposal(LifecycleChaincodePackage lifecycleChaincodePackage, InstallProposalRequest installProposalRequest, Collection<Peer> peers)
+            throws ProposalException, InvalidArgumentException {
+
+        checkChannelState();
+        checkPeers(peers);
+        byte[] cp = lifecycleChaincodePackage.getAsBytes();
+
+        if (null == cp) {
+            throw new InvalidArgumentException("InstallProposalRequest lifecycleChaincodePackage bytes is null.");
+        }
+
+        if (cp.length == 0) {
+            throw new InvalidArgumentException("InstallProposalRequest lifecycleChaincodePackage bytes is empty.");
+        }
+
+        try {
+            TransactionContext transactionContext = getTransactionContext(installProposalRequest.getUserContext());
+            transactionContext.verify(false);  // Install will have no signing cause it's not really targeted to a channel.
+            transactionContext.setProposalWaitTime(installProposalRequest.getProposalWaitTime());
+            LifecycleInstallProposalBuilder installProposalbuilder = LifecycleInstallProposalBuilder.newBuilder();
+            installProposalbuilder.setChaincodeBytes(cp);
+            installProposalbuilder.context(transactionContext);
+            installProposalbuilder.chaincodeName(installProposalRequest.getChaincodeName());
+            installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
 
             FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
             SignedProposal signedProposal = getSignedProposal(transactionContext, deploymentProposal);
@@ -4435,7 +4475,7 @@ public class Channel implements Serializable {
          * This maybe set to NOfEvents.nofNoEvents that will complete the future as soon as a successful submission
          * to an Orderer, but the completed Transaction event in that case will be null.
          *
-         * @param nOfEvents See @see {@link NOfEvents}
+         * @param nOfEvents @see {@link NOfEvents}
          * @return This TransactionOptions
          */
         public TransactionOptions nOfEvents(NOfEvents nOfEvents) {
