@@ -111,7 +111,7 @@ public class HFClient {
 
     public void setCryptoSuite(CryptoSuite cryptoSuite) throws CryptoException, InvalidArgumentException {
         if (null == cryptoSuite) {
-            throw new InvalidArgumentException("CryptoSuite paramter is null.");
+            throw new InvalidArgumentException("CryptoSuite parameter is null.");
         }
         if (this.cryptoSuite != null && cryptoSuite != this.cryptoSuite) {
             throw new InvalidArgumentException("CryptoSuite may only be set once.");
@@ -383,20 +383,215 @@ public class HFClient {
      * newInstallProposalRequest get new Install proposal request.
      *
      * @return InstallProposalRequest
+     * @deprecated
      */
     public InstallProposalRequest newInstallProposalRequest() {
         return new InstallProposalRequest(userContext);
     }
 
     /**
+     * newInstallProposalRequest get new Install proposal request.
+     *
+     * @return InstallProposalRequest
+     */
+    public LifecycleInstallChaincodeRequest newLifecycleInstallChaincodeRequest() {
+        return new LifecycleInstallChaincodeRequest(userContext);
+    }
+
+    /**
+     * Get newLifecycleQueryInstalledChaincodeRequest to find chaincodes installed.
+     *
+     * @return newLifecycleQueryInstalledChaincodeRequest finds chaincodes installed.
+     */
+    public LifecycleQueryInstalledChaincodeRequest newLifecycleQueryInstalledChaincodeRequest() {
+        return new LifecycleQueryInstalledChaincodeRequest(userContext);
+    }
+
+    /**
+     * LifecycleQueryInstalledChaincodesRequest get new Install proposal request.
+     *
+     * @return InstallProposalRequest
+     */
+    public LifecycleQueryInstalledChaincodesRequest newLifecycleQueryInstalledChaincodesRequest() {
+        return new LifecycleQueryInstalledChaincodesRequest(userContext);
+    }
+
+    /**
+     * newLifecycleApproveChaincodeDefinitionForMyOrgRequest get new Install proposal request.
+     *
+     * @return LifecycleApproveChaincodeDefinitionForMyOrgRequest
+     */
+    public LifecycleApproveChaincodeDefinitionForMyOrgRequest newLifecycleApproveChaincodeDefinitionForMyOrgRequest() {
+        return new LifecycleApproveChaincodeDefinitionForMyOrgRequest(userContext);
+    }
+
+    /**
+     * Get a LifecycleQueryApprovalStatusRequest to find which chaincodes are approved by which organization.
+     *
+     * @return
+     */
+    public LifecycleQueryApprovalStatusRequest newLifecycleQueryApprovalStatusRequest() {
+        return new LifecycleQueryApprovalStatusRequest(userContext);
+    }
+
+    /**
+     * newLifecycleApproveChaincodeDefinitionForMyOrgRequest get new Install proposal request.
+     *
+     * @return LifecycleCommitChaincodeDefinitionRequest
+     */
+    public LifecycleCommitChaincodeDefinitionRequest newLifecycleCommitChaincodeDefinitionRequest() {
+        return new LifecycleCommitChaincodeDefinitionRequest(userContext);
+    }
+
+    /**
+     * newLifecycleApproveChaincodeDefinitionForMyOrgRequest get new Install proposal request.
+     *
+     * @return LifecycleCommitChaincodeDefinitionRequest
+     */
+    public LifecycleQueryNamespaceDefinitionsRequest newLifecycleQueryNamespaceDefinitionsRequestRequest() {
+        return new LifecycleQueryNamespaceDefinitionsRequest(userContext);
+    }
+
+    /**
+     * get QueryLifecycleQueryChaincodeDefinitionRequest find which chaincodes are defined.
+     *
+     * @return QueryLifecycleQueryChaincodeDefinitionRequest
+     */
+    public QueryLifecycleQueryChaincodeDefinitionRequest newQueryLifecycleQueryChaincodeDefinitionRequest() {
+        return new QueryLifecycleQueryChaincodeDefinitionRequest(userContext);
+    }
+
+    /**
+     * Send install chaincode request proposal to peers.
+     *
+     * @param lifecycleInstallChaincodeRequest
+     * @param peers                            Collection of peers to install on.
+     * @return responses from peers.
+     * @throws InvalidArgumentException
+     * @throws ProposalException
+     */
+
+    public Collection<LifecycleInstallProposalResponse> sendLifecycleInstallProposal(LifecycleInstallChaincodeRequest lifecycleInstallChaincodeRequest,
+                                                                                     Collection<Peer> peers) throws ProposalException, InvalidArgumentException {
+
+        if (null == lifecycleInstallChaincodeRequest) {
+            throw new InvalidArgumentException("The lifecycleInstallChaincodeRequest parameter can not be null.");
+        }
+        clientCheck();
+
+        lifecycleInstallChaincodeRequest.setSubmitted();
+        Channel systemChannel = Channel.newSystemChannel(this);
+
+        return systemChannel.sendLifecycleInstallProposal(lifecycleInstallChaincodeRequest, peers);
+
+    }
+
+    /**
+     * Install chaincode on a peer.
+     *
+     * @param lifecycleQueryInstalledChaincodeRequest
+     * @param peers                                   the peer to send the request to.
+     * @return LifecycleQueryInstalledChaincodeProposalResponse
+     * @throws InvalidArgumentException
+     * @throws ProposalException
+     */
+
+    public Collection<LifecycleQueryInstalledChaincodeProposalResponse> lifecycleQueryInstalledChaincode(LifecycleQueryInstalledChaincodeRequest lifecycleQueryInstalledChaincodeRequest,
+                                                                                                         Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+
+        if (null == lifecycleQueryInstalledChaincodeRequest) {
+            throw new InvalidArgumentException("The lifecycleQueryInstalledChaincodeRequest parameter can not be null.");
+        }
+        clientCheck();
+
+        if (null == peers) {
+
+            throw new InvalidArgumentException("The parameter peers set to null");
+
+        }
+
+        if (peers.isEmpty()) {
+
+            throw new InvalidArgumentException("Peers to query is empty.");
+
+        }
+
+        if (lifecycleQueryInstalledChaincodeRequest == null) {
+            throw new InvalidArgumentException("The lifecycleQueryInstalledChaincoded parameter must not be null.");
+        }
+
+        if (Utils.isNullOrEmpty(lifecycleQueryInstalledChaincodeRequest.getPackageId())) {
+            throw new InvalidArgumentException("The lifecycleQueryInstalledChaincoded packageID parameter must not be null.");
+        }
+
+        try {
+            //Run this on a system channel.
+
+            Channel systemChannel = Channel.newSystemChannel(this);
+
+            return systemChannel.lifecycleQueryInstalledChaincode(lifecycleQueryInstalledChaincodeRequest, peers);
+        } catch (ProposalException e) {
+            logger.error(format("lifecycleQueryInstalledChaincodeRequest for failed. %s", e.getMessage()), e);
+            throw e;
+        }
+
+    }
+
+    /**
+     * Query the peer for installed chaincode information
+     *
+     * @param lifecycleQueryInstalledChaincodesRequest
+     * @param peers                                    The peer to query.
+     * @return List of ChaincodeInfo on installed chaincode @see {@link ChaincodeInfo}
+     * @throws InvalidArgumentException
+     * @throws ProposalException
+     */
+
+    public Collection<LifecycleQueryInstalledChaincodesProposalResponse> lifecycleQueryInstalledChaincodes(LifecycleQueryInstalledChaincodesRequest lifecycleQueryInstalledChaincodesRequest,
+                                                                                                           Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+
+        if (null == lifecycleQueryInstalledChaincodesRequest) {
+            throw new InvalidArgumentException("The lifecycleQueryInstalledChaincodesRequest parameter can not be null.");
+        }
+
+        clientCheck();
+
+        if (null == peers) {
+
+            throw new InvalidArgumentException("The peers set to null");
+
+        }
+
+        if (peers.isEmpty()) {
+            throw new InvalidArgumentException("The peers parameter is empty.");
+        }
+
+        try {
+            //Run this on a system channel.
+            Channel systemChannel = Channel.newSystemChannel(this);
+            return systemChannel.lifecycleQueryInstalledChaincodes(lifecycleQueryInstalledChaincodesRequest, peers);
+        } catch (ProposalException e) {
+            logger.error(e);
+            throw e;
+        }
+
+    }
+
+    /**
      * newInstantiationProposalRequest get new instantiation proposal request.
      *
+     * @deprecated see See {@link LifecycleInstallChaincodeRequest}
      * @return InstantiateProposalRequest
      */
 
     public InstantiateProposalRequest newInstantiationProposalRequest() {
         return new InstantiateProposalRequest(userContext);
     }
+
+    /**
+     * @return
+     * @deprecated See new Lifecycle chaincode management. {@link LifecycleInstallChaincodeRequest}
+     */
 
     public UpgradeProposalRequest newUpgradeProposalRequest() {
         return new UpgradeProposalRequest(userContext);
@@ -649,4 +844,5 @@ public class HFClient {
             }
         }
     }
+
 }
