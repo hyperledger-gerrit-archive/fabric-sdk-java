@@ -141,7 +141,7 @@ public final class ProtoUtils {
 
         }
 
-        ChaincodeInput chaincodeInput = ChaincodeInput.newBuilder().addAllArgs(argList).build();
+        ChaincodeInput chaincodeInput = ChaincodeInput.newBuilder().addAllArgs(argList).setIsInit(false).build();
 
         // Construct the ChaincodeSpec
         ChaincodeSpec chaincodeSpec = ChaincodeSpec.newBuilder().setType(ccType).setChaincodeId(chaincodeID)
