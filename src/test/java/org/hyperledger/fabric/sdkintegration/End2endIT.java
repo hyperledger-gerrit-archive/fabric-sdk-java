@@ -439,6 +439,11 @@ public class End2endIT {
                     }
                 }
 
+                SDKUtils.generatePlusLifeCycleChaincodeDataPackageFile(new File("rickdidthis.tgz"),
+                        Paths.get(TEST_FIXTURES_PATH, CHAIN_CODE_FILEPATH).toFile(), CHAIN_CODE_LANG, new File("src/test/fixture/meta-infs/end2endit"), CHAIN_CODE_PATH);
+
+                byte[] cp = SDKUtils.generatePlusLifeCycleChaincodeDataPackageBytes(Paths.get(TEST_FIXTURES_PATH, CHAIN_CODE_FILEPATH).toFile(), CHAIN_CODE_LANG, new File("src/test/fixture/meta-infs/end2endit"), CHAIN_CODE_PATH);
+
                 installProposalRequest.setChaincodeVersion(CHAIN_CODE_VERSION);
                 installProposalRequest.setChaincodeLanguage(CHAIN_CODE_LANG);
 
@@ -453,6 +458,7 @@ public class End2endIT {
                 Collection<Peer> peers = channel.getPeers();
                 numInstallProposal = numInstallProposal + peers.size();
                 responses = client.sendInstallProposal(installProposalRequest, peers);
+                //    responses = client.sendInstallProposal(cp, installProposalRequest, peers);
 
                 for (ProposalResponse response : responses) {
                     if (response.getStatus() == ProposalResponse.Status.SUCCESS) {
