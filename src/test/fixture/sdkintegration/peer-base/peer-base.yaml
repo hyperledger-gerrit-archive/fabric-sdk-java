@@ -29,5 +29,6 @@ services:
       # NOTE BOTH below should never be used in production.
       - CORE_PEER_AUTHENTICATION_TIMEWINDOW=3600s
       - CORE_PEER_EVENTS_TIMEWINDOW=3600s
+      - CORE_PEER_CHAINCODE_SYSTEM_+LIFECYCLE_ENABLE=true
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
     command: peer node start
