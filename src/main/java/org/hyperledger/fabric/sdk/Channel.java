@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -118,6 +120,7 @@ import org.hyperledger.fabric.sdk.transaction.GetConfigBlockBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleInstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 import org.hyperledger.fabric.sdk.transaction.QueryCollectionsConfigBuilder;
@@ -2540,6 +2543,47 @@ public class Channel implements Serializable {
 
     }
 
+    Collection<LifecycleInstallProposalResponse> sendLifecycleInstallProposal(LifecycleInstallRequest installProposalRequest, Collection<Peer> peers)
+            throws ProposalException, InvalidArgumentException {
+
+        checkChannelState();
+        checkPeers(peers);
+
+        LifecycleChaincodePackage lifecycleChaincodePackage = installProposalRequest.getLifecycleChaincodePackage();
+        if (null == lifecycleChaincodePackage) {
+            throw new InvalidArgumentException("Install request is missing lifecycle package");
+        }
+
+        byte[] cp = lifecycleChaincodePackage.getAsBytes();
+
+        if (null == cp) {
+            throw new InvalidArgumentException("InstallProposalRequest lifecycleChaincodePackage bytes is null.");
+        }
+
+        if (cp.length == 0) {
+            throw new InvalidArgumentException("InstallProposalRequest lifecycleChaincodePackage bytes is empty.");
+        }
+
+        try {
+            TransactionContext transactionContext = getTransactionContext(installProposalRequest.getUserContext());
+            transactionContext.verify(false);  // Install will have no signing cause it's not really targeted to a channel.
+            transactionContext.setProposalWaitTime(installProposalRequest.getProposalWaitTime());
+            LifecycleInstallProposalBuilder installProposalbuilder = LifecycleInstallProposalBuilder.newBuilder();
+            installProposalbuilder.setChaincodeBytes(cp);
+            installProposalbuilder.context(transactionContext);
+            installProposalbuilder.chaincodeName(installProposalRequest.getChaincodeName());
+            installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
+
+            FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
+            SignedProposal signedProposal = getSignedProposal(transactionContext, deploymentProposal);
+
+            return (Collection<LifecycleInstallProposalResponse>) sendProposalToPeers(peers, signedProposal, transactionContext, LifecycleInstallProposalResponse.class);
+        } catch (Exception e) {
+            throw new ProposalException(e);
+        }
+
+    }
+
     /**
      * Send Upgrade proposal proposal to upgrade chaincode to a new version.
      *
@@ -3999,6 +4043,16 @@ public class Channel implements Serializable {
     private Collection<ProposalResponse> sendProposalToPeers(Collection<Peer> peers,
                                                              SignedProposal signedProposal,
                                                              TransactionContext transactionContext) throws InvalidArgumentException, ProposalException {
+
+        return (Collection<ProposalResponse>) sendProposalToPeers(peers,
+                signedProposal,
+                transactionContext, ProposalResponse.class);
+
+    }
+
+    private Collection<? extends ProposalResponse> sendProposalToPeers(Collection<Peer> peers,
+                                                                       SignedProposal signedProposal,
+                                                                       TransactionContext transactionContext, Class<? extends ProposalResponse> clazz) throws InvalidArgumentException, ProposalException {
         checkPeers(peers);
 
         if (transactionContext.getVerify()) {
@@ -4088,7 +4142,21 @@ public class Channel implements Serializable {
                 }
             }
 
-            ProposalResponse proposalResponse = new ProposalResponse(transactionContext, status, message);
+            ProposalResponse proposalResponse = null;
+            try {
+                Constructor<? extends ProposalResponse> declaredConstructor = clazz.getDeclaredConstructor(TransactionContext.class, int.class, String.class);
+                proposalResponse = declaredConstructor.newInstance(transactionContext, status, message);
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
+            }
+
+            //ProposalResponse proposalResponse = new ProposalResponse(transactionContext, status, message);
             proposalResponse.setProposalResponse(fabricResponse);
             proposalResponse.setProposal(signedProposal);
             proposalResponse.setPeer(peerFuturePair.peer);
@@ -4435,7 +4503,7 @@ public class Channel implements Serializable {
          * This maybe set to NOfEvents.nofNoEvents that will complete the future as soon as a successful submission
          * to an Orderer, but the completed Transaction event in that case will be null.
          *
-         * @param nOfEvents See @see {@link NOfEvents}
+         * @param nOfEvents @see {@link NOfEvents}
          * @return This TransactionOptions
          */
         public TransactionOptions nOfEvents(NOfEvents nOfEvents) {
