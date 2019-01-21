@@ -49,7 +49,7 @@ public class ProposalBuilder {
     private static final boolean IS_DEBUG_LEVEL = logger.isDebugEnabled();
 
     private Chaincode.ChaincodeID chaincodeID;
-    private List<ByteString> argList;
+    protected List<ByteString> argList;
     protected TransactionContext context;
     protected TransactionRequest request;
     protected ChaincodeSpec.Type ccType = ChaincodeSpec.Type.GOLANG;
@@ -85,8 +85,7 @@ public class ProposalBuilder {
 
     public ProposalBuilder request(TransactionRequest request) throws InvalidArgumentException {
         this.request = request;
-
-        chaincodeID(request.getChaincodeID().getFabricChaincodeID());
+        chaincodeID(request.getFabricChaincodeID());
 
         switch (request.getChaincodeLanguage()) {
             case JAVA:
