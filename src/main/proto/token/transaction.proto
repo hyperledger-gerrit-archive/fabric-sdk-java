@@ -1,0 +1,129 @@
+/*
+Copyright IBM Corp. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
+syntax = "proto3";
+
+option go_package = "github.com/hyperledger/fabric/protos/token";
+
+package token;
+
+// ================ Existing Fabric Transaction structure ===============
+//
+//In Summary, Fabric supports the following transaction structure:
+//
+//  Envelope
+//  |\_ Signature                                    (signature on the common.Payload message
+//  |                                                 including the transaction by the creator
+//  |                                                 specified in the Payload.header)
+//   \_ Payload
+//      |\_ Header (1)                               (the header of the proposal that requested this
+//      |                                             action; containing channel header, and
+//      |                                             signature header)
+//       \_ Data (1)                                 (serialised Transaction message)
+//           \_ Transaction
+//                \_ TransactionAction (1...n)
+//                    |\_ Header (1)                 (the header of the proposal that
+//                    |                               requested this action)
+//                     \_ ChaincodeActionPayload (1)
+//
+//
+//
+//
+//  =============== Changes to Existing Fabric Transaction structure ===============
+//  For envelopes that carry FabToken transaction we still maintain the same structure
+//  such that the orderers functionality is not disturbed:
+//
+//  Envelope
+//  |\_ Signature                                    (signature on the Payload message including
+//  |                                                 the transaction by the creator
+//  |                                                 specified in the Payload.header)
+//   \_ Payload
+//      |\_ Header (1)                               (the header of the proposal that requested
+//      |                                             this action; containing
+//      |                                             channel header, and signature header)
+//       \_ Data (1)                                 (serialised Transaction message)
+//            \_ TokenTransaction (1)
+//                  \_ action (1)                    (a oneof for the different types of transactions)
+
+// TokenTransaction governs the structure of Payload.data, when
+// the transaction's envelope header indicates a transaction of type
+// "Token"
+message TokenTransaction {
+    // TokenAction carries the content of this transaction.
+    oneof action {
+        TokenAction token_action = 1;
+    }
+}
+
+// TokenAction governs the structure of the action
+// that a token undertakes
+message TokenAction {
+    oneof data {
+        // An issue transaction
+        Issue issue = 1;
+        // A transfer transaction
+        Transfer transfer = 2;
+        // A redeem transaction
+        Transfer redeem = 3;
+    }
+}
+
+// TokenOwner holds the identity of a token owner
+message TokenOwner {
+    enum Type {
+        MSP_IDENTIFIER = 0;
+        // more types to come ....
+        // for example
+        // CHAINCODE_ID = 1;
+        // MSP_OWNER_IDENTIFIER = 2;
+    }
+
+    // The type of the identity
+    Type type = 1;
+    // The serialization of the identity
+    bytes raw = 2;
+}
+
+// Issue specifies an issue of one or more tokens
+message Issue {
+
+    // An issue transaction may contain one or more tokens
+    repeated Token outputs = 1;
+}
+
+// Transfer specifies a transfer of one or more tokens
+message Transfer {
+
+    // The inputs to the transfer transaction are specified by their ID
+    repeated TokenId inputs = 1;
+
+    // A transfer transaction results in one or more tokens
+    repeated Token outputs = 2;
+}
+
+// Token is the result of issue and transfer transactions using plaintext tokens
+message Token {
+
+    // The token owner
+    TokenOwner owner = 1;
+
+    // The token type
+    string type = 2;
+
+    // The quantity of units carried in the tokens, in hex format
+    string quantity = 3;
+}
+
+// A TokenId specifies a token using the transaction ID and the index of the token in the transaction
+// that creates it
+message TokenId {
+
+    // The transaction ID
+    string tx_id = 1;
+
+    // The index of the output in the transaction
+    uint32 index = 2;
+}

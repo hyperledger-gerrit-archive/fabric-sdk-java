@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -78,6 +79,7 @@ import org.hyperledger.fabric.protos.common.Configtx.ConfigSignature;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigUpdateEnvelope;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
 import org.hyperledger.fabric.protos.common.Ledger;
+import org.hyperledger.fabric.protos.common.Policies;
 import org.hyperledger.fabric.protos.discovery.Protocol;
 import org.hyperledger.fabric.protos.msp.MspConfig;
 import org.hyperledger.fabric.protos.orderer.Ab;
@@ -92,6 +94,7 @@ import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
 import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Response;
 import org.hyperledger.fabric.protos.peer.FabricTransaction.ProcessedTransaction;
+import org.hyperledger.fabric.protos.peer.Policy;
 import org.hyperledger.fabric.protos.peer.Query;
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeQueryResponse;
@@ -118,6 +121,13 @@ import org.hyperledger.fabric.sdk.transaction.GetConfigBlockBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.InstantiateProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.JoinPeerProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleApproveChaincodeDefinitionForMyOrgProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleCommitChaincodeDefinitionProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleInstallProposalBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleQueryChaincodeDefinitionBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleQueryInstalledChaincodeBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleQueryInstalledChaincodesBuilder;
+import org.hyperledger.fabric.sdk.transaction.LifecycleQueryNamespaceDefinitionsBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.ProtoUtils;
 import org.hyperledger.fabric.sdk.transaction.QueryCollectionsConfigBuilder;
@@ -1267,6 +1277,69 @@ public class Channel implements Serializable {
 
     public void setServiceDiscoveryProperties(Properties serviceDiscoveryProperties) {
         this.serviceDiscoveryProperties = serviceDiscoveryProperties;
+    }
+
+    public Collection<LifecycleCommitChaincodeDefinitionProposalResponse> sendLifecycleCommitChaincodeDefinitionProposal(LifecycleCommitChaincodeDefinitionRequest lifecycleCommitChaincodeDefinitionRequest, Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+
+        checkChannelState();
+        checkPeers(peers);
+
+        try {
+            TransactionContext transactionContext = getTransactionContext(lifecycleCommitChaincodeDefinitionRequest.getUserContext());
+            transactionContext.verify(true);  // Install will have no signing cause it's not really targeted to a channel.
+            transactionContext.setProposalWaitTime(lifecycleCommitChaincodeDefinitionRequest.getProposalWaitTime());
+            LifecycleCommitChaincodeDefinitionProposalBuilder commitChaincodeDefinitionProposalBuilder = LifecycleCommitChaincodeDefinitionProposalBuilder.newBuilder();
+
+            commitChaincodeDefinitionProposalBuilder.context(transactionContext);
+            commitChaincodeDefinitionProposalBuilder.chaincodeName(lifecycleCommitChaincodeDefinitionRequest.getChaincodeName());
+            commitChaincodeDefinitionProposalBuilder.version(lifecycleCommitChaincodeDefinitionRequest.getChaincodeVersion());
+            commitChaincodeDefinitionProposalBuilder.sequence(lifecycleCommitChaincodeDefinitionRequest.getDefinitionSequence());
+            Boolean initRequired = lifecycleCommitChaincodeDefinitionRequest.isInitRequired();
+            if (null != initRequired) {
+                commitChaincodeDefinitionProposalBuilder.initRequired(initRequired);
+            }
+
+            ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = lifecycleCommitChaincodeDefinitionRequest.getChaincodeEndorsementPolicy();
+            byte[] chaincodeValidationParameter = lifecycleCommitChaincodeDefinitionRequest.getChaincodeValidationParameter();
+
+            if (null != chaincodeEndorsementPolicy && null != chaincodeEndorsementPolicy.getPolicyBytes()) {
+
+                Policies.SignaturePolicyEnvelope signaturePolicyEnvelope = Policies.SignaturePolicyEnvelope.parseFrom(chaincodeEndorsementPolicy.getPolicyBytes());
+                Policy.ApplicationPolicy.Builder builder = Policy.ApplicationPolicy.newBuilder().setSignaturePolicy(signaturePolicyEnvelope);
+
+                commitChaincodeDefinitionProposalBuilder.setValidationParamter(builder.build().toByteArray());
+            } else if (chaincodeValidationParameter != null) {
+                commitChaincodeDefinitionProposalBuilder.setValidationParamter(chaincodeValidationParameter);
+
+            } else if (null != lifecycleCommitChaincodeDefinitionRequest.getChannelConfigPolicyReference()) {
+                String chaincodeEndorsementReference = lifecycleCommitChaincodeDefinitionRequest.getChannelConfigPolicyReference();
+                Policy.ApplicationPolicy applicationPolicy = Policy.ApplicationPolicy.newBuilder().setChannelConfigPolicyReference(chaincodeEndorsementReference).build();
+                commitChaincodeDefinitionProposalBuilder.setValidationParamter(applicationPolicy.toByteArray());
+
+            }
+
+            String chaincodeCodeEndorsementPlugin = lifecycleCommitChaincodeDefinitionRequest.chaincodeCodeEndorsementPlugin();
+            if (null != chaincodeCodeEndorsementPlugin) {
+                commitChaincodeDefinitionProposalBuilder.chaincodeCodeEndorsementPlugin(chaincodeCodeEndorsementPlugin);
+            }
+
+            String chaincodeCodeValidationPlugin = lifecycleCommitChaincodeDefinitionRequest.chaincodeCodeValidationPlugin();
+            if (null != chaincodeCodeValidationPlugin) {
+                commitChaincodeDefinitionProposalBuilder.chaincodeCodeValidationPlugin(chaincodeCodeValidationPlugin);
+            }
+
+            ChaincodeCollectionConfiguration chaincodeCollectionConfiguration = lifecycleCommitChaincodeDefinitionRequest.getChaincodeCollectionConfiguration();
+            if (null != chaincodeCollectionConfiguration) {
+                commitChaincodeDefinitionProposalBuilder.chaincodeCollectionConfiguration(chaincodeCollectionConfiguration.getCollectionConfigPackage());
+            }
+
+            FabricProposal.Proposal deploymentProposal = commitChaincodeDefinitionProposalBuilder.build();
+            SignedProposal signedProposal = getSignedProposal(transactionContext, deploymentProposal);
+
+            return sendProposalToPeers(peers, signedProposal, transactionContext, LifecycleCommitChaincodeDefinitionProposalResponse.class);
+        } catch (Exception e) {
+            throw new ProposalException(e);
+        }
     }
 
     public interface SDPeerAdditionInfo {
@@ -2540,6 +2613,123 @@ public class Channel implements Serializable {
 
     }
 
+    Collection<LifecycleInstallProposalResponse> sendLifecycleInstallProposal(LifecycleInstallRequest installProposalRequest, Collection<Peer> peers)
+            throws ProposalException, InvalidArgumentException {
+
+        checkChannelState();
+        checkPeers(peers);
+
+        LifecycleChaincodePackage lifecycleChaincodePackage = installProposalRequest.getLifecycleChaincodePackage();
+        if (null == lifecycleChaincodePackage) {
+            throw new InvalidArgumentException("Install request is missing lifecycle package");
+        }
+
+        byte[] cp = lifecycleChaincodePackage.getAsBytes();
+
+        if (null == cp) {
+            throw new InvalidArgumentException("InstallProposalRequest lifecycleChaincodePackage bytes is null.");
+        }
+
+        if (cp.length == 0) {
+            throw new InvalidArgumentException("InstallProposalRequest lifecycleChaincodePackage bytes is empty.");
+        }
+
+        try {
+            TransactionContext transactionContext = getTransactionContext(installProposalRequest.getUserContext());
+            transactionContext.verify(false);  // Install will have no signing cause it's not really targeted to a channel.
+            transactionContext.setProposalWaitTime(installProposalRequest.getProposalWaitTime());
+            LifecycleInstallProposalBuilder installProposalbuilder = LifecycleInstallProposalBuilder.newBuilder();
+            installProposalbuilder.setChaincodeBytes(cp);
+            installProposalbuilder.context(transactionContext);
+            installProposalbuilder.chaincodeName(installProposalRequest.getChaincodeName());
+            installProposalbuilder.chaincodeVersion(installProposalRequest.getChaincodeVersion());
+
+            FabricProposal.Proposal deploymentProposal = installProposalbuilder.build();
+            SignedProposal signedProposal = getSignedProposal(transactionContext, deploymentProposal);
+
+            return sendProposalToPeers(peers, signedProposal, transactionContext, LifecycleInstallProposalResponse.class);
+        } catch (Exception e) {
+            throw new ProposalException(e);
+        }
+
+    }
+
+    public LifecycleApproveChaincodeDefinitionForMyOrgProposalResponse sendLifecycleApproveChaincodeDefinitionForMyOrgProposal(LifecycleApproveChaincodeDefinitionForMyOrgRequest lifecycleApproveChaincodeDefinitionForMyOrgRequest, Peer peer) throws ProposalException, InvalidArgumentException {
+
+        Collection<LifecycleApproveChaincodeDefinitionForMyOrgProposalResponse> lifecycleApproveChaincodeDefinitionForMyOrgProposalResponses = sendLifecycleApproveChaincodeDefinitionForMyOrgProposal(lifecycleApproveChaincodeDefinitionForMyOrgRequest, Collections.singleton(peer));
+        return lifecycleApproveChaincodeDefinitionForMyOrgProposalResponses.iterator().next();
+
+    }
+
+    public Collection<LifecycleApproveChaincodeDefinitionForMyOrgProposalResponse> sendLifecycleApproveChaincodeDefinitionForMyOrgProposal(LifecycleApproveChaincodeDefinitionForMyOrgRequest lifecycleApproveChaincodeDefinitionForMyOrgRequest,
+                                                                                                                                           Collection<Peer> peers) throws ProposalException, InvalidArgumentException {
+
+        checkChannelState();
+        checkPeers(peers);
+
+        try {
+            TransactionContext transactionContext = getTransactionContext(lifecycleApproveChaincodeDefinitionForMyOrgRequest.getUserContext());
+            transactionContext.setProposalWaitTime(lifecycleApproveChaincodeDefinitionForMyOrgRequest.getProposalWaitTime());
+            transactionContext.verify(true);  // Install will have no signing cause it's not really targeted to a channel.
+            transactionContext.setProposalWaitTime(lifecycleApproveChaincodeDefinitionForMyOrgRequest.getProposalWaitTime());
+            LifecycleApproveChaincodeDefinitionForMyOrgProposalBuilder approveChaincodeDefinitionForMyOrgProposalBuilder = LifecycleApproveChaincodeDefinitionForMyOrgProposalBuilder.newBuilder();
+
+            approveChaincodeDefinitionForMyOrgProposalBuilder.context(transactionContext);
+            approveChaincodeDefinitionForMyOrgProposalBuilder.chaincodeName(lifecycleApproveChaincodeDefinitionForMyOrgRequest.getChaincodeName());
+            approveChaincodeDefinitionForMyOrgProposalBuilder.version(lifecycleApproveChaincodeDefinitionForMyOrgRequest.getChaincodeVersion());
+            byte[] chaincodeHash = lifecycleApproveChaincodeDefinitionForMyOrgRequest.getChaincodeHash();
+            if (null != chaincodeHash) {
+                approveChaincodeDefinitionForMyOrgProposalBuilder.setHash(lifecycleApproveChaincodeDefinitionForMyOrgRequest.getChaincodeHash());
+            }
+            approveChaincodeDefinitionForMyOrgProposalBuilder.sequence(lifecycleApproveChaincodeDefinitionForMyOrgRequest.getDefinitionSequence());
+            Boolean initRequired = lifecycleApproveChaincodeDefinitionForMyOrgRequest.isInitRequired();
+            if (null != initRequired) {
+                approveChaincodeDefinitionForMyOrgProposalBuilder.initRequired(initRequired);
+            }
+
+            ChaincodeEndorsementPolicy chaincodeEndorsementPolicy = lifecycleApproveChaincodeDefinitionForMyOrgRequest.getChaincodeEndorsementPolicy();
+            byte[] chaincodeValidationParameter = lifecycleApproveChaincodeDefinitionForMyOrgRequest.getChaincodeValidationParameter();
+
+            if (null != chaincodeEndorsementPolicy && null != chaincodeEndorsementPolicy.getPolicyBytes()) {
+
+                Policies.SignaturePolicyEnvelope signaturePolicyEnvelope = Policies.SignaturePolicyEnvelope.parseFrom(chaincodeEndorsementPolicy.getPolicyBytes());
+                Policy.ApplicationPolicy.Builder builder = Policy.ApplicationPolicy.newBuilder().setSignaturePolicy(signaturePolicyEnvelope);
+
+                approveChaincodeDefinitionForMyOrgProposalBuilder.setValidationParamter(builder.build().toByteArray());
+            } else if (chaincodeValidationParameter != null) {
+                approveChaincodeDefinitionForMyOrgProposalBuilder.setValidationParamter(chaincodeValidationParameter);
+
+            } else if (null != lifecycleApproveChaincodeDefinitionForMyOrgRequest.getChannelConfigPolicyReference()) {
+                String chaincodeEndorsementReference = lifecycleApproveChaincodeDefinitionForMyOrgRequest.getChannelConfigPolicyReference();
+                Policy.ApplicationPolicy applicationPolicy = Policy.ApplicationPolicy.newBuilder().setChannelConfigPolicyReference(chaincodeEndorsementReference).build();
+                approveChaincodeDefinitionForMyOrgProposalBuilder.setValidationParamter(applicationPolicy.toByteArray());
+
+            }
+            String chaincodeCodeEndorsementPlugin = lifecycleApproveChaincodeDefinitionForMyOrgRequest.chaincodeCodeEndorsementPlugin();
+            if (null != chaincodeCodeEndorsementPlugin) {
+                approveChaincodeDefinitionForMyOrgProposalBuilder.chaincodeCodeEndorsementPlugin(chaincodeCodeEndorsementPlugin);
+            }
+
+            String chaincodeCodeValidationPlugin = lifecycleApproveChaincodeDefinitionForMyOrgRequest.chaincodeCodeValidationPlugin();
+            if (null != chaincodeCodeValidationPlugin) {
+                approveChaincodeDefinitionForMyOrgProposalBuilder.chaincodeCodeValidationPlugin(chaincodeCodeValidationPlugin);
+            }
+
+            ChaincodeCollectionConfiguration chaincodeCollectionConfiguration = lifecycleApproveChaincodeDefinitionForMyOrgRequest.getChaincodeCollectionConfiguration();
+            if (null != chaincodeCollectionConfiguration) {
+                approveChaincodeDefinitionForMyOrgProposalBuilder.chaincodeCollectionConfiguration(chaincodeCollectionConfiguration.getCollectionConfigPackage());
+            }
+
+            FabricProposal.Proposal deploymentProposal = approveChaincodeDefinitionForMyOrgProposalBuilder.build();
+            SignedProposal signedProposal = getSignedProposal(transactionContext, deploymentProposal);
+
+            return sendProposalToPeers(peers, signedProposal, transactionContext, LifecycleApproveChaincodeDefinitionForMyOrgProposalResponse.class);
+        } catch (Exception e) {
+            throw new ProposalException(e);
+        }
+
+    }
+
     /**
      * Send Upgrade proposal proposal to upgrade chaincode to a new version.
      *
@@ -3360,6 +3550,110 @@ public class Channel implements Serializable {
 
     }
 
+    Collection<LifecycleQueryInstalledChaincodesProposalResponse> lifecycleQueryInstalledChaincodes(Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+
+        checkPeers(peers);
+
+        if (!isSystemChannel()) {
+            throw new InvalidArgumentException("LifecycleQueryInstalledChaincodes should only be invoked on system channel.");
+        }
+
+        try {
+
+            TransactionContext context = getTransactionContext();
+
+            FabricProposal.Proposal q = LifecycleQueryInstalledChaincodesBuilder.newBuilder().context(context).build();
+
+            SignedProposal qProposal = getSignedProposal(context, q);
+
+            return sendProposalToPeers(peers, qProposal, context, LifecycleQueryInstalledChaincodesProposalResponse.class);
+
+        } catch (ProposalException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ProposalException(format("Query for peer %s channels failed. " + e.getMessage(), name), e);
+
+        }
+
+    }
+
+    Collection<LifecycleQueryInstalledChaincodeProposalResponse> lifecycleQueryInstalledChaincode(String chaincodeName,
+                                                                                                  String chaincodeVersion,
+                                                                                                  Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+
+        checkPeers(peers);
+
+        if (!isSystemChannel()) {
+            throw new InvalidArgumentException("LifecycleQueryInstalledChaincodes should only be invoked on system channel.");
+        }
+
+        try {
+
+            TransactionContext context = getTransactionContext();
+
+            LifecycleQueryInstalledChaincodeBuilder q = LifecycleQueryInstalledChaincodeBuilder.newBuilder();
+
+            q.setChaincodeName(chaincodeName);
+            q.setChaincodeVersion(chaincodeVersion);
+            q.context(context);
+            //.build();
+
+            SignedProposal qProposal = getSignedProposal(context, q.build());
+            return sendProposalToPeers(peers, qProposal, context, LifecycleQueryInstalledChaincodeProposalResponse.class);
+
+        } catch (ProposalException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ProposalException(format("Query for peer %s channels failed. " + e.getMessage(), name), e);
+
+        }
+
+    }
+
+    public Collection<LifecycleQueryNamespaceDefinitionsProposalResponse> lifecycleQueryNamespaceDefinitions(Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+
+        checkPeers(peers);
+
+        try {
+
+            TransactionContext context = getTransactionContext();
+
+            LifecycleQueryNamespaceDefinitionsBuilder q = LifecycleQueryNamespaceDefinitionsBuilder.newBuilder();
+            q.context(context);
+
+            SignedProposal qProposal = getSignedProposal(context, q.build());
+            return sendProposalToPeers(peers, qProposal, context, LifecycleQueryNamespaceDefinitionsProposalResponse.class);
+
+        } catch (Exception e) {
+            throw new ProposalException(format("QueryNamespaceDefinitions %s channel failed. " + e.getMessage(), name), e);
+
+        }
+
+    }
+
+    public Collection<LifecycleQueryChaincodeDefinitionProposalResponse> lifecycleQueryChaincodeDefinition(String chaincodeName, Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+
+        // checkPeers(peer);
+
+        try {
+
+            TransactionContext context = getTransactionContext();
+            //  String chaincodeName = "xx";
+            LifecycleQueryChaincodeDefinitionBuilder lifecycleQueryChaincodeDefinitionBuilder = LifecycleQueryChaincodeDefinitionBuilder.newBuilder();
+            lifecycleQueryChaincodeDefinitionBuilder.context(context).setChaincodeName(chaincodeName);
+
+            SignedProposal qProposal = getSignedProposal(context, lifecycleQueryChaincodeDefinitionBuilder.build());
+            return sendProposalToPeers(peers, qProposal, context, LifecycleQueryChaincodeDefinitionProposalResponse.class);
+
+        } catch (ProposalException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ProposalException(format("Query for peer %s channels failed. " + e.getMessage(), name), e);
+
+        }
+
+    }
+
     /**
      * Query peer for chaincode that has been instantiated
      *
@@ -3560,7 +3854,7 @@ public class Channel implements Serializable {
      * @throws ProposalException
      */
     public Collection<ProposalResponse> sendTransactionProposalToEndorsers(TransactionProposalRequest transactionProposalRequest, DiscoveryOptions discoveryOptions) throws ProposalException, InvalidArgumentException, ServiceDiscoveryException {
-        final String chaincodeName = transactionProposalRequest.getChaincodeID().getName();
+        final String chaincodeName = transactionProposalRequest.getChaincodeName() != null ? transactionProposalRequest.getChaincodeName() : transactionProposalRequest.getChaincodeID().getName();
         checkChannelState();
         if (null == transactionProposalRequest) {
             throw new InvalidArgumentException("The proposalRequest is null");
@@ -3959,9 +4253,9 @@ public class Channel implements Serializable {
             throw new InvalidArgumentException("The proposalRequest's fcn is null or empty.");
         }
 
-        if (proposalRequest.getChaincodeID() == null) {
-            throw new InvalidArgumentException("The proposalRequest's chaincode ID is null");
-        }
+//        if (proposalRequest.getChaincodeID() == null) {
+//            throw new InvalidArgumentException("The proposalRequest's chaincode ID is null");
+//        }
 
         proposalRequest.setSubmitted();
 
@@ -3999,6 +4293,16 @@ public class Channel implements Serializable {
     private Collection<ProposalResponse> sendProposalToPeers(Collection<Peer> peers,
                                                              SignedProposal signedProposal,
                                                              TransactionContext transactionContext) throws InvalidArgumentException, ProposalException {
+
+        return sendProposalToPeers(peers,
+                signedProposal,
+                transactionContext, ProposalResponse.class);
+
+    }
+
+    private <T extends ProposalResponse> Collection<T> sendProposalToPeers(Collection<Peer> peers,
+                                                                           SignedProposal signedProposal,
+                                                                           TransactionContext transactionContext, Class<T> clazz) throws InvalidArgumentException, ProposalException {
         checkPeers(peers);
 
         if (transactionContext.getVerify()) {
@@ -4007,6 +4311,13 @@ public class Channel implements Serializable {
             } catch (Exception e) {
                 throw new ProposalException(e);
             }
+        }
+
+        Constructor<? extends ProposalResponse> declaredConstructor;
+        try {
+            declaredConstructor = clazz.getDeclaredConstructor(TransactionContext.class, int.class, String.class);
+        } catch (NoSuchMethodException e) {
+            throw new InvalidArgumentException(e);
         }
 
         final String txID = transactionContext.getTxID();
@@ -4044,7 +4355,7 @@ public class Channel implements Serializable {
 
         }
 
-        Collection<ProposalResponse> proposalResponses = new ArrayList<>();
+        Collection<T> proposalResponses = new ArrayList<>();
         for (Pair peerFuturePair : peerFuturePairs) {
 
             FabricProposalResponse.ProposalResponse fabricResponse = null;
@@ -4088,7 +4399,14 @@ public class Channel implements Serializable {
                 }
             }
 
-            ProposalResponse proposalResponse = new ProposalResponse(transactionContext, status, message);
+            ProposalResponse proposalResponse = null;
+            try {
+                proposalResponse = declaredConstructor.newInstance(transactionContext, status, message);
+            } catch (Exception e) {
+                throw new InvalidArgumentException(e); // very unlikely to happen.
+            }
+
+            //ProposalResponse proposalResponse = new ProposalResponse(transactionContext, status, message);
             proposalResponse.setProposalResponse(fabricResponse);
             proposalResponse.setProposal(signedProposal);
             proposalResponse.setPeer(peerFuturePair.peer);
@@ -4097,7 +4415,7 @@ public class Channel implements Serializable {
                 proposalResponse.verify(client.getCryptoSuite());
             }
 
-            proposalResponses.add(proposalResponse);
+            proposalResponses.add((T) proposalResponse);
         }
 
         return proposalResponses;
@@ -4122,7 +4440,7 @@ public class Channel implements Serializable {
      * @param proposalResponses .
      * @return a future allowing access to the result of the transaction invocation once complete.
      */
-    public CompletableFuture<TransactionEvent> sendTransaction(Collection<ProposalResponse> proposalResponses) {
+    public CompletableFuture<TransactionEvent> sendTransaction(Collection<? extends ProposalResponse> proposalResponses) {
 
         return sendTransaction(proposalResponses, getOrderers());
 
@@ -4136,7 +4454,7 @@ public class Channel implements Serializable {
      * @return a future allowing access to the result of the transaction invocation once complete.
      */
 
-    public CompletableFuture<TransactionEvent> sendTransaction(Collection<ProposalResponse> proposalResponses, Collection<Orderer> orderers) {
+    public CompletableFuture<TransactionEvent> sendTransaction(Collection<? extends ProposalResponse> proposalResponses, Collection<Orderer> orderers) {
 
         return sendTransaction(proposalResponses, orderers, client.getUserContext());
     }
@@ -4254,7 +4572,7 @@ public class Channel implements Serializable {
 
         synchronized Collection<Peer> unSeenPeers() {
 
-            Set<Peer> unseen = new HashSet(16);
+            Set<Peer> unseen = new HashSet<>(16);
             unseen.addAll(peers);
             for (NOfEvents nOfEvents : nOfEvents) {
                 unseen.addAll(nofNoEvents.unSeenPeers());
@@ -4369,7 +4687,7 @@ public class Channel implements Serializable {
      * @return Future allowing access to the result of the transaction invocation.
      */
 
-    public CompletableFuture<TransactionEvent> sendTransaction(Collection<ProposalResponse> proposalResponses, Collection<Orderer> orderers, User userContext) {
+    public CompletableFuture<TransactionEvent> sendTransaction(Collection<? extends ProposalResponse> proposalResponses, Collection<Orderer> orderers, User userContext) {
         return sendTransaction(proposalResponses, createTransactionOptions().orderers(orderers).userContext(userContext));
     }
 
@@ -4415,7 +4733,7 @@ public class Channel implements Serializable {
          * @return This TransactionOptions
          */
         public TransactionOptions orderers(Orderer... orderers) {
-            this.orderers = new ArrayList(Arrays.asList(orderers)); //convert make sure we have a copy.
+            this.orderers = new ArrayList<>(Arrays.asList(orderers)); //convert make sure we have a copy.
             return this;
         }
 
@@ -4435,7 +4753,7 @@ public class Channel implements Serializable {
          * This maybe set to NOfEvents.nofNoEvents that will complete the future as soon as a successful submission
          * to an Orderer, but the completed Transaction event in that case will be null.
          *
-         * @param nOfEvents See @see {@link NOfEvents}
+         * @param nOfEvents More details: @see {@link NOfEvents}
          * @return This TransactionOptions
          */
         public TransactionOptions nOfEvents(NOfEvents nOfEvents) {
@@ -4680,7 +4998,7 @@ public class Channel implements Serializable {
      * @return Future allowing access to the result of the transaction invocation.
      */
 
-    public CompletableFuture<TransactionEvent> sendTransaction(Collection<ProposalResponse> proposalResponses,
+    public CompletableFuture<TransactionEvent> sendTransaction(Collection<? extends ProposalResponse> proposalResponses,
                                                                TransactionOptions transactionOptions) {
         try {
 
