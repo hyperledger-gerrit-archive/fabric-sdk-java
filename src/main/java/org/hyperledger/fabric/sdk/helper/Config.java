@@ -101,6 +101,11 @@ public class Config {
     public static final String SERVICE_DISCOVER_FREQ_SECONDS = "org.hyperledger.fabric.sdk.service_discovery.frequency_sec";
     public static final String SERVICE_DISCOVER_WAIT_TIME = "org.hyperledger.fabric.sdk.service_discovery.discovery_wait_time";
 
+    public static final String LIFECYCLE_CHAINCODE_ENDORSEMENT_PLUGIN = "org.hyperledger.fabric.sdk.lifecycle.chaincode_endorsement_plugin"; //ORG_HYPERLEDGER_FABRIC_SDK_LIFECYCLE_CHAINCODE_ENDORSEMENT_PLUGIN
+
+    public static final String LIFECYCLE_CHAINCODE_VALIDATION_PLUGIN = "org.hyperledger.fabric.sdk.lifecycle.chaincode_validation_plugin";   //ORG_HYPERLEDGER_FABRIC_SDK_LIFECYCLE_CHAINCODE_VALIDATION_PLUGIN
+    public static final String LIFECYCLE_INITREQUIREDDEFAULT = "org.hyperledger.fabric.sdk.lifecycle.initRequiredDefault";   //ORG_HYPERLEDGER_FABRIC_SDK_LIFECYCLE_INITREQUIREDDEFAULT
+
     private static Config config;
     private static final Properties sdkProperties = new Properties();
     private static final AtomicLong count = new AtomicLong(0);
@@ -191,6 +196,9 @@ public class Config {
 
             defaultProperty(SERVICE_DISCOVER_FREQ_SECONDS, "120");
             defaultProperty(SERVICE_DISCOVER_WAIT_TIME, "5000");
+            defaultProperty(LIFECYCLE_CHAINCODE_ENDORSEMENT_PLUGIN, null);
+            defaultProperty(LIFECYCLE_CHAINCODE_VALIDATION_PLUGIN, null);
+            defaultProperty(LIFECYCLE_INITREQUIREDDEFAULT, null);
 
             final String inLogLevel = sdkProperties.getProperty(LOGGERLEVEL);
 
@@ -440,7 +448,6 @@ public class Config {
         return Long.parseLong(getProperty(PEER_EVENT_RETRY_WAIT_TIME));
     }
 
-
     public long getPeerEventReconnectionWarningRate() {
         return Long.parseLong(getProperty(PEER_EVENT_RECONNECTION_WARNING_RATE));
     }
@@ -583,4 +590,44 @@ public class Config {
         return TimeUnit.valueOf(getProperty(CLIENT_THREAD_EXECUTOR_KEEPALIVETIMEUNIT));
     }
 
+    /**
+     * The default chaincode Endorsement policy plugin
+     * <p>
+     * This should never need setting
+     *
+     * @return The default chaincode Endorsement policy plugin
+     */
+
+    public String getDefaultChaincodeEndorsementPlugin() {
+        return getProperty(LIFECYCLE_CHAINCODE_ENDORSEMENT_PLUGIN);
+    }
+
+    /**
+     * The default chaincode validation plugin
+     * This should never need setting.
+     *
+     * @return The default chaincode validation plugin
+     */
+    public String getDefaultChaincodeValidationPlugin() {
+        return getProperty(LIFECYCLE_CHAINCODE_VALIDATION_PLUGIN);
+    }
+
+    /**
+     * Whether require init method in chaincode to be run.
+     * The default will return null which will not set the Fabric protobuf value which then sets false. False is the Fabric
+     * default.
+     *
+     * @return The default setting for initRequired in chaincode approve for my org and commit chaincode definition.
+     */
+    public Boolean getLifecycleInitRequiredDefault() {
+
+        String property = getProperty(LIFECYCLE_INITREQUIREDDEFAULT);
+        if (property != null) {
+
+            return Boolean.parseBoolean(property);
+
+        }
+
+        return null;
+    }
 }
