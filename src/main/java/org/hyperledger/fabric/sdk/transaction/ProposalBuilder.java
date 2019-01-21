@@ -85,8 +85,7 @@ public class ProposalBuilder {
 
     public ProposalBuilder request(TransactionRequest request) throws InvalidArgumentException {
         this.request = request;
-
-        chaincodeID(request.getChaincodeID().getFabricChaincodeID());
+        chaincodeID(request.getFabricChaincodeID());
 
         switch (request.getChaincodeLanguage()) {
             case JAVA:
