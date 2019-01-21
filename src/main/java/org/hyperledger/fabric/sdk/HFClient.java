@@ -38,6 +38,7 @@ import java.util.logging.Logger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
+import org.hyperledger.fabric.protos.peer.lifecycle.Lifecycle;
 import org.hyperledger.fabric.sdk.exception.CryptoException;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.exception.NetworkConfigurationException;
@@ -365,9 +366,19 @@ public class HFClient {
      * newInstallProposalRequest get new Install proposal request.
      *
      * @return InstallProposalRequest
+     * @deprecated
      */
     public InstallProposalRequest newInstallProposalRequest() {
         return new InstallProposalRequest(userContext);
+    }
+
+    /**
+     * newInstallProposalRequest get new Install proposal request.
+     *
+     * @return InstallProposalRequest
+     */
+    public LifecycleInstallRequest newLifecycleInstallRequest() {
+        return new LifecycleInstallRequest(userContext);
     }
 
     /**
@@ -554,6 +565,38 @@ public class HFClient {
     }
 
     /**
+     * Query the peer for installed chaincode information
+     *
+     * @param peer The peer to query.
+     * @return List of ChaincodeInfo on installed chaincode @see {@link ChaincodeInfo}
+     * @throws InvalidArgumentException
+     * @throws ProposalException
+     */
+
+    public Collection<Lifecycle.QueryInstalledChaincodesResult.InstalledChaincode> lifecycleQueryInstalledChaincodes(Peer peer) throws InvalidArgumentException, ProposalException {
+
+        clientCheck();
+
+        if (null == peer) {
+
+            throw new InvalidArgumentException("peer set to null");
+
+        }
+
+        try {
+            //Run this on a system channel.
+
+            Channel systemChannel = Channel.newSystemChannel(this);
+
+            return systemChannel.lifecycleQueryInstalledChaincodes(peer);
+        } catch (ProposalException e) {
+            logger.error(format("lifecycleQueryInstalledChaincodes for peer %s failed." + e.getMessage(), peer.getName()), e);
+            throw e;
+        }
+
+    }
+
+    /**
      * Get signature for channel configuration
      *
      * @param channelConfiguration
@@ -610,6 +653,28 @@ public class HFClient {
         Channel systemChannel = Channel.newSystemChannel(this);
 
         return systemChannel.sendInstallProposal(installProposalRequest, peers);
+
+    }
+
+    /**
+     * Send install chaincode request proposal to peers.
+     *
+     * @param installProposalRequest
+     * @param peers                  Collection of peers to install on.
+     * @return responses from peers.
+     * @throws InvalidArgumentException
+     * @throws ProposalException
+     */
+
+    public Collection<LifecycleInstallProposalResponse> sendLifecycleInstallProposal(LifecycleInstallRequest installProposalRequest,
+                                                                                     Collection<Peer> peers) throws ProposalException, InvalidArgumentException {
+
+        clientCheck();
+
+        installProposalRequest.setSubmitted();
+        Channel systemChannel = Channel.newSystemChannel(this);
+
+        return systemChannel.sendLifecycleInstallProposal(installProposalRequest, peers);
 
     }
 
