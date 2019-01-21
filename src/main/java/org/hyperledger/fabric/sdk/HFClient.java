@@ -383,9 +383,37 @@ public class HFClient {
      * newInstallProposalRequest get new Install proposal request.
      *
      * @return InstallProposalRequest
+     * @deprecated
      */
     public InstallProposalRequest newInstallProposalRequest() {
         return new InstallProposalRequest(userContext);
+    }
+
+    /**
+     * newInstallProposalRequest get new Install proposal request.
+     *
+     * @return InstallProposalRequest
+     */
+    public LifecycleInstallRequest newLifecycleInstallRequest() {
+        return new LifecycleInstallRequest(userContext);
+    }
+
+    /**
+     * newLifecycleApproveChaincodeDefinitionForMyOrgRequest get new Install proposal request.
+     *
+     * @return LifecycleApproveChaincodeDefinitionForMyOrgRequest
+     */
+    public LifecycleApproveChaincodeDefinitionForMyOrgRequest newLifecycleApproveChaincodeDefinitionForMyOrgRequest() {
+        return new LifecycleApproveChaincodeDefinitionForMyOrgRequest(userContext);
+    }
+
+    /**
+     * newLifecycleApproveChaincodeDefinitionForMyOrgRequest get new Install proposal request.
+     *
+     * @return LifecycleCommitChaincodeDefinitionRequest
+     */
+    public LifecycleCommitChaincodeDefinitionRequest newLifecycleCommitChaincodeDefinitionRequest() {
+        return new LifecycleCommitChaincodeDefinitionRequest(userContext);
     }
 
     /**
@@ -420,6 +448,10 @@ public class HFClient {
 
     public QueryByChaincodeRequest newQueryProposalRequest() {
         return QueryByChaincodeRequest.newInstance(userContext);
+    }
+
+    public LifecycleQueryApprovalStatusRequest newLifecycleQueryApprovalStatusRequest() {
+        return new LifecycleQueryApprovalStatusRequest();
     }
 
     /**
@@ -572,6 +604,73 @@ public class HFClient {
     }
 
     /**
+     * Query the peer for installed chaincode information
+     *
+     * @param peers The peer to query.
+     * @return List of ChaincodeInfo on installed chaincode @see {@link ChaincodeInfo}
+     * @throws InvalidArgumentException
+     * @throws ProposalException
+     */
+
+    public Collection<LifecycleQueryInstalledChaincodesProposalResponse> lifecycleQueryInstalledChaincodes(Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+
+        clientCheck();
+
+        if (null == peers) {
+
+            throw new InvalidArgumentException("The peers set to null");
+
+        }
+
+        if (peers.isEmpty()) {
+            throw new InvalidArgumentException("The peers parameter is empty.");
+        }
+
+        try {
+            //Run this on a system channel.
+            Channel systemChannel = Channel.newSystemChannel(this);
+            return systemChannel.lifecycleQueryInstalledChaincodes(peers);
+        } catch (ProposalException e) {
+            logger.error(e);
+            throw e;
+        }
+
+    }
+
+    public Collection<LifecycleQueryInstalledChaincodeProposalResponse> lifecycleQueryInstalledChaincode(String packageId,
+                                                                                                         Collection<Peer> peers) throws InvalidArgumentException, ProposalException {
+        clientCheck();
+
+        if (null == peers) {
+
+            throw new InvalidArgumentException("The parameter peers set to null");
+
+        }
+
+        if (peers.isEmpty()) {
+
+            throw new InvalidArgumentException("Peers to query is empty.");
+
+        }
+
+        if (Utils.isNullOrEmpty(packageId)) {
+            throw new InvalidArgumentException("The chaincode packagageId paramter must not be null or empty");
+        }
+
+        try {
+            //Run this on a system channel.
+
+            Channel systemChannel = Channel.newSystemChannel(this);
+
+            return systemChannel.lifecycleQueryInstalledChaincode(packageId, peers);
+        } catch (ProposalException e) {
+            logger.error(format("lifecycleQueryInstalledChaincode for failed. %s", e.getMessage()), e);
+            throw e;
+        }
+
+    }
+
+    /**
      * Get signature for channel configuration
      *
      * @param channelConfiguration
@@ -628,6 +727,28 @@ public class HFClient {
         Channel systemChannel = Channel.newSystemChannel(this);
 
         return systemChannel.sendInstallProposal(installProposalRequest, peers);
+
+    }
+
+    /**
+     * Send install chaincode request proposal to peers.
+     *
+     * @param installProposalRequest
+     * @param peers                  Collection of peers to install on.
+     * @return responses from peers.
+     * @throws InvalidArgumentException
+     * @throws ProposalException
+     */
+
+    public Collection<LifecycleInstallProposalResponse> sendLifecycleInstallProposal(LifecycleInstallRequest installProposalRequest,
+                                                                                     Collection<Peer> peers) throws ProposalException, InvalidArgumentException {
+
+        clientCheck();
+
+        installProposalRequest.setSubmitted();
+        Channel systemChannel = Channel.newSystemChannel(this);
+
+        return systemChannel.sendLifecycleInstallProposal(installProposalRequest, peers);
 
     }
 
