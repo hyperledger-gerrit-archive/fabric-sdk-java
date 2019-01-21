@@ -20,10 +20,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
-import java.security.PrivateKey;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,7 +41,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.codec.binary.Hex;
-import org.bouncycastle.openssl.PEMWriter;
 import org.hyperledger.fabric.protos.ledger.rwset.kvrwset.KvRwset;
 import org.hyperledger.fabric.sdk.BlockEvent;
 import org.hyperledger.fabric.sdk.BlockInfo;
@@ -87,6 +84,7 @@ import static org.hyperledger.fabric.sdk.BlockInfo.EnvelopeType.TRANSACTION_ENVE
 import static org.hyperledger.fabric.sdk.Channel.NOfEvents.createNofEvents;
 import static org.hyperledger.fabric.sdk.Channel.PeerOptions.createPeerOptions;
 import static org.hyperledger.fabric.sdk.Channel.TransactionOptions.createTransactionOptions;
+import static org.hyperledger.fabric.sdk.testutils.TestUtils.getPEMStringFromPrivateKey;
 import static org.hyperledger.fabric.sdk.testutils.TestUtils.resetConfig;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -455,17 +453,6 @@ public class End2endMTIT {
 
         }
 
-    }
-
-    static String getPEMStringFromPrivateKey(PrivateKey privateKey) throws IOException {
-        StringWriter pemStrWriter = new StringWriter();
-        PEMWriter pemWriter = new PEMWriter(pemStrWriter);
-
-        pemWriter.writeObject(privateKey);
-
-        pemWriter.close();
-
-        return pemStrWriter.toString();
     }
 
     //CHECKSTYLE.OFF: Method length is 320 lines (max allowed is 150).
