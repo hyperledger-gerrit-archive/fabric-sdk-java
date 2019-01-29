@@ -1,0 +1,212 @@
+/*
+Copyright IBM Corp. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
+syntax = "proto3";
+
+option go_package = "github.com/hyperledger/fabric/protos/token";
+option java_package = "org.hyperledger.fabric.protos.token";
+
+
+// ================ Existing Fabric Transaction structure ===============
+//
+//In Summary, Fabric supports the following transaction structure:
+//
+//  Envelope
+//  |\_ Signature                                    (signature on the common.Payload message
+//  |                                                 including the transaction by the creator
+//  |                                                 specified in the Payload.header)
+//   \_ Payload
+//      |\_ Header (1)                               (the header of the proposal that requested this
+//      |                                             action; containing channel header, and
+//      |                                             signature header)
+//       \_ Data (1)                                 (serialised Transaction message)
+//           \_ Transaction
+//                \_ TransactionAction (1...n)
+//                    |\_ Header (1)                 (the header of the proposal that
+//                    |                               requested this action)
+//                     \_ ChaincodeActionPayload (1)
+//
+//
+//
+//
+//  =============== Changes to Existing Fabric Transaction structure ===============
+//  For envelopes that carry FabToken transaction we still maintain the same structure
+//  such that the orderers functionality is not disturbed:
+//
+//  Envelope
+//  |\_ Signature                                    (signature on the Payload message including
+//  |                                                 the transaction by the creator
+//  |                                                 specified in the Payload.header)
+//   \_ Payload
+//      |\_ Header (1)                               (the header of the proposal that requested
+//      |                                             this action; containing
+//      |                                             channel header, and signature header)
+//       \_ Data (1)                                 (serialised Transaction message)
+//            \_ TokenTransaction (1)
+//                  \_ action (1)                    (a oneof for the different types of transactions)
+
+
+
+// TokenTransaction governs the structure of Payload.data, when
+// the transaction's envelope header indicates a transaction of type
+// "Token"
+message TokenTransaction {
+    // action carries the content of this transaction.
+    oneof action {
+        PlainTokenAction plain_action = 1;
+    }
+}
+
+// PlainTokenAction governs the structure of a token action that is
+// subjected to no privacy restrictions
+message PlainTokenAction {
+    oneof data {
+        // A plaintext token import transaction
+        PlainImport plain_import = 1;
+        // A plaintext token transfer transaction
+        PlainTransfer plain_transfer = 2;
+        // A plaintext token redeem transaction
+        PlainTransfer plain_redeem = 3;
+        // A plaintext token approve transaction
+        PlainApprove plain_approve = 4;
+        // A plaintext token transfer from transaction
+        PlainTransferFrom plain_transfer_From = 5;
+        // A plaintext atomic swap transaction
+        PlainSwap plain_swap = 6;
+    }
+}
+
+// PlainImport specifies an import of one or more tokens in plaintext format
+message PlainImport {
+
+    // An import transaction may contain one or more outputs
+    repeated PlainOutput outputs = 1;
+}
+
+// PlainTransfer specifies a transfer of one or more plaintext tokens to one or more outputs
+message PlainTransfer {
+
+    // The inputs to the transfer transaction are specified by their ID
+    repeated InputId inputs = 1;
+
+    // A transfer transaction may contain one or more outputs
+    repeated PlainOutput outputs = 2;
+}
+
+// PlainApprove specifies an approve of one or more tokens in plaintext format
+message PlainApprove {
+    // The inputs to the transfer transaction are specified by their ID
+    repeated InputId inputs = 1;
+
+    // An approve transaction contains one or more plain delegated outputs
+    repeated PlainDelegatedOutput delegated_outputs = 2;
+
+    // An approve transaction contains one plain output
+    PlainOutput output = 3;
+}
+
+// PlainTransferFrom specifies a transfer of one or more plaintext delegated tokens to one or more outputs
+// an to a delegated output
+message PlainTransferFrom {
+    // The inputs to the transfer transaction are specified by their ID
+    repeated InputId inputs = 1;
+
+    // A transferFrom transaction contains multiple outputs
+    repeated PlainOutput outputs = 2;
+
+    // A transferFrom transaction may contain one delegatable output
+    PlainDelegatedOutput delegated_output = 3;
+}
+
+// A PlainOutput is the result of import and transfer transactions using plaintext tokens
+message PlainOutput {
+
+    // The owner is the serialization of a SerializedIdentity struct
+    bytes owner = 1;
+
+    // The token type
+    string type = 2;
+
+    // The quantity of tokens
+    uint64 quantity = 3;
+}
+
+// An InputId specifies an output using the transaction ID and the index of the output in the transaction
+message InputId {
+
+    // The transaction ID
+    string tx_id = 1;
+
+    // The index of the output in the transaction
+    uint32 index = 2;
+}
+
+// A PlainDelegatedOutput is the result of approve transactions using plaintext tokens
+message PlainDelegatedOutput {
+    // The owner is the serialization of a SerializedIdentity struct
+    bytes owner = 1;
+
+    // The delegatees is an arrary of the serialized identities that can spend the output on behalf
+    // the owner
+    repeated bytes delegatees = 2;
+
+    // The token type
+    string type = 3;
+
+    // The quantity of tokens
+    uint64 quantity = 4;
+}
+
+// PlainSwap serves a swap between multiple participants; such a swap
+// includes the full description of the swap, i.e., the perticipants
+// and the prescribed transfers this swap inbvolves (terms), as well
+// as one or more transfers that address some of the swap prescribe
+// transfers (contributions)
+message PlainSwap {
+    // terms describes the conditions under which the swap will be performed
+    PlainSwapDescription terms = 1;
+    // contribution describes the tokens that the requestor contribute to the swap
+    PlainContribution contribution = 2;
+}
+
+// PlainSwapDescription represents the description of a swap contract
+// once privacy of the details of the swap is not a concern. In this
+// case, swap description includes the list of SwapIntentions of
+// the participants in the swap, as well as a unique identifier
+// for the swap.
+message PlainSwapDescription {
+    // identifier identifies uniquely this swap
+    string identifier = 1;
+    // intentions describes the promises of each party involved in the swap
+    repeated PlainSwapIntention intentions = 2;
+}
+
+// PlainSwapIntention reflects a transfer intention of a participant in
+// a swap, where privacy is not a concern.
+message PlainSwapIntention {
+    // identifier uniquely identifies this intention
+    bytes identifier = 1;
+    // owner for this intention
+    bytes owner = 2;
+    // recipient for this intention
+    bytes recipient = 3;
+    // TokenType represent the expected token type
+    string token_type = 4;
+    // TokenType represent the expected token quantity
+    uint64 quantity = 5;
+}
+
+// PlainContribution represents a transfer that aims to address
+// the participation of a swap's participant in the swap. As such
+// it contains an actual transfer, and an array (equal in size to
+// the number of the transfer's outputs) including a reference to
+// the swap's description entry (term) this output is to address.
+message PlainContribution {
+    // TransferData represents the transfer for this contribution
+    PlainTransfer transfer_data = 1;
+    // TermReferences contains a term's reference for each output in transferData
+    repeated bytes term_references = 2;
+}
