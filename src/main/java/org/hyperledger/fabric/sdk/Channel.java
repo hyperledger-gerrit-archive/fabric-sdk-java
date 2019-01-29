@@ -129,11 +129,13 @@ import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 import org.hyperledger.fabric.sdk.transaction.UpgradeProposalBuilder;
 
 import static java.lang.String.format;
+import static org.hyperledger.fabric.protos.token.Transaction.*;
 import static org.hyperledger.fabric.sdk.Channel.PeerOptions.createPeerOptions;
 import static org.hyperledger.fabric.sdk.Channel.TransactionOptions.createTransactionOptions;
 import static org.hyperledger.fabric.sdk.User.userContextCheck;
 import static org.hyperledger.fabric.sdk.helper.Utils.isNullOrEmpty;
 import static org.hyperledger.fabric.sdk.helper.Utils.toHexString;
+import static org.hyperledger.fabric.sdk.token.ChannelHelper.createTokenTransactionEnvelope;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.createSeekInfoEnvelope;
 import static org.hyperledger.fabric.sdk.transaction.ProtoUtils.getSignatureHeaderAsByteString;
 
@@ -4804,6 +4806,167 @@ public class Channel implements Serializable {
 
         }
 
+    }
+
+    public CompletableFuture<TransactionEvent> sendTransaction(Payload payload,
+                                                               TransactionOptions transactionOptions) {
+        // TODO implement me
+        return null;
+    }
+
+
+    // this is a huge copy :/
+    public CompletableFuture<TransactionEvent> sendTokenTransaction(TokenTransaction tokenTransaction,
+                                                                    TransactionOptions transactionOptions) {
+        try {
+
+            if (null == transactionOptions) {
+                throw new InvalidArgumentException("Parameter transactionOptions can't be null");
+            }
+            checkChannelState();
+            User userContext = transactionOptions.userContext != null ? transactionOptions.userContext : client.getUserContext();
+            userContextCheck(userContext);
+            if (null == tokenTransaction) {
+                throw new InvalidArgumentException("sendTransaction tokenTransaction was null");
+            }
+
+            List<Orderer> orderers = transactionOptions.orderers != null ? transactionOptions.orderers :
+                    new ArrayList<>(getOrderers());
+
+            if (transactionOptions.shuffleOrders) {
+                Collections.shuffle(orderers);
+            }
+
+            final TransactionContext transactionContext = getTransactionContext();
+            final String proposalTransactionID = transactionContext.getTxID();
+            Envelope transactionEnvelope = createTokenTransactionEnvelope(tokenTransaction, transactionContext);
+
+
+            NOfEvents nOfEvents = transactionOptions.nOfEvents;
+            if (nOfEvents == null) {
+                nOfEvents = NOfEvents.createNofEvents();
+                Collection<Peer> eventingPeers = getEventingPeers();
+                boolean anyAdded = false;
+                if (!eventingPeers.isEmpty()) {
+                    anyAdded = true;
+                    nOfEvents.addPeers(eventingPeers);
+                }
+                Collection<EventHub> eventHubs = getEventHubs();
+                if (!eventHubs.isEmpty()) {
+                    anyAdded = true;
+                    nOfEvents.addEventHubs(getEventHubs());
+                }
+
+                if (!anyAdded) {
+                    nOfEvents = NOfEvents.createNoEvents();
+                }
+
+            } else if (nOfEvents != NOfEvents.nofNoEvents) {
+                StringBuilder issues = new StringBuilder(100);
+                Collection<Peer> eventingPeers = getEventingPeers();
+                nOfEvents.unSeenPeers().forEach(peer -> {
+                    if (peer.getChannel() != this) {
+                        issues.append(format("Peer %s added to NOFEvents does not belong this channel. ", peer.getName()));
+
+                    } else if (!eventingPeers.contains(peer)) {
+                        issues.append(format("Peer %s added to NOFEvents is not a eventing Peer in this channel. ", peer.getName()));
+                    }
+
+                });
+                nOfEvents.unSeenEventHubs().forEach(eventHub -> {
+                    if (!eventHubs.contains(eventHub)) {
+                        issues.append(format("Eventhub %s added to NOFEvents does not belong this channel. ", eventHub.getName()));
+                    }
+
+                });
+
+                if (nOfEvents.unSeenEventHubs().isEmpty() && nOfEvents.unSeenPeers().isEmpty()) {
+                    issues.append("NofEvents had no Eventhubs added or Peer eventing services.");
+                }
+                String foundIssues = issues.toString();
+                if (!foundIssues.isEmpty()) {
+                    throw new InvalidArgumentException(foundIssues);
+                }
+            }
+
+            final boolean replyonly = nOfEvents == NOfEvents.nofNoEvents || (getEventHubs().isEmpty() && getEventingPeers().isEmpty());
+
+            CompletableFuture<TransactionEvent> sret;
+            if (replyonly) { //If there are no eventhubs to complete the future, complete it
+                // immediately but give no transaction event
+                logger.debug(format("Completing token transaction id %s immediately no event hubs or peer eventing services found in channel %s.", proposalTransactionID, name));
+                sret = new CompletableFuture<>();
+            } else {
+                sret = registerTxListener(proposalTransactionID, nOfEvents, transactionOptions.failFast);
+            }
+
+            logger.debug(format("Channel %s sending token transaction to orderer(s) with TxID %s ", name, proposalTransactionID));
+            boolean success = false;
+            Exception lException = null; // Save last exception to report to user .. others are just logged.
+
+            BroadcastResponse resp = null;
+            Orderer failed = null;
+            for (Orderer orderer : orderers) {
+                if (failed != null) {
+                    logger.warn(format("Channel %s  %s failed. Now trying %s.", name, failed, orderer));
+                }
+                failed = orderer;
+                try {
+
+                    if (null != diagnosticFileDumper) {
+                        logger.trace(format("Sending to channel %s, orderer: %s, transaction: %s", name, orderer.getName(),
+                                diagnosticFileDumper.createDiagnosticProtobufFile(transactionEnvelope.toByteArray())));
+                    }
+
+                    resp = orderer.sendTransaction(transactionEnvelope);
+                    lException = null; // no longer last exception .. maybe just failed.
+                    if (resp.getStatus() == Status.SUCCESS) {
+                        success = true;
+                        break;
+                    } else {
+                        logger.warn(format("Channel %s %s failed. Status returned %s", name, orderer, getRespData(resp)));
+                    }
+                } catch (Exception e) {
+                    String emsg = format("Channel %s unsuccessful sendTokenTransaction to orderer %s (%s)",
+                            name, orderer.getName(), orderer.getUrl());
+                    if (resp != null) {
+
+                        emsg = format("Channel %s unsuccessful sendTokenTransaction to orderer %s (%s).  %s",
+                                name, orderer.getName(), orderer.getUrl(), getRespData(resp));
+                    }
+
+                    logger.error(emsg);
+                    lException = new Exception(emsg, e);
+
+                }
+
+            }
+
+            if (success) {
+                logger.debug(format("Channel %s successful sent to Orderer token transaction id: %s",
+                        name, proposalTransactionID));
+                if (replyonly) {
+                    sret.complete(null); // just say we're done.
+                }
+                return sret;
+            } else {
+
+                String emsg = format("Channel %s failed to place token transaction %s on Orderer. Cause: UNSUCCESSFUL. %s",
+                        name, proposalTransactionID, getRespData(resp));
+
+                unregisterTxListener(proposalTransactionID);
+
+                CompletableFuture<TransactionEvent> ret = new CompletableFuture<>();
+                ret.completeExceptionally(lException != null ? new Exception(emsg, lException) : new Exception(emsg));
+                return ret;
+            }
+        } catch (Exception e) {
+
+            CompletableFuture<TransactionEvent> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
+
+        }
     }
 
     /**
