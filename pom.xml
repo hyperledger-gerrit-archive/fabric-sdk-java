@@ -214,6 +214,12 @@
             <version>0.4.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.spotify</groupId>
+            <artifactId>futures-extra</artifactId>
+            <version>4.1.2</version>
+        </dependency>
+
     </dependencies>
 
 
