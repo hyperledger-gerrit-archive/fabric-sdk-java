@@ -41,7 +41,7 @@ public enum IdemixRoles {
      * @param roles that we want to combine
      * @return bitmask
      */
-     static int getRoleMask(MspPrincipal.MSPRole [] roles) {
+     static int getRoleMask(MspPrincipal.MSPRole[] roles) {
         int mask = 0;
         for (MspPrincipal.MSPRole role: roles) {
             mask =  mask | getIdemixRoleFromMSPRole(role);

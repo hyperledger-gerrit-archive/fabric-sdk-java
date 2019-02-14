@@ -15,9 +15,8 @@
 package org.hyperledger.fabric.sdk.transaction;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
@@ -41,17 +40,12 @@ public class InstantiateProposalBuilder extends LSCCProposalBuilder {
     private String chaincodePath;
 
     private String chaincodeName;
-    private List<String> argList;
+    private List<String> argList = Collections.emptyList();
     private String chaincodeVersion;
-    private TransactionRequest.Type chaincodeType = TransactionRequest.Type.GO_LANG;
 
     private byte[] chaincodePolicy = null;
     private byte[] chaincodeCollectionConfiguration = null;
     protected String action = "deploy";
-
-    public void setTransientMap(Map<String, byte[]> transientMap) throws InvalidArgumentException {
-        this.transientMap = transientMap;
-    }
 
     protected InstantiateProposalBuilder() {
         super();
@@ -78,14 +72,6 @@ public class InstantiateProposalBuilder extends LSCCProposalBuilder {
 
     }
 
-    public InstantiateProposalBuilder chaincodeType(TransactionRequest.Type chaincodeType) {
-
-        this.chaincodeType = chaincodeType;
-
-        return this;
-
-    }
-
     public void chaincodEndorsementPolicy(ChaincodeEndorsementPolicy policy) {
         if (policy != null) {
             this.chaincodePolicy = policy.getChaincodeEndorsementPolicyAsBytes();
@@ -104,19 +90,19 @@ public class InstantiateProposalBuilder extends LSCCProposalBuilder {
     }
 
     @Override
-    public FabricProposal.Proposal build() throws ProposalException, InvalidArgumentException {
+    public FabricProposal.Proposal build() throws ProposalException {
 
         constructInstantiateProposal();
         return super.build();
     }
 
-    private void constructInstantiateProposal() throws ProposalException, InvalidArgumentException {
+    private void constructInstantiateProposal() throws ProposalException {
 
         try {
 
             createNetModeTransaction();
 
-        } catch (InvalidArgumentException exp) {
+        } catch (RuntimeException exp) {
             logger.error(exp);
             throw exp;
         } catch (Exception exp) {
@@ -125,28 +111,16 @@ public class InstantiateProposalBuilder extends LSCCProposalBuilder {
         }
     }
 
-    private void createNetModeTransaction() throws InvalidArgumentException {
-
-        if (chaincodeType == null) {
-            throw new InvalidArgumentException("Chaincode type is required");
+    private void createNetModeTransaction() {
+        if (request == null) {
+            throw new IllegalStateException("Request not set");
         }
 
-        List<String> modlist = new LinkedList<>();
-        modlist.add("init");
-        modlist.addAll(argList);
-
-        switch (chaincodeType) {
-            case JAVA:
-                ccType(Chaincode.ChaincodeSpec.Type.JAVA);
-                break;
-            case NODE:
-                ccType(Chaincode.ChaincodeSpec.Type.NODE);
-                break;
-            case GO_LANG:
-                ccType(Chaincode.ChaincodeSpec.Type.GOLANG);
-                break;
-            default:
-                throw new InvalidArgumentException("Requested chaincode type is not supported: " + chaincodeType);
+        List<String> modlist = new ArrayList<>();
+        final String functionName = request.getFcn();
+        if (functionName != null && !functionName.isEmpty()) {
+            modlist.add(functionName);
+            modlist.addAll(argList);
         }
 
         ChaincodeDeploymentSpec depspec = createDeploymentSpec(ccType,
@@ -170,7 +144,6 @@ public class InstantiateProposalBuilder extends LSCCProposalBuilder {
         }
 
         args(argList);
-
     }
 
     public void chaincodeVersion(String chaincodeVersion) {

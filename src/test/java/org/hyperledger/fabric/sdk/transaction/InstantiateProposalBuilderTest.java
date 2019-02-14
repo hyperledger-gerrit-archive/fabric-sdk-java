@@ -28,25 +28,11 @@ public class InstantiateProposalBuilderTest {
     public ExpectedException thrown = ExpectedException.none();
 
     @Test
-    public void testBuild() throws Exception {
-
-        thrown.expect(ProposalException.class);
-        thrown.expectMessage("IO Error");
-
-        InstantiateProposalBuilder builder = InstantiateProposalBuilder.newBuilder();
-        builder.build();
-
-    }
-
-    @Test
-    public void testInvalidType() throws Exception {
-
-        thrown.expect(InvalidArgumentException.class);
-        thrown.expectMessage("Chaincode type is required");
+    public void testBuildThrowsIfRequestNotSet() throws Exception {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage("Request not set");
 
         InstantiateProposalBuilder builder = InstantiateProposalBuilder.newBuilder();
-        builder.chaincodeType(null);
-
         builder.build();
     }
 

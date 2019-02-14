@@ -19,7 +19,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
@@ -107,7 +106,7 @@ public class ProposalBuilder {
         return this;
     }
 
-    public FabricProposal.Proposal build() throws ProposalException, InvalidArgumentException {
+    public FabricProposal.Proposal build() throws ProposalException {
         if (request != null && request.noChannelID()) {
             channelID = "";
         }
@@ -120,7 +119,7 @@ public class ProposalBuilder {
         }
 
         if (IS_DEBUG_LEVEL) {
-            for (Entry<String, byte[]> tme : transientMap.entrySet()) {
+            for (Map.Entry<String, byte[]> tme : transientMap.entrySet()) {
                 logger.debug(format("transientMap('%s', '%s'))", logString(tme.getKey()),
                         logString(new String(tme.getValue(), UTF_8))));
             }
@@ -136,12 +135,12 @@ public class ProposalBuilder {
                 ccType);
 
         //Convert to bytestring map.
-        Map<String, ByteString> bsm = Collections.EMPTY_MAP;
+        Map<String, ByteString> bsm = Collections.emptyMap();
         if (transientMap != null) {
 
             bsm = new HashMap<>(transientMap.size());
 
-            for (Entry<String, byte[]> tme : transientMap.entrySet()) {
+            for (Map.Entry<String, byte[]> tme : transientMap.entrySet()) {
                 bsm.put(tme.getKey(), ByteString.copyFrom(tme.getValue()));
 
             }
