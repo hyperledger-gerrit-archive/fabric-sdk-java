@@ -33,7 +33,7 @@ public class LSCCProposalBuilder extends ProposalBuilder {
     }
 
     @Override
-    public FabricProposal.Proposal build() throws ProposalException, InvalidArgumentException {
+    public FabricProposal.Proposal build() throws ProposalException {
 
         chaincodeID(CHAINCODE_ID_LSCC);
 

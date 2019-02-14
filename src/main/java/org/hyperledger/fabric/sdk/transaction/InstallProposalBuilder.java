@@ -96,7 +96,7 @@ public class InstallProposalBuilder extends LSCCProposalBuilder {
     }
 
     @Override
-    public FabricProposal.Proposal build() throws ProposalException, InvalidArgumentException {
+    public FabricProposal.Proposal build() throws ProposalException {
 
         constructInstallProposal();
         return super.build();

@@ -2505,14 +2505,13 @@ public class Channel implements Serializable {
             transactionContext.setProposalWaitTime(instantiateProposalRequest.getProposalWaitTime());
             InstantiateProposalBuilder instantiateProposalbuilder = InstantiateProposalBuilder.newBuilder();
             instantiateProposalbuilder.context(transactionContext);
+            instantiateProposalbuilder.request(instantiateProposalRequest);
             instantiateProposalbuilder.argss(instantiateProposalRequest.getArgs());
             instantiateProposalbuilder.chaincodeName(instantiateProposalRequest.getChaincodeName());
-            instantiateProposalbuilder.chaincodeType(instantiateProposalRequest.getChaincodeLanguage());
             instantiateProposalbuilder.chaincodePath(instantiateProposalRequest.getChaincodePath());
             instantiateProposalbuilder.chaincodeVersion(instantiateProposalRequest.getChaincodeVersion());
             instantiateProposalbuilder.chaincodEndorsementPolicy(instantiateProposalRequest.getChaincodeEndorsementPolicy());
             instantiateProposalbuilder.chaincodeCollectionConfiguration(instantiateProposalRequest.getChaincodeCollectionConfiguration());
-            instantiateProposalbuilder.setTransientMap(instantiateProposalRequest.getTransientMap());
 
             FabricProposal.Proposal instantiateProposal = instantiateProposalbuilder.build();
             SignedProposal signedProposal = getSignedProposal(transactionContext, instantiateProposal);
@@ -2634,6 +2633,7 @@ public class Channel implements Serializable {
             transactionContext.setProposalWaitTime(upgradeProposalRequest.getProposalWaitTime());
             UpgradeProposalBuilder upgradeProposalBuilder = UpgradeProposalBuilder.newBuilder();
             upgradeProposalBuilder.context(transactionContext);
+            upgradeProposalBuilder.request(upgradeProposalRequest);
             upgradeProposalBuilder.argss(upgradeProposalRequest.getArgs());
             upgradeProposalBuilder.chaincodeName(upgradeProposalRequest.getChaincodeName());
             upgradeProposalBuilder.chaincodePath(upgradeProposalRequest.getChaincodePath());
