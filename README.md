@@ -21,6 +21,7 @@ SDK's `Enrollment` interface.
  Please note that this is not the API documentation or a tutorial for the SDK, this will
   only help you familiarize to get started with the SDK if you are new in this domain.
 
+God bless you no bugs!
 
 ## Release notes
 
