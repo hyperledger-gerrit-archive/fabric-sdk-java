@@ -178,6 +178,11 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.spotify</groupId>
+            <artifactId>futures-extra</artifactId>
+            <version>4.1.2</version>
+        </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.glassfish/javax.json -->
         <dependency>
