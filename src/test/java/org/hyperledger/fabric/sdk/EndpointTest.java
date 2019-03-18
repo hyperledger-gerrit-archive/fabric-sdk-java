@@ -305,7 +305,7 @@ public class EndpointTest {
         Properties testprops = new Properties();
 
         testprops.setProperty("pemFile", "src/test/fixture/testPems/caBundled.pems," + // has 3 certs
-                " src/test/fixture/testPems/Org1MSP_CA.pem"); // has 1
+                " src/test/fixture/testPems/AnotherUniqCA.pem"); // has 1
 
         testprops.put("pemBytes", Files.readAllBytes(Paths.get("src/test/fixture/testPems/Org2MSP_CA.pem"))); //Can have pem bytes too. 1 cert
 
