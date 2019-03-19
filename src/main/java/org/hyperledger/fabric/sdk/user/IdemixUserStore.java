@@ -35,7 +35,7 @@ public class IdemixUserStore {
     public IdemixUserStore(String storePath, String mspId) throws CryptoException {
         this.storePath = storePath;
         this.mspId = mspId;
-        Idemix.IssuerPublicKey ipkProto =  readIdemixIssuerPublicKey(Paths.get(mspId, VERIFIER_PATH + IPK_CONFIG).toString());
+        Idemix.IssuerPublicKey ipkProto =  readIdemixIssuerPublicKey();
         this.ipk = new IdemixIssuerPublicKey(ipkProto);
         if (!this.ipk.check()) {
             throw new CryptoException("Failed verifying issuer public key.");
@@ -43,7 +43,7 @@ public class IdemixUserStore {
     }
 
     public User getUser(String id) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        MspConfig.IdemixMSPSignerConfig signerConfig = readIdemixMSPConfig(Paths.get(this.mspId, USER_PATH + id).toString());
+        MspConfig.IdemixMSPSignerConfig signerConfig = readIdemixMSPConfig(id);
         PublicKey revocationPk = readIdemixRevocationPublicKey(this.mspId);
         BIG sk = BIG.fromBytes(signerConfig.getSk().toByteArray());
         IdemixCredential cred = new IdemixCredential(Idemix.Credential.parseFrom(signerConfig.getCred()));
@@ -60,18 +60,17 @@ public class IdemixUserStore {
      * @return IdemixMSPSignerConfig proto
      */
     protected MspConfig.IdemixMSPSignerConfig readIdemixMSPConfig(String id) throws IOException {
-        Path path = Paths.get(this.storePath + id);
+    	Path path = Paths.get(this.storePath, this.mspId, USER_PATH, id);
         return MspConfig.IdemixMSPSignerConfig.parseFrom(Files.readAllBytes(path));
     }
 
     /**
      * Parse Idemix issuer public key from the config file
      *
-     * @param id
      * @return Idemix IssuerPublicKey proto
      */
-    protected Idemix.IssuerPublicKey readIdemixIssuerPublicKey(String id) {
-        Path path = Paths.get(this.storePath + id);
+    protected Idemix.IssuerPublicKey readIdemixIssuerPublicKey() {
+        Path path = Paths.get(this.storePath, this.mspId, VERIFIER_PATH, IPK_CONFIG);
         byte[] data = null;
         try {
             data = Files.readAllBytes(path);
@@ -97,7 +96,7 @@ public class IdemixUserStore {
      * @return idemix long-term revocation public key
      */
     protected PublicKey readIdemixRevocationPublicKey(String id) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        Path path = Paths.get(this.mspId, VERIFIER_PATH + id);
+        Path path = Paths.get(this.storePath, id, VERIFIER_PATH, REVOCATION_PUBLIC_KEY);
         return KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(Files.readAllBytes(path)));
     }
 }
