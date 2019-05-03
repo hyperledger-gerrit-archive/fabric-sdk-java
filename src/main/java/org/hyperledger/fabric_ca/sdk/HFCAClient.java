@@ -1347,7 +1347,7 @@ public class HFCAClient {
     }
 
     JsonObject post(String url, String body, String authHTTPCert) throws Exception {
-        url = addCAToURL(url);
+//        url = addCAToURL(url);
         HttpPost httpPost = new HttpPost(url);
         httpPost.setConfig(getRequestConfig());
         logger.debug(format("httpPost %s, body:%s, authHTTPCert: %s", url, body, authHTTPCert));
@@ -1394,8 +1394,8 @@ public class HFCAClient {
 
     JsonObject httpPut(String url, String body, User registrar) throws Exception {
         String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "PUT", url, body);
-        String putURL = addCAToURL(url);
-        HttpPut httpPut = new HttpPut(putURL);
+     //   String putURL = addCAToURL(url);
+        HttpPut httpPut = new HttpPut(url);
         httpPut.setConfig(getRequestConfig());
         logger.debug(format("httpPutt %s, body:%s, authHTTPCert: %s", url, body, authHTTPCert));
 
@@ -1416,8 +1416,8 @@ public class HFCAClient {
 
     JsonObject httpDelete(String url, User registrar) throws Exception {
         String authHTTPCert = getHTTPAuthCertificate(registrar.getEnrollment(), "DELETE", url, "");
-        String deleteURL = addCAToURL(url);
-        HttpDelete httpDelete = new HttpDelete(deleteURL);
+      //  String deleteURL = addCAToURL(url);
+        HttpDelete httpDelete = new HttpDelete(url);
         httpDelete.setConfig(getRequestConfig());
         logger.debug(format("httpPut %s, authHTTPCert: %s", url, authHTTPCert));
 
@@ -1545,7 +1545,7 @@ public class HFCAClient {
         }
 
         if (newPayloadType) {
-            url = addCAToURL(url);
+            // url = addCAToURL(url);
             String file = b64.encodeToString(new URL(url).getFile().getBytes(UTF_8));
             signString = method + "." + file + "." + body + "." + cert;
         } else {
