@@ -133,7 +133,7 @@ public class HFCAClientIT {
         sampleStore = new SampleStore(sampleStoreFile);
         sampleStoreFile.deleteOnExit();
 
-        client = HFCAClient.createNewInstance(
+        client = HFCAClient.createNewInstance("ca0",
                 testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG).getCALocation(),
                 testConfig.getIntegrationTestsSampleOrg(TEST_WITH_INTEGRATION_ORG).getCAProperties());
         client.setCryptoSuite(crypto);
