@@ -16,6 +16,9 @@
 
 package org.hyperledger.fabric.sdk;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import io.netty.util.internal.ConcurrentSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,16 +34,8 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import io.netty.util.internal.ConcurrentSet;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.hyperledger.fabric.protos.discovery.Protocol;
-import org.hyperledger.fabric.protos.gossip.Message;
-import org.hyperledger.fabric.protos.msp.Identities;
-import org.hyperledger.fabric.protos.msp.MspConfig;
 import org.hyperledger.fabric.sdk.Channel.ServiceDiscoveryChaincodeCalls;
 import org.hyperledger.fabric.sdk.ServiceDiscovery.SDLayout.SDGroup;
 import org.hyperledger.fabric.sdk.exception.InvalidProtocolBufferRuntimeException;
@@ -48,6 +43,7 @@ import org.hyperledger.fabric.sdk.exception.ServiceDiscoveryException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.DiagnosticFileDumper;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
+
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.helper.Utils.toHexString;
@@ -92,7 +88,7 @@ public class ServiceDiscovery {
         Map<String, SDChaindcode> dchaindcodeMap = discoverEndorserEndpoints(transactionContext, ccl);
         final SDChaindcode sdChaindcode = dchaindcodeMap.get(name);
         if (null == sdChaindcode) {
-            throw new ServiceDiscoveryException(format("Failed to find and endorsers for chaincode %s. See logs for details", name));
+            throw new ServiceDiscoveryException(format("Failed to find endorsers for chaincode %s. See logs for details", name));
         }
         return sdChaindcode;
     }

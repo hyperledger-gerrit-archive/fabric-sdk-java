@@ -14,6 +14,8 @@
 
 package org.hyperledger.fabric.sdk;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -55,48 +57,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
-
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import io.grpc.StatusRuntimeException;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hyperledger.fabric.protos.common.Common.Block;
-import org.hyperledger.fabric.protos.common.Common.BlockMetadata;
 import org.hyperledger.fabric.protos.common.Common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Common.Envelope;
 import org.hyperledger.fabric.protos.common.Common.Header;
 import org.hyperledger.fabric.protos.common.Common.HeaderType;
-import org.hyperledger.fabric.protos.common.Common.LastConfig;
-import org.hyperledger.fabric.protos.common.Common.Metadata;
 import org.hyperledger.fabric.protos.common.Common.Payload;
-import org.hyperledger.fabric.protos.common.Common.Status;
-import org.hyperledger.fabric.protos.common.Configtx;
-import org.hyperledger.fabric.protos.common.Configtx.ConfigEnvelope;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigGroup;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigSignature;
 import org.hyperledger.fabric.protos.common.Configtx.ConfigUpdateEnvelope;
-import org.hyperledger.fabric.protos.common.Configtx.ConfigValue;
-import org.hyperledger.fabric.protos.common.Ledger;
-import org.hyperledger.fabric.protos.discovery.Protocol;
-import org.hyperledger.fabric.protos.msp.MspConfig;
-import org.hyperledger.fabric.protos.orderer.Ab;
 import org.hyperledger.fabric.protos.orderer.Ab.BroadcastResponse;
-import org.hyperledger.fabric.protos.orderer.Ab.DeliverResponse;
 import org.hyperledger.fabric.protos.orderer.Ab.SeekInfo;
-import org.hyperledger.fabric.protos.orderer.Ab.SeekPosition;
-import org.hyperledger.fabric.protos.orderer.Ab.SeekSpecified;
-import org.hyperledger.fabric.protos.peer.Configuration;
-import org.hyperledger.fabric.protos.peer.FabricProposal;
 import org.hyperledger.fabric.protos.peer.FabricProposal.SignedProposal;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse;
-import org.hyperledger.fabric.protos.peer.FabricProposalResponse.Response;
-import org.hyperledger.fabric.protos.peer.FabricTransaction.ProcessedTransaction;
-import org.hyperledger.fabric.protos.peer.Query;
 import org.hyperledger.fabric.protos.peer.Query.ChaincodeInfo;
-import org.hyperledger.fabric.protos.peer.Query.ChaincodeQueryResponse;
-import org.hyperledger.fabric.protos.peer.Query.ChannelQueryResponse;
 import org.hyperledger.fabric.sdk.BlockEvent.TransactionEvent;
 import org.hyperledger.fabric.sdk.Peer.PeerRole;
 import org.hyperledger.fabric.sdk.ServiceDiscovery.SDChaindcode;
@@ -136,6 +111,7 @@ import org.hyperledger.fabric.sdk.transaction.QueryPeerChannelsBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 import org.hyperledger.fabric.sdk.transaction.UpgradeProposalBuilder;
+
 
 import static java.lang.String.format;
 import static org.hyperledger.fabric.sdk.Channel.PeerOptions.createPeerOptions;
@@ -4440,11 +4416,11 @@ public class Channel implements Serializable {
         logger.trace(format("Channel %s chaincode %s discovered: %s", name, chaincodeName, "" + sdChaindcode));
 
         if (null == sdChaindcode) {
-            throw new ServiceDiscoveryException(format("Channel %s failed to find and endorsers for chaincode %s", name, chaincodeName));
+            throw new ServiceDiscoveryException(format("Channel %s failed to find endorsers for chaincode %s", name, chaincodeName));
         }
 
         if (sdChaindcode.getLayouts() == null || sdChaindcode.getLayouts().isEmpty()) {
-            throw new ServiceDiscoveryException(format("Channel %s failed to find and endorsers for chaincode %s no layouts found.", name, chaincodeName));
+            throw new ServiceDiscoveryException(format("Channel %s failed to find endorsers for chaincode %s no layouts found.", name, chaincodeName));
         }
 
         SDChaindcode sdChaindcodeEndorsementCopy = new SDChaindcode(sdChaindcode); //copy. no ignored.
@@ -6719,6 +6695,7 @@ public class Channel implements Serializable {
          * @return return a duplicate of this instance.
          */
 
+        @Override
         public PeerOptions clone() {
             try {
                 return (PeerOptions) super.clone();
