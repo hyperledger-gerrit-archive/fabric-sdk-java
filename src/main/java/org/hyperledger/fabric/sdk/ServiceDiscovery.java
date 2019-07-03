@@ -57,8 +57,8 @@ public class ServiceDiscovery {
     private static final boolean DEBUG = logger.isDebugEnabled();
     private static final Config config = Config.getConfig();
     private static final boolean IS_TRACE_LEVEL = logger.isTraceEnabled();
-    private static final DiagnosticFileDumper diagnosticFileDumper = IS_TRACE_LEVEL
-            ? config.getDiagnosticFileDumper() : null;
+    private static final DiagnosticFileDumper diagnosticFileDumper = IS_TRACE_LEVEL ? config.getDiagnosticFileDumper()
+            : null;
     private static final int SERVICE_DISCOVERY_WAITTIME = config.getServiceDiscoveryWaitTime();
     private static final Random random = new Random();
     private final Collection<Peer> serviceDiscoveryPeers;
@@ -74,7 +74,8 @@ public class ServiceDiscovery {
         this.transactionContext = transactionContext.retryTransactionSameContext();
     }
 
-    SDChaindcode discoverEndorserEndpoint(TransactionContext transactionContext, final String name) throws ServiceDiscoveryException {
+    SDChaindcode discoverEndorserEndpoint(TransactionContext transactionContext, final String name)
+            throws ServiceDiscoveryException {
         Map<String, SDChaindcode> lchaindcodeMap = chaindcodeMap;
         if (lchaindcodeMap != null) { // check if we have it already.
             SDChaindcode sdChaindcode = lchaindcodeMap.get(name);
@@ -92,7 +93,8 @@ public class ServiceDiscovery {
         Map<String, SDChaindcode> dchaindcodeMap = discoverEndorserEndpoints(transactionContext, ccl);
         final SDChaindcode sdChaindcode = dchaindcodeMap.get(name);
         if (null == sdChaindcode) {
-            throw new ServiceDiscoveryException(format("Failed to find and endorsers for chaincode %s. See logs for details", name));
+            throw new ServiceDiscoveryException(
+                    format("Failed to find any endorsers for chaincode %s. See logs for details", name));
         }
         return sdChaindcode;
     }
@@ -116,7 +118,8 @@ public class ServiceDiscovery {
 
         void addTlsCert(String mspid, byte[] cert) {
             if (IS_TRACE_LEVEL) {
-                logger.trace(format("Channel %s service discovery MSPID %s adding TLSCert %s", channelName, mspid, toHexString(cert)));
+                logger.trace(format("Channel %s service discovery MSPID %s adding TLSCert %s", channelName, mspid,
+                        toHexString(cert)));
             }
             tlsCerts.computeIfAbsent(mspid, k -> new LinkedList<>()).add(cert);
 
@@ -124,7 +127,8 @@ public class ServiceDiscovery {
 
         void addTlsIntermCert(String mspid, byte[] cert) {
             if (IS_TRACE_LEVEL) {
-                logger.trace(format("Channel %s service discovery MSPID %s adding intermediate TLSCert %s", channelName, mspid, toHexString(cert)));
+                logger.trace(format("Channel %s service discovery MSPID %s adding intermediate TLSCert %s", channelName,
+                        mspid, toHexString(cert)));
             }
             tlsIntermCerts.computeIfAbsent(mspid, k -> new LinkedList<>()).add(cert);
 
@@ -222,7 +226,8 @@ public class ServiceDiscovery {
         Collections.shuffle(speers);
         SDNetwork ret = sdNetwork;
 
-        if (!force && null != ret && ret.discoveryTime + SERVICE_DISCOVER_FREQ_SECONDS * 1000 > System.currentTimeMillis()) {
+        if (!force && null != ret
+                && ret.discoveryTime + SERVICE_DISCOVER_FREQ_SECONDS * 1000 > System.currentTimeMillis()) {
 
             return ret;
         }
@@ -236,37 +241,45 @@ public class ServiceDiscovery {
 
                 final byte[] clientTLSCertificateDigest = serviceDiscoveryPeer.getClientTLSCertificateDigest();
 
-                logger.info(format("Channel %s doing discovery with peer: %s", channelName, serviceDiscoveryPeer.toString()));
+                logger.info(format("Channel %s doing discovery with peer: %s", channelName,
+                        serviceDiscoveryPeer.toString()));
 
                 if (null == clientTLSCertificateDigest) {
-                    throw new RuntimeException(format("Channel %s, peer %s requires mutual tls for service discovery.", channelName, serviceDiscoveryPeer));
+                    throw new RuntimeException(format("Channel %s, peer %s requires mutual tls for service discovery.",
+                            channelName, serviceDiscoveryPeer));
                 }
 
                 ByteString clientIdent = ltransactionContext.getIdentity().toByteString();
                 ByteString tlshash = ByteString.copyFrom(clientTLSCertificateDigest);
-                Protocol.AuthInfo authentication = Protocol.AuthInfo.newBuilder().setClientIdentity(clientIdent).setClientTlsCertHash(tlshash).build();
+                Protocol.AuthInfo authentication = Protocol.AuthInfo.newBuilder().setClientIdentity(clientIdent)
+                        .setClientTlsCertHash(tlshash).build();
 
                 List<Protocol.Query> fq = new ArrayList<>(2);
 
-                fq.add(Protocol.Query.newBuilder().setChannel(channelName).setConfigQuery(Protocol.ConfigQuery.newBuilder().build()).build());
+                fq.add(Protocol.Query.newBuilder().setChannel(channelName)
+                        .setConfigQuery(Protocol.ConfigQuery.newBuilder().build()).build());
 
-                fq.add(Protocol.Query.newBuilder().setChannel(channelName).setPeerQuery(Protocol.PeerMembershipQuery.newBuilder().build()).build());
+                fq.add(Protocol.Query.newBuilder().setChannel(channelName)
+                        .setPeerQuery(Protocol.PeerMembershipQuery.newBuilder().build()).build());
 
-                Protocol.Request request = Protocol.Request.newBuilder().addAllQueries(fq).setAuthentication(authentication).build();
+                Protocol.Request request = Protocol.Request.newBuilder().addAllQueries(fq)
+                        .setAuthentication(authentication).build();
                 ByteString payloadBytes = request.toByteString();
                 ByteString signatureBytes = ltransactionContext.signByteStrings(payloadBytes);
-                Protocol.SignedRequest sr = Protocol.SignedRequest.newBuilder()
-                        .setPayload(payloadBytes).setSignature(signatureBytes).build();
+                Protocol.SignedRequest sr = Protocol.SignedRequest.newBuilder().setPayload(payloadBytes)
+                        .setSignature(signatureBytes).build();
 
                 if (IS_TRACE_LEVEL && null != diagnosticFileDumper) { // dump protobuf we sent
-                    logger.trace(format("Service discovery channel %s %s service chaincode query sent %s", channelName, serviceDiscoveryPeer,
-                            diagnosticFileDumper.createDiagnosticProtobufFile(sr.toByteArray())));
+                    logger.trace(format("Service discovery channel %s %s service chaincode query sent %s", channelName,
+                            serviceDiscoveryPeer, diagnosticFileDumper.createDiagnosticProtobufFile(sr.toByteArray())));
                 }
 
-                final Protocol.Response response = serviceDiscoveryPeer.sendDiscoveryRequestAsync(sr).get(SERVICE_DISCOVERY_WAITTIME, TimeUnit.MILLISECONDS);
+                final Protocol.Response response = serviceDiscoveryPeer.sendDiscoveryRequestAsync(sr)
+                        .get(SERVICE_DISCOVERY_WAITTIME, TimeUnit.MILLISECONDS);
 
                 if (IS_TRACE_LEVEL && null != diagnosticFileDumper) { // dump protobuf we get
-                    logger.trace(format("Service discovery channel %s %s service discovery returned %s", channelName, serviceDiscoveryPeer,
+                    logger.trace(format("Service discovery channel %s %s service discovery returned %s", channelName,
+                            serviceDiscoveryPeer,
                             diagnosticFileDumper.createDiagnosticProtobufFile(response.toByteArray())));
                 }
 
@@ -275,14 +288,16 @@ public class ServiceDiscovery {
                 Protocol.QueryResult queryResult;
                 Protocol.QueryResult queryResult2;
 
-                queryResult = resultsList.get(0); //configquery
+                queryResult = resultsList.get(0); // configquery
                 if (queryResult.getResultCase().getNumber() == Protocol.QueryResult.ERROR_FIELD_NUMBER) {
-                    logger.warn(format("Channel %s peer: %s error during service discovery %s", channelName, serviceDiscoveryPeer.toString(), queryResult.getError().getContent()));
+                    logger.warn(format("Channel %s peer: %s error during service discovery %s", channelName,
+                            serviceDiscoveryPeer.toString(), queryResult.getError().getContent()));
                     continue;
                 }
                 queryResult2 = resultsList.get(1);
                 if (queryResult2.getResultCase().getNumber() == Protocol.QueryResult.ERROR_FIELD_NUMBER) {
-                    logger.warn(format("Channel %s peer %s service discovery error %s", channelName, serviceDiscoveryPeer.toString(), queryResult2.getError().getContent()));
+                    logger.warn(format("Channel %s peer %s service discovery error %s", channelName,
+                            serviceDiscoveryPeer.toString(), queryResult2.getError().getContent()));
                     continue;
                 }
                 Protocol.ConfigResult configResult = queryResult.getConfigResult();
@@ -298,7 +313,8 @@ public class ServiceDiscovery {
 
                     value.getTlsRootCertsList().forEach(bytes -> lsdNetwork.addTlsCert(mspid, bytes.toByteArray()));
 
-                    value.getTlsIntermediateCertsList().forEach(bytes -> lsdNetwork.addTlsIntermCert(mspid, bytes.toByteArray()));
+                    value.getTlsIntermediateCertsList()
+                            .forEach(bytes -> lsdNetwork.addTlsIntermCert(mspid, bytes.toByteArray()));
                 }
 
                 List<byte[]> toaddCerts = new LinkedList<>();
@@ -323,20 +339,27 @@ public class ServiceDiscovery {
 
                     Protocol.Endpoints value = i.getValue();
                     for (Protocol.Endpoint l : value.getEndpointList()) {
-                        logger.trace(format("Channel: %s peer: %s discovered orderer MSPID: %s, endpoint: %s:%s", channelName, serviceDiscoveryPeer, mspid, l.getHost(), l.getPort()));
+                        logger.trace(format("Channel: %s peer: %s discovered orderer MSPID: %s, endpoint: %s:%s",
+                                channelName, serviceDiscoveryPeer, mspid, l.getHost(), l.getPort()));
                         String endpoint = (l.getHost() + ":" + l.getPort()).trim().toLowerCase();
 
                         SDOrderer discoveredAlready = ordererEndpoints.get(endpoint);
                         if (discoveredAlready != null) {
                             if (!mspid.equals(discoveredAlready.getMspid())) {
-                                logger.error(format("Service discovery in channel: %s, peer: %s found Orderer endpoint: %s with two mspids: '%s', '%s'", channelName, serviceDiscoveryPeer, endpoint, mspid, discoveredAlready.getMspid()));
+                                logger.error(format(
+                                        "Service discovery in channel: %s, peer: %s found Orderer endpoint: %s with two mspids: '%s', '%s'",
+                                        channelName, serviceDiscoveryPeer, endpoint, mspid,
+                                        discoveredAlready.getMspid()));
                                 continue; // report it and ignore.
                             }
-                            logger.debug(format("Service discovery in channel: %s, peer: %s found Orderer endpoint: %s mspid: %s discovered twice", channelName, serviceDiscoveryPeer, endpoint, mspid));
+                            logger.debug(format(
+                                    "Service discovery in channel: %s, peer: %s found Orderer endpoint: %s mspid: %s discovered twice",
+                                    channelName, serviceDiscoveryPeer, endpoint, mspid));
                             continue;
                         }
 
-                        final SDOrderer sdOrderer = new SDOrderer(mspid, endpoint, lsdNetwork.getTlsCerts(mspid), lsdNetwork.getTlsIntermediateCerts(mspid));
+                        final SDOrderer sdOrderer = new SDOrderer(mspid, endpoint, lsdNetwork.getTlsCerts(mspid),
+                                lsdNetwork.getTlsIntermediateCerts(mspid));
 
                         ordererEndpoints.put(sdOrderer.getEndPoint(), sdOrderer);
                     }
@@ -353,19 +376,27 @@ public class ServiceDiscovery {
 
                     for (Protocol.Peer pp : peer.getPeersList()) {
 
-                        SDEndorser ppp = new SDEndorser(pp, lsdNetwork.getTlsCerts(mspId), lsdNetwork.getTlsIntermediateCerts(mspId));
+                        SDEndorser ppp = new SDEndorser(pp, lsdNetwork.getTlsCerts(mspId),
+                                lsdNetwork.getTlsIntermediateCerts(mspId));
 
                         SDEndorser discoveredAlready = lsdNetwork.endorsers.get(ppp.getEndpoint());
                         if (null != discoveredAlready) {
                             if (!mspId.equals(discoveredAlready.getMspid())) {
-                                logger.error(format("Service discovery in channel: %s, peer: %s,  found endorser endpoint: %s with two mspids: '%s', '%s'", channelName, serviceDiscoveryPeer, ppp.getEndpoint(), mspId, discoveredAlready.getMspid()));
+                                logger.error(format(
+                                        "Service discovery in channel: %s, peer: %s,  found endorser endpoint: %s with two mspids: '%s', '%s'",
+                                        channelName, serviceDiscoveryPeer, ppp.getEndpoint(), mspId,
+                                        discoveredAlready.getMspid()));
                                 continue; // report it and ignore.
                             }
-                            logger.debug(format("Service discovery in channel %s peer: %s found Endorser endpoint: %s mspid: %s discovered twice", channelName, serviceDiscoveryPeer, ppp.getEndpoint(), mspId));
+                            logger.debug(format(
+                                    "Service discovery in channel %s peer: %s found Endorser endpoint: %s mspid: %s discovered twice",
+                                    channelName, serviceDiscoveryPeer, ppp.getEndpoint(), mspId));
                             continue;
                         }
 
-                        logger.trace(format("Channel %s peer: %s discovered peer mspid group: %s, endpoint: %s, mspid: %s", channelName, serviceDiscoveryPeer, mspId, ppp.getEndpoint(), ppp.getMspid()));
+                        logger.trace(
+                                format("Channel %s peer: %s discovered peer mspid group: %s, endpoint: %s, mspid: %s",
+                                        channelName, serviceDiscoveryPeer, mspId, ppp.getEndpoint(), ppp.getMspid()));
 
                         lsdNetwork.endorsers.put(ppp.getEndpoint(), ppp);
 
@@ -378,7 +409,8 @@ public class ServiceDiscovery {
                 break;
 
             } catch (Exception e) {
-                logger.warn(format("Channel %s peer %s service discovery error %s", channelName, serviceDiscoveryPeer, e.getMessage()));
+                logger.warn(format("Channel %s peer %s service discovery error %s", channelName, serviceDiscoveryPeer,
+                        e.getMessage()));
             }
         }
 
@@ -419,7 +451,8 @@ public class ServiceDiscovery {
         }
     }
 
-    Map<String, SDChaindcode> discoverEndorserEndpoints(TransactionContext transactionContext, List<List<ServiceDiscoveryChaincodeCalls>> chaincodeNames) throws ServiceDiscoveryException {
+    Map<String, SDChaindcode> discoverEndorserEndpoints(TransactionContext transactionContext,
+            List<List<ServiceDiscoveryChaincodeCalls>> chaincodeNames) throws ServiceDiscoveryException {
 
         if (null == chaincodeNames) {
             logger.warn("Discover of chaincode names was null.");
@@ -452,20 +485,23 @@ public class ServiceDiscovery {
         for (Peer serviceDiscoveryPeer : speers) {
             serviceDiscoveryException = null;
             try {
-                logger.debug(format("Channel %s doing discovery for chaincodes on peer: %s", channelName, serviceDiscoveryPeer.toString()));
+                logger.debug(format("Channel %s doing discovery for chaincodes on peer: %s", channelName,
+                        serviceDiscoveryPeer.toString()));
 
                 TransactionContext ltransactionContext = transactionContext.retryTransactionSameContext();
 
                 final byte[] clientTLSCertificateDigest = serviceDiscoveryPeer.getClientTLSCertificateDigest();
 
                 if (null == clientTLSCertificateDigest) {
-                    logger.warn(format("Channel %s peer %s requires mutual tls for service discovery.", channelName, serviceDiscoveryPeer.toString()));
+                    logger.warn(format("Channel %s peer %s requires mutual tls for service discovery.", channelName,
+                            serviceDiscoveryPeer.toString()));
                     continue;
                 }
 
                 ByteString clientIdent = ltransactionContext.getIdentity().toByteString();
                 ByteString tlshash = ByteString.copyFrom(clientTLSCertificateDigest);
-                Protocol.AuthInfo authentication = Protocol.AuthInfo.newBuilder().setClientIdentity(clientIdent).setClientTlsCertHash(tlshash).build();
+                Protocol.AuthInfo authentication = Protocol.AuthInfo.newBuilder().setClientIdentity(clientIdent)
+                        .setClientTlsCertHash(tlshash).build();
 
                 List<Protocol.Query> fq = new ArrayList<>(chaincodeNames.size());
 
@@ -475,52 +511,63 @@ public class ServiceDiscovery {
                         continue;
                     }
                     LinkedList<Protocol.ChaincodeCall> chaincodeCalls = new LinkedList<>();
-                    chaincodeName.forEach(serviceDiscoveryChaincodeCalls -> chaincodeCalls.add(serviceDiscoveryChaincodeCalls.build()));
+                    chaincodeName.forEach(serviceDiscoveryChaincodeCalls -> chaincodeCalls
+                            .add(serviceDiscoveryChaincodeCalls.build()));
                     List<Protocol.ChaincodeInterest> cinn = new ArrayList<>(1);
                     chaincodeName.forEach(ServiceDiscoveryChaincodeCalls::build);
-                    Protocol.ChaincodeInterest cci = Protocol.ChaincodeInterest.newBuilder().addAllChaincodes(chaincodeCalls).build();
+                    Protocol.ChaincodeInterest cci = Protocol.ChaincodeInterest.newBuilder()
+                            .addAllChaincodes(chaincodeCalls).build();
                     cinn.add(cci);
-                    Protocol.ChaincodeQuery chaincodeQuery = Protocol.ChaincodeQuery.newBuilder().addAllInterests(cinn).build();
+                    Protocol.ChaincodeQuery chaincodeQuery = Protocol.ChaincodeQuery.newBuilder().addAllInterests(cinn)
+                            .build();
 
                     fq.add(Protocol.Query.newBuilder().setChannel(channelName).setCcQuery(chaincodeQuery).build());
                 }
 
                 if (fq.size() == 0) {
-                    //this would be odd but lets take care of it.
+                    // this would be odd but lets take care of it.
                     break;
 
                 }
 
-                Protocol.Request request = Protocol.Request.newBuilder().addAllQueries(fq).setAuthentication(authentication).build();
+                Protocol.Request request = Protocol.Request.newBuilder().addAllQueries(fq)
+                        .setAuthentication(authentication).build();
                 ByteString payloadBytes = request.toByteString();
                 ByteString signatureBytes = ltransactionContext.signByteStrings(payloadBytes);
-                Protocol.SignedRequest sr = Protocol.SignedRequest.newBuilder()
-                        .setPayload(payloadBytes).setSignature(signatureBytes).build();
+                Protocol.SignedRequest sr = Protocol.SignedRequest.newBuilder().setPayload(payloadBytes)
+                        .setSignature(signatureBytes).build();
                 if (IS_TRACE_LEVEL && null != diagnosticFileDumper) { // dump protobuf we sent
-                    logger.trace(format("Service discovery channel %s %s service chaincode query sent %s", channelName, serviceDiscoveryPeer,
-                            diagnosticFileDumper.createDiagnosticProtobufFile(sr.toByteArray())));
+                    logger.trace(format("Service discovery channel %s %s service chaincode query sent %s", channelName,
+                            serviceDiscoveryPeer, diagnosticFileDumper.createDiagnosticProtobufFile(sr.toByteArray())));
                 }
 
-                logger.debug(format("Channel %s peer %s sending chaincode query request", channelName, serviceDiscoveryPeer.toString()));
-                final Protocol.Response response = serviceDiscoveryPeer.sendDiscoveryRequestAsync(sr).get(SERVICE_DISCOVERY_WAITTIME, TimeUnit.MILLISECONDS);
+                logger.debug(format("Channel %s peer %s sending chaincode query request", channelName,
+                        serviceDiscoveryPeer.toString()));
+                final Protocol.Response response = serviceDiscoveryPeer.sendDiscoveryRequestAsync(sr)
+                        .get(SERVICE_DISCOVERY_WAITTIME, TimeUnit.MILLISECONDS);
                 if (IS_TRACE_LEVEL && null != diagnosticFileDumper) { // dump protobuf we get
-                    logger.trace(format("Service discovery channel %s %s service chaincode query returned %s", channelName, serviceDiscoveryPeer,
+                    logger.trace(format("Service discovery channel %s %s service chaincode query returned %s",
+                            channelName, serviceDiscoveryPeer,
                             diagnosticFileDumper.createDiagnosticProtobufFile(response.toByteArray())));
                 }
-                logger.debug(format("Channel %s peer %s completed chaincode query request", channelName, serviceDiscoveryPeer.toString()));
+                logger.debug(format("Channel %s peer %s completed chaincode query request", channelName,
+                        serviceDiscoveryPeer.toString()));
                 serviceDiscoveryPeer.hasConnected();
 
                 for (Protocol.QueryResult queryResult : response.getResultsList()) {
 
                     if (queryResult.getResultCase().getNumber() == Protocol.QueryResult.ERROR_FIELD_NUMBER) {
 
-                        ServiceDiscoveryException discoveryException = new ServiceDiscoveryException(format("Error %s", queryResult.getError().getContent()));
+                        ServiceDiscoveryException discoveryException = new ServiceDiscoveryException(
+                                format("Error %s", queryResult.getError().getContent()));
                         logger.error(discoveryException.getMessage());
                         continue;
                     }
 
                     if (queryResult.getResultCase().getNumber() != Protocol.QueryResult.CC_QUERY_RES_FIELD_NUMBER) {
-                        ServiceDiscoveryException discoveryException = new ServiceDiscoveryException(format("Error expected chaincode endorsement query but got %s : ", queryResult.getResultCase().toString()));
+                        ServiceDiscoveryException discoveryException = new ServiceDiscoveryException(
+                                format("Error expected chaincode endorsement query but got %s : ",
+                                        queryResult.getResultCase().toString()));
                         logger.error(discoveryException.getMessage());
                         continue;
 
@@ -559,12 +606,15 @@ public class ServiceDiscovery {
 
                                         sdNetwork = networkDiscovery(transactionContext, true);
                                         if (null == sdNetwork) {
-                                            throw new ServiceDiscoveryException("Failed to discover network resources.");
+                                            throw new ServiceDiscoveryException(
+                                                    "Failed to discover network resources.");
                                         }
                                         nppp = sdNetwork.getEndorserByEndpoint(ppp.getEndpoint());
                                         if (null == nppp) {
 
-                                            throw new ServiceDiscoveryException(format("Failed to discover peer endpoint information %s for chaincode %s ", endPoint, chaincode));
+                                            throw new ServiceDiscoveryException(format(
+                                                    "Failed to discover peer endpoint information %s for chaincode %s ",
+                                                    endPoint, chaincode));
 
                                         }
 
@@ -580,13 +630,14 @@ public class ServiceDiscovery {
                             }
                         }
                         if (layouts.isEmpty()) {
-                            logger.warn(format("Channel %s chaincode %s discovered no layouts!", channelName, chaincode));
+                            logger.warn(
+                                    format("Channel %s chaincode %s discovered no layouts!", channelName, chaincode));
                         } else {
 
                             if (DEBUG) {
                                 StringBuilder sb = new StringBuilder(1000);
-                                sb.append("Channel ").append(channelName)
-                                        .append(" found ").append(layouts.size()).append(" layouts for chaincode: ").append(es.getChaincode());
+                                sb.append("Channel ").append(channelName).append(" found ").append(layouts.size())
+                                        .append(" layouts for chaincode: ").append(es.getChaincode());
 
                                 sb.append(", layouts: [");
 
@@ -611,10 +662,12 @@ public class ServiceDiscovery {
                 }
 
             } catch (ServiceDiscoveryException e) {
-                logger.warn(format("Service discovery error on peer %s. Error: %s", serviceDiscoveryPeer.toString(), e.getMessage()));
+                logger.warn(format("Service discovery error on peer %s. Error: %s", serviceDiscoveryPeer.toString(),
+                        e.getMessage()));
                 serviceDiscoveryException = e;
             } catch (Exception e) {
-                logger.warn(format("Service discovery error on peer %s. Error: %s", serviceDiscoveryPeer.toString(), e.getMessage()));
+                logger.warn(format("Service discovery error on peer %s. Error: %s", serviceDiscoveryPeer.toString(),
+                        e.getMessage()));
                 serviceDiscoveryException = new ServiceDiscoveryException(e);
             }
         }
@@ -623,7 +676,8 @@ public class ServiceDiscovery {
             throw serviceDiscoveryException;
         }
         if (ret.size() != chaincodeNames.size()) {
-            logger.warn((format("Channel %s failed to find all layouts for chaincodes. Expected: %d and found: %d", channelName, chaincodeNames.size(), ret.size())));
+            logger.warn((format("Channel %s failed to find all layouts for chaincodes. Expected: %d and found: %d",
+                    channelName, chaincodeNames.size(), ret.size())));
         }
 
         return ret;
@@ -631,7 +685,8 @@ public class ServiceDiscovery {
     }
 
     /**
-     * Endorsement selection by layout group that has least required and block height is the highest (most up to date).
+     * Endorsement selection by layout group that has least required and block
+     * height is the highest (most up to date).
      */
 
     static final EndorsementSelector ENDORSEMENT_SELECTION_LEAST_REQUIRED_BLOCKHEIGHT = sdChaindcode -> {
@@ -663,7 +718,8 @@ public class ServiceDiscovery {
 
         Map<SDLayout, Set<SDEndorser>> layoutEndorsers = new HashMap<>();
 
-        // if (layouts.size() > 1) { // pick layout by least number of endorsers ..  least number of peers hit and smaller block!
+        // if (layouts.size() > 1) { // pick layout by least number of endorsers ..
+        // least number of peers hit and smaller block!
 
         for (SDLayout sdLayout : layouts) {
 
@@ -678,7 +734,7 @@ public class ServiceDiscovery {
                     required.addAll(lgroup.endorsers);
                 }
             }
-            //add those that there are no choice.
+            // add those that there are no choice.
 
             if (required.size() > 0) {
                 Set<LGroup> remove = new HashSet<>(remainingGroups.size());
@@ -696,7 +752,7 @@ public class ServiceDiscovery {
                 continue; // done with this layout there really were no choices.
             }
 
-            //Now go through groups finding which endorsers can satisfy the most groups.
+            // Now go through groups finding which endorsers can satisfy the most groups.
 
             do {
 
@@ -754,7 +810,7 @@ public class ServiceDiscovery {
             // Now pick the layout with least endorsers
 
         }
-        //Pick layout which needs least endorsements.
+        // Pick layout which needs least endorsements.
         int min = Integer.MAX_VALUE;
         Set<SDLayout> theLeast = new HashSet<>();
 
@@ -810,7 +866,7 @@ public class ServiceDiscovery {
             pickedLayout = layouts.get(random.nextInt(layouts.size()));
         }
 
-        Map<String, SDEndorser> retMap = new HashMap<>(); //hold results.
+        Map<String, SDEndorser> retMap = new HashMap<>(); // hold results.
 
         for (SDGroup group : pickedLayout.getSDLGroups()) { // go through groups getting random required endorsers
             List<SDEndorser> endorsers = new ArrayList<>(group.getEndorsers());
@@ -822,7 +878,7 @@ public class ServiceDiscovery {
             });
         }
 
-        final SDEndorserState sdEndorserState = new SDEndorserState(); //returned result.
+        final SDEndorserState sdEndorserState = new SDEndorserState(); // returned result.
         sdEndorserState.setPickedEndorsers(retMap.values());
         sdEndorserState.setPickedLayout(pickedLayout);
 
@@ -884,7 +940,7 @@ public class ServiceDiscovery {
                 final Collection<SDEndorser> needed = sdLayout.meetsEndorsmentPolicy(endpoints);
 
                 if (needed != null && (ret == null || ret.size() > needed.size())) {
-                    ret = needed;  // needed is less so lets go with that.
+                    ret = needed; // needed is less so lets go with that.
                 }
             }
             return ret;
@@ -917,7 +973,7 @@ public class ServiceDiscovery {
 
         }
 
-        //Copy constructor
+        // Copy constructor
         SDLayout(SDLayout sdLayout) {
             for (SDGroup group : sdLayout.groups) {
                 new SDGroup(group);
@@ -947,7 +1003,7 @@ public class ServiceDiscovery {
 
         }
 
-        //return true if the groups still exist to get endorsement.
+        // return true if the groups still exist to get endorsement.
         boolean ignoreList(Collection<String> names) {
             boolean ret = true;
             HashSet<String> bnames = new HashSet<>(names);
@@ -984,7 +1040,7 @@ public class ServiceDiscovery {
             return endorsementMeet >= groups.size();
         }
 
-        //       Returns null when not meet and endorsers needed if it is.
+        // Returns null when not meet and endorsers needed if it is.
         Collection<SDEndorser> meetsEndorsmentPolicy(Set<SDEndorser> endpoints) {
             Set<SDEndorser> ret = new HashSet<>();
 
@@ -1021,7 +1077,7 @@ public class ServiceDiscovery {
 
             }
 
-            SDGroup(SDGroup group) { //copy constructor
+            SDGroup(SDGroup group) { // copy constructor
                 name = group.name;
                 required = group.required;
                 endorsers.addAll(group.endorsers);
@@ -1044,14 +1100,14 @@ public class ServiceDiscovery {
                 return new ArrayList<>(endorsers);
             }
 
-            //returns true if there are still sufficent endorsers for this group.
+            // returns true if there are still sufficent endorsers for this group.
             boolean ignoreList(Collection<String> names) {
                 HashSet<String> bnames = new HashSet<>(names);
                 endorsers.removeIf(endorser -> bnames.contains(endorser.getEndpoint()));
                 return endorsers.size() >= required;
             }
 
-            //returns true if there are still sufficent endorsers for this group.
+            // returns true if there are still sufficent endorsers for this group.
             boolean ignoreListSDEndorser(Collection<SDEndorser> sdEndorsers) {
                 HashSet<SDEndorser> bnames = new HashSet<>(sdEndorsers);
                 endorsers.removeIf(endorser -> bnames.contains(endorser));
@@ -1060,9 +1116,12 @@ public class ServiceDiscovery {
 
             // retrun true if th endorsements have been meet.
             boolean endorsedList(Collection<SDEndorser> sdEndorsers) {
-                //This is going to look odd so here goes: Service discovery can't guarantee the endpoint certs are valid
-                // and so there may be multiple endpoints with different MSP ids. However if we have gotten an
-                // endorsement from an endpoint that means it's been satisfied and can be removed.
+                // This is going to look odd so here goes: Service discovery can't guarantee the
+                // endpoint certs are valid
+                // and so there may be multiple endpoints with different MSP ids. However if we
+                // have gotten an
+                // endorsement from an endpoint that means it's been satisfied and can be
+                // removed.
 
                 if (endorsed >= required) {
                     return true;
@@ -1104,7 +1163,8 @@ public class ServiceDiscovery {
             }
 
             // Returns
-            Collection<SDEndorser> meetsEndorsmentPolicy(Set<SDEndorser> allEndorsed, Collection<SDEndorser> requiredYet) {
+            Collection<SDEndorser> meetsEndorsmentPolicy(Set<SDEndorser> allEndorsed,
+                    Collection<SDEndorser> requiredYet) {
 
                 Set<SDEndorser> ret = new HashSet<>(this.endorsers.size());
                 for (SDEndorser hasBeenEndorsed : allEndorsed) {
@@ -1201,7 +1261,8 @@ public class ServiceDiscovery {
 
         private void parseIdentity(Protocol.Peer peerRet) {
             try {
-                Identities.SerializedIdentity serializedIdentity = Identities.SerializedIdentity.parseFrom(peerRet.getIdentity());
+                Identities.SerializedIdentity serializedIdentity = Identities.SerializedIdentity
+                        .parseFrom(peerRet.getIdentity());
                 mspid = serializedIdentity.getMspid();
 
             } catch (InvalidProtocolBufferException e) {
@@ -1215,15 +1276,17 @@ public class ServiceDiscovery {
                 try {
                     Message.Envelope membershipInfo = peerRet.getMembershipInfo();
                     final ByteString membershipInfoPayloadBytes = membershipInfo.getPayload();
-                    final Message.GossipMessage gossipMessageMemberInfo = Message.GossipMessage.parseFrom(membershipInfoPayloadBytes);
+                    final Message.GossipMessage gossipMessageMemberInfo = Message.GossipMessage
+                            .parseFrom(membershipInfoPayloadBytes);
 
-                    if (Message.GossipMessage.ContentCase.ALIVE_MSG.getNumber() != gossipMessageMemberInfo.getContentCase().getNumber()) {
+                    if (Message.GossipMessage.ContentCase.ALIVE_MSG.getNumber() != gossipMessageMemberInfo
+                            .getContentCase().getNumber()) {
                         throw new RuntimeException(format("Error %s", "bad"));
                     }
                     Message.AliveMessage aliveMsg = gossipMessageMemberInfo.getAliveMsg();
                     endPoint = aliveMsg.getMembership().getEndpoint();
                     if (endPoint != null) {
-                        endPoint = endPoint.toLowerCase().trim(); //makes easier on comparing.
+                        endPoint = endPoint.toLowerCase().trim(); // makes easier on comparing.
                     }
                 } catch (InvalidProtocolBufferException e) {
                     throw new InvalidProtocolBufferRuntimeException(e);
@@ -1239,7 +1302,8 @@ public class ServiceDiscovery {
             if (-1L == ledgerHeight) {
                 try {
                     Message.Envelope stateInfo = peerRet.getStateInfo();
-                    final Message.GossipMessage stateInfoGossipMessage = Message.GossipMessage.parseFrom(stateInfo.getPayload());
+                    final Message.GossipMessage stateInfoGossipMessage = Message.GossipMessage
+                            .parseFrom(stateInfo.getPayload());
                     Message.GossipMessage.ContentCase contentCase = stateInfoGossipMessage.getContentCase();
                     if (contentCase.getNumber() != Message.GossipMessage.ContentCase.STATE_INFO.getNumber()) {
                         throw new RuntimeException("" + contentCase.getNumber());
@@ -1322,7 +1386,8 @@ public class ServiceDiscovery {
                 return t;
             }).scheduleAtFixedRate(() -> {
 
-                logger.debug(format("Channel %s starting service rediscovery after %d seconds.", channelName, SERVICE_DISCOVER_FREQ_SECONDS));
+                logger.debug(format("Channel %s starting service rediscovery after %d seconds.", channelName,
+                        SERVICE_DISCOVER_FREQ_SECONDS));
                 fullNetworkDiscovery(true);
 
             }, SERVICE_DISCOVER_FREQ_SECONDS, SERVICE_DISCOVER_FREQ_SECONDS, TimeUnit.SECONDS);
@@ -1378,7 +1443,7 @@ public class ServiceDiscovery {
             }
         } catch (Exception e) {
             logger.error(e);
-            //best effort.
+            // best effort.
         }
     }
 
