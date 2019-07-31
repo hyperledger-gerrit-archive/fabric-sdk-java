@@ -10,6 +10,8 @@ package org.hyperledger.fabric.sdk.transaction;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.protobuf.ByteString;
 import org.hyperledger.fabric.protos.common.Collection;
@@ -20,46 +22,39 @@ import org.hyperledger.fabric.sdk.exception.ProposalException;
 import org.hyperledger.fabric.sdk.helper.Config;
 import org.hyperledger.fabric.sdk.helper.Utils;
 
-public class LifecycleSimulateCommitChaincodeDefinitionBuilder extends LifecycleProposalBuilder {
-    static Config config = Config.getConfig();
+public final class LifecycleCheckCommitReadinessBuilder extends LifecycleProposalBuilder {
+    private static final Config config = Config.getConfig();
+    private static final Boolean lifecycleInitRequiredDefault = config.getLifecycleInitRequiredDefault();
 
-    static Boolean lifecycleInitRequiredDefault = null;
+    private final Lifecycle.CheckCommitReadinessArgs.Builder builder = Lifecycle.CheckCommitReadinessArgs.newBuilder();
 
-    static {
-        lifecycleInitRequiredDefault = config.getLifecycleInitRequiredDefault();
-    }
-
-    private final Lifecycle.SimulateCommitChaincodeDefinitionArgs.Builder builder = Lifecycle.SimulateCommitChaincodeDefinitionArgs.newBuilder();
-
-    private LifecycleSimulateCommitChaincodeDefinitionBuilder() {
-
+    private LifecycleCheckCommitReadinessBuilder() {
         if (null != lifecycleInitRequiredDefault) {
             builder.setInitRequired(lifecycleInitRequiredDefault);
         }
     }
 
     @Override
-    public LifecycleSimulateCommitChaincodeDefinitionBuilder context(TransactionContext context) {
+    public LifecycleCheckCommitReadinessBuilder context(TransactionContext context) {
         super.context(context);
-        if (!Utils.isNullOrEmpty(config.getDefaultChaincodeEndorsementPlugin())) {
 
+        if (!Utils.isNullOrEmpty(config.getDefaultChaincodeEndorsementPlugin())) {
             builder.setEndorsementPlugin(config.getDefaultChaincodeEndorsementPlugin());
         }
 
         if (!Utils.isNullOrEmpty(config.getDefaultChaincodeValidationPlugin())) {
-
             builder.setValidationPlugin(config.getDefaultChaincodeValidationPlugin());
         }
 
         if (lifecycleInitRequiredDefault != null) {
-
             builder.setInitRequired(lifecycleInitRequiredDefault);
         }
+
         return this;
     }
 
-    public static LifecycleSimulateCommitChaincodeDefinitionBuilder newBuilder() {
-        return new LifecycleSimulateCommitChaincodeDefinitionBuilder();
+    public static LifecycleCheckCommitReadinessBuilder newBuilder() {
+        return new LifecycleCheckCommitReadinessBuilder();
     }
 
     public void setSequence(long sequence) {
@@ -96,9 +91,8 @@ public class LifecycleSimulateCommitChaincodeDefinitionBuilder extends Lifecycle
 
     @Override
     public FabricProposal.Proposal build() throws ProposalException, InvalidArgumentException {
-
         List<ByteString> argList = new ArrayList<>();
-        argList.add(ByteString.copyFromUtf8("SimulateCommitChaincodeDefinition"));
+        argList.add(ByteString.copyFromUtf8("CheckCommitReadiness"));
         argList.add(builder.build().toByteString());
         args(argList);
         return super.build();
