@@ -48,10 +48,10 @@ import org.hyperledger.fabric.sdk.LifecycleQueryInstalledChaincodeProposalRespon
 import org.hyperledger.fabric.sdk.LifecycleQueryInstalledChaincodeRequest;
 import org.hyperledger.fabric.sdk.LifecycleQueryInstalledChaincodesProposalResponse;
 import org.hyperledger.fabric.sdk.LifecycleQueryInstalledChaincodesProposalResponse.LifecycleQueryInstalledChaincodesResult;
-import org.hyperledger.fabric.sdk.LifecycleQueryNamespaceDefinitionsProposalResponse;
-import org.hyperledger.fabric.sdk.LifecycleQueryNamespaceDefinitionsRequest;
-import org.hyperledger.fabric.sdk.LifecycleSimulateCommitChaincodeDefinitionProposalResponse;
-import org.hyperledger.fabric.sdk.LifecycleSimulateCommitChaincodeDefinitionRequest;
+import org.hyperledger.fabric.sdk.LifecycleQueryChaincodeDefinitionsProposalResponse;
+import org.hyperledger.fabric.sdk.LifecycleQueryChaincodeDefinitionsRequest;
+import org.hyperledger.fabric.sdk.LifecycleCheckCommitReadinessProposalResponse;
+import org.hyperledger.fabric.sdk.LifecycleCheckCommitReadinessRequest;
 import org.hyperledger.fabric.sdk.Orderer;
 import org.hyperledger.fabric.sdk.Peer;
 import org.hyperledger.fabric.sdk.Peer.PeerRole;
@@ -447,11 +447,11 @@ public class End2endLifecycleIT {
 
             out("Org2 done with commit. block #%d!", transactionEvent.getBlockEvent().getBlockNumber());
 
-            veryByQueryChaincodeDefinition(org2Client, org2Channel, chaincodeName, org2MyPeers, sequence, initRequired, chaincodeEndorsementPolicyAsBytes, chaincodeCollectionConfiguration);
-            veryByQueryChaincodeDefinition(org1Client, org1Channel, chaincodeName, org1MyPeers, sequence, initRequired, chaincodeEndorsementPolicyAsBytes, chaincodeCollectionConfiguration);
+            verifyByQueryChaincodeDefinition(org2Client, org2Channel, chaincodeName, org2MyPeers, sequence, initRequired, chaincodeEndorsementPolicyAsBytes, chaincodeCollectionConfiguration);
+            verifyByQueryChaincodeDefinition(org1Client, org1Channel, chaincodeName, org1MyPeers, sequence, initRequired, chaincodeEndorsementPolicyAsBytes, chaincodeCollectionConfiguration);
 
-            verifyByQueryNamespaceDefinitions(org2Client, org2Channel, org2MyPeers, chaincodeName);
-            verifyByQueryNamespaceDefinitions(org1Client, org1Channel, org1MyPeers, chaincodeName);
+            verifyByQueryChaincodeDefinitions(org2Client, org2Channel, org2MyPeers, chaincodeName);
+            verifyByQueryChaincodeDefinitions(org1Client, org1Channel, org1MyPeers, chaincodeName);
 
             //Now org2 could also do the init for the chaincode but it just informs org2 admin of the commit so it does it.
             out("Org1 doing init");
@@ -621,20 +621,20 @@ public class End2endLifecycleIT {
                                                                  String chaincodeVersion, LifecycleChaincodeEndorsementPolicy chaincodeEndorsementPolicy,
                                                                  ChaincodeCollectionConfiguration chaincodeCollectionConfiguration, boolean initRequired, Collection<Peer> org1MyPeers,
                                                                  Set<String> expectedApproved, Set<String> expectedUnApproved) throws InvalidArgumentException, ProposalException {
-        LifecycleSimulateCommitChaincodeDefinitionRequest lifecycleSimulateCommitChaincodeDefinitionRequest = client.newLifecycleSimulateCommitChaincodeDefinitionRequest();
-        lifecycleSimulateCommitChaincodeDefinitionRequest.setSequence(definitionSequence);
-        lifecycleSimulateCommitChaincodeDefinitionRequest.setChaincodeName(chaincodeName);
-        lifecycleSimulateCommitChaincodeDefinitionRequest.setChaincodeVersion(chaincodeVersion);
+        LifecycleCheckCommitReadinessRequest lifecycleCheckCommitReadinessRequest = client.newLifecycleSimulateCommitChaincodeDefinitionRequest();
+        lifecycleCheckCommitReadinessRequest.setSequence(definitionSequence);
+        lifecycleCheckCommitReadinessRequest.setChaincodeName(chaincodeName);
+        lifecycleCheckCommitReadinessRequest.setChaincodeVersion(chaincodeVersion);
         if (null != chaincodeEndorsementPolicy) {
-            lifecycleSimulateCommitChaincodeDefinitionRequest.setChaincodeEndorsementPolicy(chaincodeEndorsementPolicy);
+            lifecycleCheckCommitReadinessRequest.setChaincodeEndorsementPolicy(chaincodeEndorsementPolicy);
         }
         if (null != chaincodeCollectionConfiguration) {
-            lifecycleSimulateCommitChaincodeDefinitionRequest.setChaincodeCollectionConfiguration(chaincodeCollectionConfiguration);
+            lifecycleCheckCommitReadinessRequest.setChaincodeCollectionConfiguration(chaincodeCollectionConfiguration);
         }
-        lifecycleSimulateCommitChaincodeDefinitionRequest.setInitRequired(initRequired);
+        lifecycleCheckCommitReadinessRequest.setInitRequired(initRequired);
 
-        Collection<LifecycleSimulateCommitChaincodeDefinitionProposalResponse> lifecycleSimulateCommitChaincodeDefinitionProposalRespons = channel.sendLifecycleSimulateCommitChaincodeDefinitionRequest(lifecycleSimulateCommitChaincodeDefinitionRequest, org1MyPeers);
-        for (LifecycleSimulateCommitChaincodeDefinitionProposalResponse resp : lifecycleSimulateCommitChaincodeDefinitionProposalRespons) {
+        Collection<LifecycleCheckCommitReadinessProposalResponse> lifecycleSimulateCommitChaincodeDefinitionProposalRespons = channel.sendLifecycleCheckCommitReadinessRequest(lifecycleCheckCommitReadinessRequest, org1MyPeers);
+        for (LifecycleCheckCommitReadinessProposalResponse resp : lifecycleSimulateCommitChaincodeDefinitionProposalRespons) {
             final Peer peer = resp.getPeer();
             assertEquals(ChaincodeResponse.Status.SUCCESS, resp.getStatus());
             assertEquals(format("Approved orgs failed on %s", peer), expectedApproved, resp.getApprovedOrgs());
@@ -642,25 +642,24 @@ public class End2endLifecycleIT {
         }
     }
 
-    private void verifyByQueryNamespaceDefinitions(HFClient client, Channel channel, Collection<Peer> peers, String expectChaincodeName) throws InvalidArgumentException, ProposalException {
+    private void verifyByQueryChaincodeDefinitions(HFClient client, Channel channel, Collection<Peer> peers, String expectChaincodeName) throws InvalidArgumentException, ProposalException {
 
-        final LifecycleQueryNamespaceDefinitionsRequest queryNamespaceDefinitionsRequest = client.newLifecycleQueryNamespaceDefinitionsRequestRequest();
+        final LifecycleQueryChaincodeDefinitionsRequest queryNamespaceDefinitionsRequest = client.newLifecycleQueryChaincodeDefinitionsRequest();
 
-        Collection<LifecycleQueryNamespaceDefinitionsProposalResponse> lifecycleQueryNamespaceDefinitionsProposalResponses = channel.lifecycleQueryNamespaceDefinitions(queryNamespaceDefinitionsRequest, peers);
-        for (LifecycleQueryNamespaceDefinitionsProposalResponse queryNamespaceDefinitionsProposalResponse : lifecycleQueryNamespaceDefinitionsProposalResponses) {
-
+        Collection<LifecycleQueryChaincodeDefinitionsProposalResponse> lifecycleQueryChaincodeDefinitionsProposalRespons = channel.lifecycleQueryChaincodeDefinitions(queryNamespaceDefinitionsRequest, peers);
+        for (LifecycleQueryChaincodeDefinitionsProposalResponse queryNamespaceDefinitionsProposalResponse : lifecycleQueryChaincodeDefinitionsProposalRespons) {
             Peer peer = queryNamespaceDefinitionsProposalResponse.getPeer();
 
             assertEquals(ChaincodeResponse.Status.SUCCESS, queryNamespaceDefinitionsProposalResponse.getStatus());
-            Lifecycle.QueryNamespaceDefinitionsResult namespaceDefinitions = queryNamespaceDefinitionsProposalResponse.getNamespaceDefinitions();
+            Lifecycle.QueryChaincodeDefinitionsResult chaincodeDefinitions = queryNamespaceDefinitionsProposalResponse.getChaincodeDefinitions();
 
-            final Collection<String> chaincodeNamespaceTypes = queryNamespaceDefinitionsProposalResponse.getChaincodeNamespaceTypes();
-            assertTrue(format("On peer %s return namespace for chaincode %s", peer, expectChaincodeName), chaincodeNamespaceTypes.contains(expectChaincodeName));
+            final Collection<String> chaincodeNames = queryNamespaceDefinitionsProposalResponse.getChaincodeNames();
+            assertTrue(format("On peer %s return namespace for chaincode %s", peer, expectChaincodeName), chaincodeNames.contains(expectChaincodeName));
 
         }
     }
 
-    private void veryByQueryChaincodeDefinition(HFClient client, Channel channel, String chaincodeName, Collection<Peer> peers, long expectedSequence, boolean expectedInitRequired, byte[] expectedValidationParameter,
+    private void verifyByQueryChaincodeDefinition(HFClient client, Channel channel, String chaincodeName, Collection<Peer> peers, long expectedSequence, boolean expectedInitRequired, byte[] expectedValidationParameter,
                                                 ChaincodeCollectionConfiguration expectedChaincodeCollectionConfiguration) throws ProposalException, InvalidArgumentException, ChaincodeCollectionConfigurationException {
 
         final QueryLifecycleQueryChaincodeDefinitionRequest queryLifecycleQueryChaincodeDefinitionRequest = client.newQueryLifecycleQueryChaincodeDefinitionRequest();

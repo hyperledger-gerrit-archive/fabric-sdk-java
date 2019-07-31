@@ -16,9 +16,9 @@ import org.hyperledger.fabric.sdk.helper.Config;
 import static org.hyperledger.fabric.sdk.helper.Utils.isNullOrEmpty;
 
 /**
- * LifecycleSimulateCommitChaincodeDefinitionRequest queries the approval status of organizations for chaincode sequence.
+ * Queries the approval status of organizations for chaincode sequence.
  */
-public class LifecycleSimulateCommitChaincodeDefinitionRequest extends LifecycleRequest {
+public class LifecycleCheckCommitReadinessRequest extends LifecycleRequest {
 
     static Config config = Config.getConfig();
     static Boolean lifecycleInitRequiredDefault = null;
@@ -37,7 +37,7 @@ public class LifecycleSimulateCommitChaincodeDefinitionRequest extends Lifecycle
     private Boolean initRequired;
     private ByteString validationParameter;
 
-    LifecycleSimulateCommitChaincodeDefinitionRequest(User userContext) {
+    LifecycleCheckCommitReadinessRequest(User userContext) {
         super(userContext);
         if (!isNullOrEmpty(config.getDefaultChaincodeEndorsementPlugin())) {
 
