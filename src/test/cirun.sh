@@ -1,12 +1,25 @@
-#!/usr/bin/env bash
+#!/bin/bash -ue
 #
 # Copyright IBM Corp. All Rights Reserved.
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-#Script for continuous integration run.  Cleanup, start docker containers for fabric and fabric ca
-#Start integration tests.
-# expect WD env set HLJSDK directory.
+
+set -o pipefail
+
+echo "----> cirun.sh"
+
+# Make sure this file is not being sourced
+if (return 0 2>/dev/null); then
+    echo "FATAL: Script is being sourced"
+    exit 1
+fi
+
+# Script for continuous integration run
+# Cleanup, start docker containers for fabric and fabric ca
+# Start integration tests.
+
+# This scripts needs to be called from the HLJSDK directory
 
 # unset ORG_HYPERLEDGER_FABRIC_SDKTEST_INTEGRATIONTESTS_TLS
 # unset ORG_HYPERLEDGER_FABRIC_SDKTEST_INTEGRATIONTESTS_CA_TLS
@@ -36,21 +49,20 @@ echo '----- etc/hosts -------'
 cat /etc/hosts
 echo '----- etc/hosts -------'
 
-
 ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION=${ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION:-}
 ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION=${ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION:-}
 
-if [ -z $ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION ];then
-dotcount="${ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION//\.}"
-if [ "3" == "${#dotcount}" ];then
-export ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION=${ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION%.*}
-else
-export ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION=$ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION
-fi
+if [[ -z $ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION ]];then
+    dotcount="${ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION//\.}"
+    if [ "3" == "${#dotcount}" ];then
+        export ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION=${ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION%.*}
+    else
+        export ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION=$ORG_HYPERLEDGER_FABRIC_SDKTEST_VERSION
+    fi
 fi
 
 case "$ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION" in
-"1.0")
+1.0)
     export ORG_HYPERLEDGER_FABRIC_SDKTEST_INTEGRATIONTESTS_CLIENT_AUTH_REQUIRED=false
     #Options starting fabric-ca in docker-compose.yaml which are not supported on v1.0
     export V11_IDENTITIES_ALLOWREMOVE=""
@@ -59,42 +71,41 @@ case "$ORG_HYPERLEDGER_FABRIC_SDKTEST_FIXVERSION" in
     export IMAGE_TAG_FABRIC=:x86_64-1.0.6
     export IMAGE_TAG_FABRIC_CA=:x86_64-1.0.6
     # set which Fabric  generated configuations is used.
-    export FAB_CONFIG_GEN_VERS="v1.0"
+    export FAB_CONFIG_GEN_VERS=v1.0
     ;;
-"1.1" )
-   export IMAGE_TAG_FABRIC=:x86_64-1.1.1
-   export IMAGE_TAG_FABRIC_CA=:x86_64-1.1.1
-   export FAB_CONFIG_GEN_VERS="v1.1"
-   ;;
-"1.2" )
-   export IMAGE_TAG_FABRIC=:1.2.1
-   export IMAGE_TAG_FABRIC_CA=:1.2.1
-   export FAB_CONFIG_GEN_VERS="v1.2"
-   ;;
- "1.3" )
-   export IMAGE_TAG_FABRIC=:1.3.0
-   export IMAGE_TAG_FABRIC_CA=:1.3.0
-   export FAB_CONFIG_GEN_VERS="v1.3"
-   ;;
-"1.4" )
-   export IMAGE_TAG_FABRIC=:1.4
-   export IMAGE_TAG_FABRIC_CA=:1.4
-   export FAB_CONFIG_GEN_VERS="v1.3"  # not a copy/paste error :)
-   ;;
+1.1)
+    export IMAGE_TAG_FABRIC=:x86_64-1.1.1
+    export IMAGE_TAG_FABRIC_CA=:x86_64-1.1.1
+    export FAB_CONFIG_GEN_VERS=v1.1
+    ;;
+1.2)
+    export IMAGE_TAG_FABRIC=:1.2.1
+    export IMAGE_TAG_FABRIC_CA=:1.2.1
+    export FAB_CONFIG_GEN_VERS=v1.2
+    ;;
+1.3)
+    export IMAGE_TAG_FABRIC=:1.3.0
+    export IMAGE_TAG_FABRIC_CA=:1.3.0
+    export FAB_CONFIG_GEN_VERS=v1.3
+    ;;
+1.4 )
+    export IMAGE_TAG_FABRIC=:1.4
+    export IMAGE_TAG_FABRIC_CA=:1.4
+    export FAB_CONFIG_GEN_VERS=v1.3  # not a copy/paste error :)
+    ;;
 *)
-#export FAB_CONFIG_GEN_VERS="v1.3"
+    #export FAB_CONFIG_GEN_VERS="v1.3"
     # cleans out an existing imgages...
-#(docker images -qa | sort | uniq | xargs docker rmi -f) || true
-#(docker images -qa | sort | uniq | xargs docker rmi -f) || true
-#(docker images -qa | sort | uniq | xargs docker rmi -f) || true
+    #(docker images -qa | sort | uniq | xargs docker rmi -f) || true
+    #(docker images -qa | sort | uniq | xargs docker rmi -f) || true
+    #(docker images -qa | sort | uniq | xargs docker rmi -f) || true
 
-#everything just defaults for latest (v1.1)
-#unset to use what's in docker's .env file.
-unset IMAGE_TAG_FABRIC
-unset IMAGE_TAG_FABRIC_CA
+    #everything just defaults for latest (v1.1)
+    #unset to use what's in docker's .env file.
+    unset IMAGE_TAG_FABRIC
+    unset IMAGE_TAG_FABRIC_CA
     ;;
 esac
-
 
 echo "environment:--------------------"
 env | sort
@@ -106,22 +117,25 @@ echo "mvn version:--------------------"
 mvn --version
 echo "---------------------------------"
 
-cd $WD/src/test/fixture/sdkintegration
-./fabric.sh restart >dockerlogfile.log 2>&1 &
-sleep 5; #give it this much to start.
+(cd src/test/fixture/sdkintegration
+    ./fabric.sh restart > dockerlogfile.log 2>&1 &
+    # Wait for docker-compose to start
+    sleep 5)
 
-cd $WD
-
-i=0
-
-#wait till we get at least one peer started other should not be far behind.
-until [ "`docker inspect -f {{.State.Running}} peer1.org2.example.com`" == "true" ]  || [ $i -gt 60 ]; do
-   i=$((i + 1))
-   echo "Waiting.. $i"
-   sleep 10;
-done;
-
-sleep 15 # some more time just for the other services .. this should be overkill.
+# Wait till at least one peer starts, the others should not be far behind
+for ((i=0; ; i++)); do
+    echo "Waiting.. $((i*10)) secs"
+    sleep 10
+    if docker inspect -f "{{.State.Running}}" peer1.org2.example.com > /dev/null; then
+        break
+    fi
+    if ((i >= 60)); then
+        echo "Failed to start..."
+        exit 1
+    fi
+done
+echo -n "Waiting for all peers to start..."
+sleep 15 # Wait for all peers to start .. this should be overkill
 
 docker images
 docker ps -a
