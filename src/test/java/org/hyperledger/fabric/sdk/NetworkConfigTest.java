@@ -299,15 +299,10 @@ public class NetworkConfigTest {
             Properties properties = peer.getProperties();
 
             assertNotNull(properties);
-            // check for default properties
-            Object[] o = (Object[]) properties.get("grpc.NettyChannelBuilderOption.keepAliveTime");
-            assertEquals(o[0], 120000L);
+            assertNull(properties.get("grpc.NettyChannelBuilderOption.keepAliveTime"));
+            assertNull(properties.get("grpc.NettyChannelBuilderOption.keepAliveTimeout"));
+            assertNull(properties.get("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls"));
 
-            o = (Object[]) properties.get("grpc.NettyChannelBuilderOption.keepAliveTimeout");
-            assertEquals(o[0], 20000L);
-
-            o = (Object[]) properties.get("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls");
-            assertEquals(o[0], true);
         }
 
     }

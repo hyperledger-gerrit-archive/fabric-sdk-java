@@ -152,26 +152,6 @@ public class HFClient {
     }
 
     /**
-     * Set sensible default grpc properties for newPeer and newOrderer.  Only sets values
-     * if they don't already exist.
-     * @param props The properties object to apply defaults to
-     */
-    private void setDefaultProperties(Properties props) {
-        if (!props.containsKey("grpc.NettyChannelBuilderOption.keepAliveTime")) {
-            props.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[] {2L, TimeUnit.MINUTES});
-        }
-        if (!props.containsKey("grpc.NettyChannelBuilderOption.keepAliveTimeout")) {
-            props.put("grpc.NettyChannelBuilderOption.keepAliveTimeout", new Object[] {20L, TimeUnit.SECONDS});
-        }
-        if (!props.containsKey("grpc.NettyChannelBuilderOption.keepAliveTime")) {
-            props.put("grpc.NettyChannelBuilderOption.keepAliveTime", new Object[] {2L, TimeUnit.MINUTES});
-        }
-        if (!props.containsKey("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls")) {
-            props.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls",  new Object[] {true});
-        }
-    }
-
-    /**
      * Configures a channel based on information loaded from a Network Config file.
      * Note that it is up to the caller to initialize the returned channel.
      *
@@ -414,7 +394,6 @@ public class HFClient {
 
     public Peer newPeer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
         clientCheck();
-        setDefaultProperties(properties);
         return Peer.createNewInstance(name, grpcURL, properties);
     }
 
@@ -429,7 +408,7 @@ public class HFClient {
 
     public Peer newPeer(String name, String grpcURL) throws InvalidArgumentException {
         clientCheck();
-        return Peer.createNewInstance(name, grpcURL, new Properties());
+        return Peer.createNewInstance(name, grpcURL, null);
     }
 
     /**
@@ -717,7 +696,7 @@ public class HFClient {
 
     public Orderer newOrderer(String name, String grpcURL) throws InvalidArgumentException {
         clientCheck();
-        return newOrderer(name, grpcURL, new Properties());
+        return newOrderer(name, grpcURL, null);
     }
 
     /**
@@ -766,7 +745,6 @@ public class HFClient {
 
     public Orderer newOrderer(String name, String grpcURL, Properties properties) throws InvalidArgumentException {
         clientCheck();
-        setDefaultProperties(properties);
         return Orderer.createNewInstance(name, grpcURL, properties);
     }
 
