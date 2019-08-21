@@ -327,7 +327,7 @@ public class LifecycleChaincodePackage {
         if (path == null) {
             path = "";
         }
-        return format("{\"Path\":%s,\"Type\":\"%s\",\"Label\":%s}", new Gson().toJson(path), type.toPackageName(), new Gson().toJson(label)).getBytes(UTF_8);
+        return format("{\"path\":%s,\"type\":\"%s\",\"label\":%s}", new Gson().toJson(path), type.toPackageName(), new Gson().toJson(label)).getBytes(UTF_8);
     }
 
     public JsonObject getMetaInfJson() throws IOException {
