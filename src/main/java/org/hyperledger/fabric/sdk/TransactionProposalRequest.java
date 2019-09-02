@@ -41,7 +41,7 @@ public class TransactionProposalRequest extends TransactionRequest {
     public void setTransientMap(Map<String, byte[]> transientMap) throws InvalidArgumentException {
         if (null == transientMap) {
 
-            throw new InvalidArgumentException("Transient map may not be set to null");
+            throw new InvalidArgumentException("Transient map can not be set to null");
 
         }
         this.transientMap = transientMap;
