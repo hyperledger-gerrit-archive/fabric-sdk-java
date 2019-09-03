@@ -337,9 +337,6 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>${javadoc.version}</version>
                 <configuration>
-                    <excludePackageNames>
-                        org.hyperledger.fabric_ca.sdk.helper:org.hyperledger.fabric.protos.*:org.hyperledger.fabric.sdk.helper:org.hyperledger.fabric.sdk.transaction:org.hyperledger.fabric.sdk.security:org.hyperledger.fabric.sdk.idemix
-                    </excludePackageNames>
                     <show>public</show>
                     <doctitle>Hyperledger Fabric Java SDK</doctitle>
                     <nohelp>true</nohelp>
@@ -377,11 +374,6 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco.version}</version>
-                <configuration>
-                    <excludes>
-                        <exclude>**/org/hyperledger/fabric/protos/**</exclude>
-                    </excludes>
-                </configuration>
                 <executions>
                     <execution>
                         <id>default-prepare-agent</id>
@@ -656,9 +648,6 @@
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <version>${javadoc.version}</version>
                         <configuration>
-                            <excludePackageNames>
-                                org.hyperledger.fabric_ca.sdk.helper:org.hyperledger.fabric.protos.*:org.hyperledger.fabric.sdk.helper:org.hyperledger.fabric.sdk.transaction:org.hyperledger.fabric.sdk.security
-                            </excludePackageNames>
                             <show>public</show>
                             <doctitle>Hyperledger Fabric Java SDK</doctitle>
                             <nohelp>true</nohelp>
