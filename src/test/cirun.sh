@@ -128,6 +128,6 @@ docker ps -a
 export ORG_HYPERLEDGER_FABRIC_SDK_DIAGNOSTICFILEDIR=target/diagDump
 #export MAVEN_OPTS="-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -DforkCount=0"
 export MAVEN_OPTS="-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-mvn -B clean install -DskipITs=false -Dmaven.test.failure.ignore=false javadoc:javadoc
+mvn -B clean install -DskipITs=false -Dmaven.test.failure.ignore=false javadoc:javadoc || exit $?
 docker images
 docker ps -a
