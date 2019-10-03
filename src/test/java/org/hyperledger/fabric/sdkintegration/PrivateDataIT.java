@@ -18,6 +18,7 @@ package org.hyperledger.fabric.sdkintegration;
 
 import java.io.File;
 import java.net.MalformedURLException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
@@ -73,7 +74,6 @@ public class PrivateDataIT {
     private static final boolean IS_FABRIC_V10 = testConfig.isRunningAgainstFabric10();
     private static final String TEST_ADMIN_NAME = "admin";
     private static final String TESTUSER_1_NAME = "user1";
-    private static final String TEST_FIXTURES_PATH = "src/test/fixture";
 
     private static final String BAR_CHANNEL_NAME = "bar";
     private final TestConfigHelper configHelper = new TestConfigHelper();
@@ -83,7 +83,7 @@ public class PrivateDataIT {
     String testName = "PrivateDataIT";
 
     //src/test/fixture/sdkintegration/gocc/samplePrivateData/src/github.com/private_data_cc/private_data_cc.go
-    String CHAIN_CODE_FILEPATH = "sdkintegration/gocc/samplePrivateData";
+    Path CHAIN_CODE_FILEPATH = IntegrationSuite.getGoChaincodePath("samplePrivateData");
     String CHAIN_CODE_NAME = "private_data_cc1_go";
     String CHAIN_CODE_PATH = "github.com/private_data_cc";
 
@@ -221,7 +221,7 @@ public class PrivateDataIT {
             InstallProposalRequest installProposalRequest = client.newInstallProposalRequest();
             installProposalRequest.setChaincodeID(chaincodeID);
             ////For GO language and serving just a single user, chaincodeSource is mostly likely the users GOPATH
-            installProposalRequest.setChaincodeSourceLocation(Paths.get(TEST_FIXTURES_PATH, CHAIN_CODE_FILEPATH).toFile());
+            installProposalRequest.setChaincodeSourceLocation(CHAIN_CODE_FILEPATH.toFile());
             installProposalRequest.setChaincodeVersion(CHAIN_CODE_VERSION);
             installProposalRequest.setProposalWaitTime(testConfig.getProposalWaitTime());
             installProposalRequest.setChaincodeLanguage(CHAIN_CODE_LANG);

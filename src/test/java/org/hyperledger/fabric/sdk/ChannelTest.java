@@ -21,6 +21,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,6 +54,7 @@ import org.hyperledger.fabric.sdk.security.CryptoSuite;
 import org.hyperledger.fabric.sdk.testutils.TestUtils;
 import org.hyperledger.fabric.sdk.transaction.InstallProposalBuilder;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
+import org.hyperledger.fabric.sdkintegration.IntegrationSuite;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -892,7 +894,7 @@ public class ChannelTest {
         hfclient.queryChannels(peer);
     }
 
-    private static final String SAMPLE_GO_CC = "src/test/fixture/sdkintegration/gocc/sample1";
+    private static final Path SAMPLE_GO_CC = IntegrationSuite.getGoChaincodePath("sample1");
 
     @Test
     public void testProposalBuilderWithMetaInf() throws Exception {
@@ -900,7 +902,7 @@ public class ChannelTest {
 
         installProposalBuilder.setChaincodeLanguage(TransactionRequest.Type.GO_LANG);
         installProposalBuilder.chaincodePath("github.com/example_cc");
-        installProposalBuilder.setChaincodeSource(new File(SAMPLE_GO_CC));
+        installProposalBuilder.setChaincodeSource(SAMPLE_GO_CC.toFile());
         installProposalBuilder.chaincodeName("example_cc.go");
         installProposalBuilder.setChaincodeMetaInfLocation(new File("src/test/fixture/meta-infs/test1"));
         installProposalBuilder.chaincodeVersion("1");
@@ -925,7 +927,7 @@ public class ChannelTest {
 
         ArrayList<String> expect = new ArrayList<>();
         expect.add("META-INF/statedb/couchdb/indexes/MockFakeIndex.json");
-        Files.walk(Paths.get(SAMPLE_GO_CC))
+        Files.walk(SAMPLE_GO_CC)
                 .filter(Files::isRegularFile)
                 .forEach((t) -> {
                     String filePath = t.toString();
@@ -941,7 +943,7 @@ public class ChannelTest {
 
         installProposalBuilder.setChaincodeLanguage(TransactionRequest.Type.GO_LANG);
         installProposalBuilder.chaincodePath("github.com/example_cc");
-        installProposalBuilder.setChaincodeSource(new File(SAMPLE_GO_CC));
+        installProposalBuilder.setChaincodeSource(SAMPLE_GO_CC.toFile());
         installProposalBuilder.chaincodeName("example_cc.go");
         installProposalBuilder.chaincodeVersion("1");
 
@@ -961,7 +963,7 @@ public class ChannelTest {
         ArrayList tarBytesToEntryArrayList = tarBytesToEntryArrayList(codePackage.toByteArray());
 
         ArrayList<String> expect = new ArrayList<>();
-        Files.walk(Paths.get(SAMPLE_GO_CC))
+        Files.walk(SAMPLE_GO_CC)
                 .filter(Files::isRegularFile)
                 .forEach((t) -> {
                     String filePath = t.toString();
@@ -980,7 +982,7 @@ public class ChannelTest {
 
         installProposalBuilder.setChaincodeLanguage(TransactionRequest.Type.GO_LANG);
         installProposalBuilder.chaincodePath("github.com/example_cc");
-        installProposalBuilder.setChaincodeSource(new File(SAMPLE_GO_CC));
+        installProposalBuilder.setChaincodeSource(SAMPLE_GO_CC.toFile());
         installProposalBuilder.chaincodeName("example_cc.go");
         installProposalBuilder.chaincodeVersion("1");
         installProposalBuilder.setChaincodeMetaInfLocation(new File("src/test/fixture/meta-infs/test1/META-INF")); // points into which is not what's expected.
@@ -1002,7 +1004,7 @@ public class ChannelTest {
 
         installProposalBuilder.setChaincodeLanguage(TransactionRequest.Type.GO_LANG);
         installProposalBuilder.chaincodePath("github.com/example_cc");
-        installProposalBuilder.setChaincodeSource(new File(SAMPLE_GO_CC));
+        installProposalBuilder.setChaincodeSource(SAMPLE_GO_CC.toFile());
         installProposalBuilder.chaincodeName("example_cc.go");
         installProposalBuilder.chaincodeVersion("1");
         installProposalBuilder.setChaincodeMetaInfLocation(new File("/tmp/fdsjfksfj/fjksfjskd/fjskfjdsk/should never exist")); // points into which is not what's expected.
@@ -1081,7 +1083,7 @@ public class ChannelTest {
 
         installProposalBuilder.setChaincodeLanguage(TransactionRequest.Type.GO_LANG);
         installProposalBuilder.chaincodePath("github.com/example_cc");
-        installProposalBuilder.setChaincodeSource(new File(SAMPLE_GO_CC));
+        installProposalBuilder.setChaincodeSource(SAMPLE_GO_CC.toFile());
         installProposalBuilder.chaincodeName("example_cc.go");
         installProposalBuilder.chaincodeVersion("1");
         installProposalBuilder.setChaincodeMetaInfLocation(new File("src/test/fixture/meta-infs/emptyMetaInf")); // points into which is not what's expected.

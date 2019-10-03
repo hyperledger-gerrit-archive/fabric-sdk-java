@@ -26,6 +26,7 @@ import javax.json.JsonObject;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.hyperledger.fabric.sdkintegration.IntegrationSuite;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,7 +38,9 @@ public class LifecycleChaincodePackageTest {
 
     @Test
     public void testGoLangCode() throws Exception {
-        LifecycleChaincodePackage lifecycleChaincodePackage = LifecycleChaincodePackage.fromSource("mylabel", Paths.get("src/test/fixture/sdkintegration/gocc/sample1"),
+        LifecycleChaincodePackage lifecycleChaincodePackage = LifecycleChaincodePackage.fromSource(
+                "mylabel",
+                IntegrationSuite.getGoChaincodePath("sample1"),
                 TransactionRequest.Type.GO_LANG,
                 "github.com/example_cc", Paths.get("src/test/fixture/meta-infs/end2endit"));
 
