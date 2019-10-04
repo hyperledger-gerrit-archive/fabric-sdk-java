@@ -1,0 +1,7 @@
+Code-Review+2: Andrew Coleman <andrew_coleman@uk.ibm.com>
+Verified+1: Andrew Coleman <andrew_coleman@uk.ibm.com>
+Submitted-by: Andrew Coleman <andrew_coleman@uk.ibm.com>
+Submitted-at: Fri, 04 Oct 2019 13:00:53 +0000
+Reviewed-on: https://gerrit.hyperledger.org/r/c/fabric-sdk-java/+/33847
+Project: fabric-sdk-java
+Branch: refs/heads/master
