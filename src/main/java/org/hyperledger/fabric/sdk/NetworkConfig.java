@@ -854,7 +854,7 @@ public class NetworkConfig {
             value = props.getProperty("grpc.keepalive_without_calls");
             if (null != value) {
                 props.remove("grpc.keepalive_without_calls");
-                props.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls", new Object[] { new Boolean(value) });
+                props.put("grpc.NettyChannelBuilderOption.keepAliveWithoutCalls", new Object[] {new Boolean(value)});
             }
         }
 
