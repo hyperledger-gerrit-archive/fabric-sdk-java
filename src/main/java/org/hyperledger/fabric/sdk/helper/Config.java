@@ -102,6 +102,7 @@ public class Config {
 
     public static final String SERVICE_DISCOVER_FREQ_SECONDS = "org.hyperledger.fabric.sdk.service_discovery.frequency_sec";
     public static final String SERVICE_DISCOVER_WAIT_TIME = "org.hyperledger.fabric.sdk.service_discovery.discovery_wait_time";
+    public static final String SERVICE_DISCOVER_AS_LOCALHOST = "org.hyperledger.fabric.sdk.service_discovery.as_localhost";
 
     public static final String LIFECYCLE_CHAINCODE_ENDORSEMENT_PLUGIN = "org.hyperledger.fabric.sdk.lifecycle.chaincode_endorsement_plugin"; //ORG_HYPERLEDGER_FABRIC_SDK_LIFECYCLE_CHAINCODE_ENDORSEMENT_PLUGIN
 
@@ -198,6 +199,7 @@ public class Config {
 
             defaultProperty(SERVICE_DISCOVER_FREQ_SECONDS, "120");
             defaultProperty(SERVICE_DISCOVER_WAIT_TIME, "5000");
+            defaultProperty(SERVICE_DISCOVER_AS_LOCALHOST, "false");
             defaultProperty(LIFECYCLE_CHAINCODE_ENDORSEMENT_PLUGIN, DEFAULT_NULL);
             defaultProperty(LIFECYCLE_CHAINCODE_VALIDATION_PLUGIN, DEFAULT_NULL);
             defaultProperty(LIFECYCLE_INITREQUIREDDEFAULT, DEFAULT_NULL);
@@ -472,6 +474,10 @@ public class Config {
      */
     public int getServiceDiscoveryWaitTime() {
         return Integer.parseInt(getProperty(SERVICE_DISCOVER_WAIT_TIME));
+    }
+
+    public boolean discoverAsLocalhost() {
+        return Boolean.parseBoolean(getProperty(SERVICE_DISCOVER_AS_LOCALHOST));
     }
 
     public String getAsymmetricKeyType() {
