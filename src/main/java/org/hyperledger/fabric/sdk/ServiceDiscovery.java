@@ -450,7 +450,6 @@ public class ServiceDiscovery {
         ServiceDiscoveryException serviceDiscoveryException = null;
 
         for (Peer serviceDiscoveryPeer : speers) {
-            serviceDiscoveryException = null;
             try {
                 URI serviceDiscoveryPeerURI = URI.create(serviceDiscoveryPeer.getUrl());
                 boolean isTLS = serviceDiscoveryPeerURI.getScheme().equals("grpcs");
