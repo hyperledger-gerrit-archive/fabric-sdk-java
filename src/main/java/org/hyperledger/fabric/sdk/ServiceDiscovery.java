@@ -1318,12 +1318,11 @@ public class ServiceDiscovery {
                     lc.add(new ServiceDiscoveryChaincodeCalls(s));
                     lcc.add(lc);
                 });
+                channel.sdUpdate(lsdNetwork);
                 chaindcodeMap = discoverEndorserEndpoints(transactionContext.retryTransactionSameContext(), lcc);
                 if (channel.isShutdown()) {
                     return null;
                 }
-
-                channel.sdUpdate(lsdNetwork);
             }
 
             return lsdNetwork;
